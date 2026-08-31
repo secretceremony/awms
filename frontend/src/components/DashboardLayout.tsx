@@ -15,7 +15,8 @@ import {
   LogOut,
   Menu,
   X,
-  User
+  User,
+  Ruler
 } from 'lucide-react';
 import './DashboardLayout.css';
 
@@ -42,6 +43,7 @@ export const DashboardLayout = () => {
     { type: 'header', label: 'Master Data' },
     { to: '/warehouses', label: 'Warehouses', icon: Warehouse },
     { to: '/customers', label: 'Customers', icon: Users },
+    { to: '/units', label: 'Units', icon: Ruler },
     { type: 'header', label: 'Deliveries' },
     { to: '/delivery-orders', label: 'Delivery Orders', icon: Truck },
     { to: '/shipping-labels', label: 'Shipping Labels', icon: Tag },

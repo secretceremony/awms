@@ -9,6 +9,7 @@ import { Incoming } from './pages/Inventory/Incoming.js';
 import { Outgoing } from './pages/Inventory/Outgoing.js';
 import { Warehouses } from './pages/Warehouses.js';
 import { Customers } from './pages/Customers.js';
+import { Units } from './pages/Units.js';
 import { Orders } from './pages/Delivery/Orders.js';
 import { Labels } from './pages/Delivery/Labels.js';
 import { Logs } from './pages/Logs.js';
@@ -32,6 +33,7 @@ function App() {
               <Route path="/inventory/outgoing" element={<Outgoing />} />
               <Route path="/warehouses" element={<Warehouses />} />
               <Route path="/customers" element={<Customers />} />
+              <Route path="/units" element={<Units />} />
               <Route path="/delivery-orders" element={<Orders />} />
               <Route path="/shipping-labels" element={<Labels />} />
               <Route path="/logs" element={<Logs />} />
