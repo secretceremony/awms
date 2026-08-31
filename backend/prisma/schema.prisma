@@ -1,0 +1,340 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN_LOGISTICS
+  USER
+}
+
+enum TrackingType {
+  SERIALIZED
+  BULK
+}
+
+enum SerialStatus {
+  IN_STOCK
+  DELIVERED
+  MOVED
+}
+
+enum MovementType {
+  INITIAL
+  INCOMING
+  OUTGOING
+  RETURN
+  ADJUSTMENT
+}
+
+enum OrderStatus {
+  DRAFT
+  APPROVED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(USER)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  stockMovements StockMovement[]
+  deliveryOrders DeliveryOrder[]
+  auditLogs      AuditLog[]
+
+  @@map("users")
+}
+
+model Unit {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  items Item[]
+
+  @@map("units")
+}
+
+model Warehouse {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  location    String
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  warehouseStocks           WarehouseStock[]
+  sourceStockMovements      StockMovement[]  @relation("sourceWarehouseRelation")
+  destinationStockMovements StockMovement[]  @relation("destinationWarehouseRelation")
+  deliveryOrders            DeliveryOrder[]
+
+  @@map("warehouses")
+}
+
+model Customer {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String?
+  phone     String?
+  address   String?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  projects       Project[]
+  deliveryOrders DeliveryOrder[]
+
+  @@map("customers")
+}
+
+model Project {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  customerId  Int      @map("customer_id")
+  customer    Customer @relation(fields: [customerId], references: [id])
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  projectStocks  ProjectStock[]
+  stockMovements StockMovement[]
+  deliveryOrders DeliveryOrder[]
+
+  @@index([customerId])
+  @@map("projects")
+}
+
+model Item {
+  id           Int          @id @default(autoincrement())
+  sku          String       @unique
+  name         String
+  description  String?
+  unitId       Int          @map("unit_id")
+  unit         Unit         @relation(fields: [unitId], references: [id])
+  trackingType TrackingType @map("tracking_type")
+  isActive     Boolean      @default(true) @map("is_active")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  itemSerials        ItemSerial[]
+  warehouseStocks    WarehouseStock[]
+  projectStocks      ProjectStock[]
+  stockMovementItems StockMovementItem[]
+  deliveryOrderItems DeliveryOrderItem[]
+
+  @@index([unitId])
+  @@map("items")
+}
+
+model ItemSerial {
+  id           Int          @id @default(autoincrement())
+  serialNumber String       @unique @map("serial_number")
+  itemId       Int          @map("item_id")
+  item         Item         @relation(fields: [itemId], references: [id])
+  status       SerialStatus @default(IN_STOCK)
+  isActive     Boolean      @default(true) @map("is_active")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  movementSerials StockMovementItemSerial[]
+
+  @@index([itemId])
+  @@map("item_serials")
+}
+
+model WarehouseStock {
+  id          Int       @id @default(autoincrement())
+  warehouseId Int       @map("warehouse_id")
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  itemId      Int       @map("item_id")
+  item        Item      @relation(fields: [itemId], references: [id])
+  quantity    Int       @default(0)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@unique([warehouseId, itemId])
+  @@index([itemId])
+  @@map("warehouse_stocks")
+}
+
+model ProjectStock {
+  id        Int      @id @default(autoincrement())
+  projectId Int      @map("project_id")
+  project   Project  @relation(fields: [projectId], references: [id])
+  itemId    Int      @map("item_id")
+  item      Item     @relation(fields: [itemId], references: [id])
+  quantity  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([projectId, itemId])
+  @@index([itemId])
+  @@map("project_stocks")
+}
+
+model StockMovement {
+  id                     Int          @id @default(autoincrement())
+  movementNumber         String       @unique @map("movement_number")
+  movementType           MovementType @map("movement_type")
+  referenceNumber        String?      @map("reference_number")
+  sourceWarehouseId      Int?         @map("source_warehouse_id")
+  sourceWarehouse        Warehouse?   @relation("sourceWarehouseRelation", fields: [sourceWarehouseId], references: [id])
+  destinationWarehouseId Int?         @map("destination_warehouse_id")
+  destinationWarehouse   Warehouse?   @relation("destinationWarehouseRelation", fields: [destinationWarehouseId], references: [id])
+  projectId              Int?         @map("project_id")
+  project                Project?     @relation(fields: [projectId], references: [id])
+  createdById            Int          @map("created_by_id")
+  createdBy              User         @relation(fields: [createdById], references: [id])
+  createdAt              DateTime     @default(now()) @map("created_at")
+  updatedAt              DateTime     @updatedAt @map("updated_at")
+
+  items StockMovementItem[]
+
+  @@index([sourceWarehouseId])
+  @@index([destinationWarehouseId])
+  @@index([projectId])
+  @@index([createdById])
+  @@map("stock_movements")
+}
+
+model StockMovementItem {
+  id              Int           @id @default(autoincrement())
+  stockMovementId Int           @map("stock_movement_id")
+  stockMovement   StockMovement @relation(fields: [stockMovementId], references: [id])
+  itemId          Int           @map("item_id")
+  item            Item          @relation(fields: [itemId], references: [id])
+  quantity        Int
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  movementSerials StockMovementItemSerial[]
+
+  @@index([stockMovementId])
+  @@index([itemId])
+  @@map("stock_movement_items")
+}
+
+model StockMovementItemSerial {
+  id                  Int               @id @default(autoincrement())
+  stockMovementItemId Int               @map("stock_movement_item_id")
+  stockMovementItem   StockMovementItem @relation(fields: [stockMovementItemId], references: [id])
+  itemSerialId        Int               @map("item_serial_id")
+  itemSerial          ItemSerial        @relation(fields: [itemSerialId], references: [id])
+  createdAt           DateTime          @default(now()) @map("created_at")
+
+  @@unique([stockMovementItemId, itemSerialId])
+  @@index([itemSerialId])
+  @@map("stock_movement_item_serials")
+}
+
+model DeliveryOrder {
+  id                Int         @id @default(autoincrement())
+  doNumber          String      @unique @map("do_number")
+  date              DateTime
+  customerId        Int         @map("customer_id")
+  customer          Customer    @relation(fields: [customerId], references: [id])
+  projectId         Int?        @map("project_id")
+  project           Project?    @relation(fields: [projectId], references: [id])
+  sourceWarehouseId Int         @map("source_warehouse_id")
+  sourceWarehouse   Warehouse   @relation(fields: [sourceWarehouseId], references: [id])
+  status            OrderStatus @default(DRAFT)
+  createdById       Int         @map("created_by_id")
+  createdBy         User        @relation(fields: [createdById], references: [id])
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  items         DeliveryOrderItem[]
+  shippingLabel ShippingLabel?
+
+  @@index([customerId])
+  @@index([projectId])
+  @@index([sourceWarehouseId])
+  @@index([createdById])
+  @@map("delivery_orders")
+}
+
+model DeliveryOrderItem {
+  id              Int           @id @default(autoincrement())
+  deliveryOrderId Int           @map("delivery_order_id")
+  deliveryOrder   DeliveryOrder @relation(fields: [deliveryOrderId], references: [id])
+  itemId          Int           @map("item_id")
+  item            Item          @relation(fields: [itemId], references: [id])
+  quantity        Int
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@index([deliveryOrderId])
+  @@index([itemId])
+  @@map("delivery_order_items")
+}
+
+model ShippingLabel {
+  id              Int           @id @default(autoincrement())
+  deliveryOrderId Int           @unique @map("delivery_order_id")
+  deliveryOrder   DeliveryOrder @relation(fields: [deliveryOrderId], references: [id])
+  trackingNumber  String        @map("tracking_number")
+  carrier         String
+  shippingCost    Decimal       @map("shipping_cost") @db.Decimal(10, 2)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@map("shipping_labels")
+}
+
+model DoSequence {
+  id              Int      @id @default(autoincrement())
+  prefix          String   @unique
+  year            Int
+  month           Int
+  currentSequence Int      @default(0) @map("current_sequence")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("do_sequences")
+}
+
+model SystemSetting {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  value       String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?     @map("user_id")
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String
+  entityName String   @map("entity_name")
+  entityId   Int?     @map("entity_id")
+  payload    Json?
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("audit_logs")
+}

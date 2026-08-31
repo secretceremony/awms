@@ -1,0 +1,42 @@
+:root {
+  --bg-color: #F0F1F2;
+  --card-bg: #FFFFFF;
+  --card-border: #E5E7EB;
+  --text-primary: #1F2839;
+  --text-secondary: #6B7280;
+  --text-muted: #B5B8BF;
+  
+  --accent-navy: #1F2839;
+  --accent-dark-navy: #1B2436;
+  --accent-blue: #2250A1;
+  --accent-secondary-bg: #F8F8F9;
+  
+  --accent-green: #10B981;
+  --accent-red: #EF4444;
+  --accent-yellow: #F59E0B;
+  
+  --border-radius: 8px;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: light;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background-color: var(--bg-color);
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
