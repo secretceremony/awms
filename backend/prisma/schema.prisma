@@ -96,6 +96,8 @@ model Warehouse {
 model Customer {
   id        Int      @id @default(autoincrement())
   name      String
+  code      String?  @unique
+  attnName  String?  @map("attn_name")
   email     String?
   phone     String?
   address   String?
