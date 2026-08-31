@@ -39,6 +39,27 @@ async function main() {
     });
 
     console.log('Seeded Admin Logistics successfully:', admin.email);
+
+    const defaultUnits = [
+      { name: 'Set', symbol: 'set' },
+      { name: 'Roll', symbol: 'roll' },
+      { name: 'Pcs', symbol: 'pcs' },
+      { name: 'Unit', symbol: 'unit' },
+      { name: 'Meter', symbol: 'm' },
+    ];
+
+    for (const u of defaultUnits) {
+      await prisma.unit.upsert({
+        where: { name: u.name },
+        update: {},
+        create: {
+          name: u.name,
+          symbol: u.symbol,
+          isActive: true,
+        },
+      });
+    }
+    console.log('Seeded default units successfully');
   } finally {
     await pool.end();
   }
