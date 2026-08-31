@@ -17,7 +17,8 @@ async function main() {
 
   try {
     const adminEmail = 'admin.logistics@alssa.com';
-    const hashedPassword = await bcrypt.hash('securepassword123', 10);
+    const rawPassword = process.env.SEED_ADMIN_PASSWORD || 'AlssaAdmin2026!';
+    const hashedPassword = await bcrypt.hash(rawPassword, 10);
     
     // Seed 1 Admin Logistics
     const admin = await prisma.user.upsert({
