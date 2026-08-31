@@ -77,6 +77,8 @@ model Unit {
 model Warehouse {
   id          Int      @id @default(autoincrement())
   name        String   @unique
+  city        String
+  cityCode    String   @map("city_code")
   location    String
   description String?
   isActive    Boolean  @default(true) @map("is_active")
