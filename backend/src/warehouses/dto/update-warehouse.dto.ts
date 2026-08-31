@@ -13,11 +13,6 @@ export class UpdateWarehouseDto {
 
   @IsString()
   @IsOptional()
-  @MaxLength(10)
-  cityCode?: string;
-
-  @IsString()
-  @IsOptional()
   @MaxLength(255)
   location?: string;
 

@@ -85,7 +85,6 @@ export const Warehouses = () => {
       const payload = {
         name: formData.name,
         city: formData.city,
-        cityCode: formData.cityCode,
         location: formData.location,
         description: formData.description || undefined,
       };
@@ -494,13 +493,12 @@ export const Warehouses = () => {
                       marginBottom: '6px',
                     }}
                   >
-                    City Code *
+                    City Code
                   </label>
                   <input
                     type="text"
-                    required
-                    value={formData.cityCode}
-                    onChange={(e) => setFormData({ ...formData, cityCode: e.target.value })}
+                    disabled
+                    value={editingWarehouse ? formData.cityCode : 'Generated automatically'}
                     style={{
                       width: '100%',
                       padding: '8px 12px',
@@ -508,6 +506,9 @@ export const Warehouses = () => {
                       borderRadius: '6px',
                       fontSize: '14px',
                       boxSizing: 'border-box',
+                      backgroundColor: '#F3F4F6',
+                      color: '#9CA3AF',
+                      cursor: 'not-allowed',
                     }}
                   />
                 </div>

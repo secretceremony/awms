@@ -12,11 +12,6 @@ export class CreateWarehouseDto {
   city!: string;
 
   @IsString()
-  @IsNotEmpty({ message: 'City code is required' })
-  @MaxLength(10)
-  cityCode!: string;
-
-  @IsString()
   @IsNotEmpty({ message: 'Location is required' })
   @MaxLength(255)
   location!: string;

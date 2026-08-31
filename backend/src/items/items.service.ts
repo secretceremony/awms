@@ -32,7 +32,6 @@ export class ItemsService {
         OR: [
           { sku: { contains: search, mode: 'insensitive' } },
           { name: { contains: search, mode: 'insensitive' } },
-          { description: { contains: search, mode: 'insensitive' } },
         ],
       }),
     };

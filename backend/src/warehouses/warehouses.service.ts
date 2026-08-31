@@ -26,7 +26,7 @@ export class WarehousesService {
   async create(createWarehouseDto: CreateWarehouseDto, userId: number) {
     const name = createWarehouseDto.name.trim();
     const city = createWarehouseDto.city.trim();
-    const cityCode = createWarehouseDto.cityCode.trim();
+    const cityCode = await this.generateCityCode(city);
     const location = createWarehouseDto.location.trim();
     const description = createWarehouseDto.description?.trim();
 
@@ -131,9 +131,33 @@ export class WarehousesService {
 
     const name = updateWarehouseDto.name?.trim();
     const city = updateWarehouseDto.city?.trim();
-    const cityCode = updateWarehouseDto.cityCode?.trim();
     const location = updateWarehouseDto.location?.trim();
     const description = updateWarehouseDto.description?.trim();
+
+    let cityCode = warehouse.cityCode;
+    if (city && city !== warehouse.city) {
+      const hasHistory = await this.prisma.warehouse.findUnique({
+        where: { id },
+        include: {
+          _count: {
+            select: {
+              sourceStockMovements: true,
+              destinationStockMovements: true,
+              deliveryOrders: true,
+            },
+          },
+        },
+      });
+      const isReferenced = hasHistory
+        ? hasHistory._count.sourceStockMovements > 0 ||
+          hasHistory._count.destinationStockMovements > 0 ||
+          hasHistory._count.deliveryOrders > 0
+        : false;
+
+      if (!isReferenced) {
+        cityCode = await this.generateCityCode(city);
+      }
+    }
 
     // Check unique name if updated
     if (name && name !== warehouse.name) {
@@ -150,7 +174,7 @@ export class WarehousesService {
       data: {
         ...(name && { name }),
         ...(city && { city }),
-        ...(cityCode && { cityCode }),
+        cityCode,
         ...(location && { location }),
         ...(description !== undefined && { description }),
       },
@@ -282,5 +306,67 @@ export class WarehousesService {
     }
 
     return createPaginationResult(data, total, page, limit);
+  }
+
+  private async generateCityCode(city: string): Promise<string> {
+    const trimmedCity = city.trim();
+    // 1. Same city check
+    const existingSameCity = await this.prisma.warehouse.findFirst({
+      where: { city: { equals: trimmedCity, mode: 'insensitive' } },
+    });
+    if (existingSameCity && existingSameCity.cityCode) {
+      return existingSameCity.cityCode;
+    }
+
+    const cleanCity = trimmedCity.toUpperCase().replace(/[^A-Z]/g, '');
+    if (cleanCity.length < 3) {
+      // Pad with 'X'
+      const base = (cleanCity + 'XXX').substring(0, 2);
+      for (let i = 1; i <= 9; i++) {
+        const candidate = `${base}${i}`;
+        const conflict = await this.prisma.warehouse.findFirst({
+          where: { cityCode: candidate },
+        });
+        if (!conflict) return candidate;
+      }
+      throw new BadRequestException('Could not generate unique city code');
+    }
+
+    // Try first 3 letters
+    const opt1 = cleanCity.substring(0, 3);
+    const conflict1 = await this.prisma.warehouse.findFirst({
+      where: { cityCode: opt1 },
+    });
+    if (!conflict1) return opt1;
+
+    // Try some combinations of 3 characters:
+    // 0, 1, 3
+    if (cleanCity.length >= 4) {
+      const opt = cleanCity[0] + cleanCity[1] + cleanCity[3];
+      const conflict = await this.prisma.warehouse.findFirst({
+        where: { cityCode: opt },
+      });
+      if (!conflict) return opt;
+    }
+    // 0, 2, 3
+    if (cleanCity.length >= 4) {
+      const opt = cleanCity[0] + cleanCity[2] + cleanCity[3];
+      const conflict = await this.prisma.warehouse.findFirst({
+        where: { cityCode: opt },
+      });
+      if (!conflict) return opt;
+    }
+
+    // Fallback: 2 letters + digit
+    const base = cleanCity.substring(0, 2);
+    for (let i = 1; i <= 9; i++) {
+      const candidate = `${base}${i}`;
+      const conflict = await this.prisma.warehouse.findFirst({
+        where: { cityCode: candidate },
+      });
+      if (!conflict) return candidate;
+    }
+
+    throw new BadRequestException('Could not generate unique city code');
   }
 }

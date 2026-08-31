@@ -10,6 +10,7 @@ describe('WarehousesService', () => {
   const mockPrisma = {
     warehouse: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
       findMany: jest.fn(),
@@ -47,19 +48,19 @@ describe('WarehousesService', () => {
         id: 1,
         name: 'Main WH',
         city: 'Jakarta',
-        cityCode: 'JKT',
+        cityCode: 'JAK',
         location: 'Cawang',
         description: 'Main hub',
         isActive: true,
       };
       mockPrisma.warehouse.findUnique.mockResolvedValue(null);
+      mockPrisma.warehouse.findFirst.mockResolvedValue(null);
       mockPrisma.warehouse.create.mockResolvedValue(mockWarehouse);
 
       const result = await service.create(
         {
           name: 'Main WH',
           city: 'Jakarta',
-          cityCode: 'JKT',
           location: 'Cawang',
           description: 'Main hub',
         },
@@ -70,7 +71,7 @@ describe('WarehousesService', () => {
         data: {
           name: 'Main WH',
           city: 'Jakarta',
-          cityCode: 'JKT',
+          cityCode: 'JAK',
           location: 'Cawang',
           description: 'Main hub',
           isActive: true,
