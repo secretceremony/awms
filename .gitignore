@@ -2,9 +2,12 @@ node_modules/
 dist/
 .DS_Store
 *.log
-backend/.env
-frontend/.env.development.local
-frontend/.env.production.local
-frontend/.env.local
+
+# Ignore local env files
+.env
+.env.*
+!.env.example
+
+# Untracked documentation files
 agents.md
 PROGRESS.md

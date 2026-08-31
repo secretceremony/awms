@@ -17,7 +17,10 @@ async function main() {
 
   try {
     const adminEmail = 'admin.logistics@alssa.com';
-    const rawPassword = process.env.SEED_ADMIN_PASSWORD || 'AlssaAdmin2026!';
+    const rawPassword = process.env.SEED_ADMIN_PASSWORD;
+    if (!rawPassword) {
+      throw new Error('SEED_ADMIN_PASSWORD environment variable is not defined');
+    }
     const hashedPassword = await bcrypt.hash(rawPassword, 10);
     
     // Seed 1 Admin Logistics
