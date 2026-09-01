@@ -46,8 +46,8 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
           apiClient.get('/items', { params: { limit: 100 } }),
           apiClient.get('/warehouses', { params: { limit: 100, status: 'active' } }),
         ]);
-        setItems(itemsRes?.data || []);
-        setWarehouses(whRes?.data || []);
+        setItems(Array.isArray(itemsRes) ? itemsRes : itemsRes?.data || []);
+        setWarehouses(Array.isArray(whRes) ? whRes : whRes?.data || []);
       } catch (err) {
         console.error('Failed to load incoming dependencies:', err);
       }

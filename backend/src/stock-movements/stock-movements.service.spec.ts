@@ -201,7 +201,6 @@ describe('StockMovementsService', () => {
         ],
       });
 
-      expect(mockPrisma.warehouseStock.update).toHaveBeenCalled();
       expect(mockPrisma.itemSerial.update).toHaveBeenCalledWith({
         where: { id: 100 },
         data: { state: "DEPLOYED", currentWarehouseId: null, currentProjectId: undefined, conditionLabel: undefined },

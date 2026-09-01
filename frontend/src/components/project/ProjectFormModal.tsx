@@ -41,9 +41,7 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
     const fetchCustomers = async () => {
       try {
         const res: any = await apiClient.get('/customers', { params: { limit: 100, status: 'active' } });
-        if (res && res.data) {
-          setCustomers(res.data);
-        }
+        setCustomers(Array.isArray(res) ? res : res?.data || []);
       } catch (err) {
         console.error('Failed to load active customers:', err);
       }

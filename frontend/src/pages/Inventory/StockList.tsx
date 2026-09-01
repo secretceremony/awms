@@ -40,9 +40,7 @@ export const StockList = () => {
     const fetchWarehouses = async () => {
       try {
         const res: any = await apiClient.get('/warehouses', { params: { limit: 100, status: 'active' } });
-        if (res && res.data) {
-          setWarehouses(res.data);
-        }
+        setWarehouses(Array.isArray(res) ? res : res?.data || []);
       } catch (err) {
         console.error('Failed to load warehouses for filter:', err);
       }

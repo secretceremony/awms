@@ -192,63 +192,42 @@ export class StockMovementsService {
           },
         });
 
-        // Handle Stock balances updates
-        if (sourceWarehouseId) {
-          // Decrement source warehouse stock
-          const whStock = await tx.warehouseStock.findUnique({
-            where: {
-              warehouseId_itemId: {
-                warehouseId: sourceWarehouseId,
-                itemId: item.id,
+        // Handle Stock balances updates (BULK items only)
+        if (item.trackingType === TrackingType.BULK) {
+          if (sourceWarehouseId) {
+            // Decrement source warehouse stock
+            const whStock = await tx.warehouseStock.findUnique({
+              where: {
+                warehouseId_itemId: {
+                  warehouseId: sourceWarehouseId,
+                  itemId: item.id,
+                },
               },
-            },
-          });
+            });
 
-          if (!whStock || whStock.quantity < entry.quantity) {
-            throw new BadRequestException(
-              `Insufficient stock for item ${item.name} in source warehouse`,
-            );
+            if (!whStock || whStock.quantity < entry.quantity) {
+              throw new BadRequestException(
+                `Insufficient stock for item ${item.name} in source warehouse`,
+              );
+            }
+
+            await tx.warehouseStock.update({
+              where: { id: whStock.id },
+              data: { quantity: { decrement: entry.quantity } },
+            });
           }
 
-          await tx.warehouseStock.update({
-            where: { id: whStock.id },
-            data: { quantity: { decrement: entry.quantity } },
-          });
-        }
-
-        if (destinationWarehouseId) {
-          // Increment destination warehouse stock
-          await tx.warehouseStock.upsert({
-            where: {
-              warehouseId_itemId: {
-                warehouseId: destinationWarehouseId,
-                itemId: item.id,
-              },
-            },
-            create: {
-              warehouseId: destinationWarehouseId,
-              itemId: item.id,
-              quantity: entry.quantity,
-            },
-            update: {
-              quantity: { increment: entry.quantity },
-            },
-          });
-        }
-
-        // Handle project stocks
-        if (projectId) {
-          if (movementType === MovementType.OUTGOING) {
-            // Warehouse -> Project
-            await tx.projectStock.upsert({
+          if (destinationWarehouseId) {
+            // Increment destination warehouse stock
+            await tx.warehouseStock.upsert({
               where: {
-                projectId_itemId: {
-                  projectId,
+                warehouseId_itemId: {
+                  warehouseId: destinationWarehouseId,
                   itemId: item.id,
                 },
               },
               create: {
-                projectId,
+                warehouseId: destinationWarehouseId,
                 itemId: item.id,
                 quantity: entry.quantity,
               },
@@ -256,27 +235,50 @@ export class StockMovementsService {
                 quantity: { increment: entry.quantity },
               },
             });
-          } else if (movementType === MovementType.RETURN) {
-            // Project -> Warehouse
-            const projStock = await tx.projectStock.findUnique({
-              where: {
-                projectId_itemId: {
+          }
+
+          // Handle project stocks
+          if (projectId) {
+            if (movementType === MovementType.OUTGOING) {
+              // Warehouse -> Project
+              await tx.projectStock.upsert({
+                where: {
+                  projectId_itemId: {
+                    projectId,
+                    itemId: item.id,
+                  },
+                },
+                create: {
                   projectId,
                   itemId: item.id,
+                  quantity: entry.quantity,
                 },
-              },
-            });
+                update: {
+                  quantity: { increment: entry.quantity },
+                },
+              });
+            } else if (movementType === MovementType.RETURN) {
+              // Project -> Warehouse
+              const projStock = await tx.projectStock.findUnique({
+                where: {
+                  projectId_itemId: {
+                    projectId,
+                    itemId: item.id,
+                  },
+                },
+              });
 
-            if (!projStock || projStock.quantity < entry.quantity) {
-              throw new BadRequestException(
-                `Insufficient stock for item ${item.name} in project`,
-              );
+              if (!projStock || projStock.quantity < entry.quantity) {
+                throw new BadRequestException(
+                  `Insufficient stock for item ${item.name} in project`,
+                );
+              }
+
+              await tx.projectStock.update({
+                where: { id: projStock.id },
+                data: { quantity: { decrement: entry.quantity } },
+              });
             }
-
-            await tx.projectStock.update({
-              where: { id: projStock.id },
-              data: { quantity: { decrement: entry.quantity } },
-            });
           }
         }
 

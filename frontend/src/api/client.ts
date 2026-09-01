@@ -69,8 +69,10 @@ export const apiClient = {
 
     // Unpack NestJS unified response format if present
     if (data && typeof data === 'object' && 'success' in data && 'data' in data) {
-      const unpacked = data as ApiResponse<T>;
-      return unpacked.data;
+      if ('meta' in data && data.meta !== undefined) {
+        return { data: data.data, meta: data.meta } as T;
+      }
+      return data.data as T;
     }
 
     return data as T;

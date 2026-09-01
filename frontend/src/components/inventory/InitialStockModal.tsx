@@ -48,8 +48,8 @@ export const InitialStockModal: React.FC<InitialStockModalProps> = ({
           apiClient.get('/items', { params: { limit: 100 } }),
           apiClient.get('/warehouses', { params: { limit: 100, status: 'active' } }),
         ]);
-        setItems(itemsRes?.data || []);
-        setWarehouses(whRes?.data || []);
+        setItems(Array.isArray(itemsRes) ? itemsRes : itemsRes?.data || []);
+        setWarehouses(Array.isArray(whRes) ? whRes : whRes?.data || []);
       } catch (err) {
         console.error('Failed to load initial stock dependencies:', err);
       }

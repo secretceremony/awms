@@ -41,9 +41,7 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({
     const fetchUnits = async () => {
       try {
         const res: any = await apiClient.get('/units', { params: { limit: 100, status: 'active' } });
-        if (res && res.data) {
-          setUnits(res.data);
-        }
+        setUnits(Array.isArray(res) ? res : res?.data || []);
       } catch (err) {
         console.error('Failed to load active units:', err);
       }
