@@ -20,8 +20,10 @@ export class AuthService {
   ) {}
 
   async validateUser(loginDto: LoginDto): Promise<UserPayload> {
+    const normalizedEmail = loginDto.email?.trim().toLowerCase();
+
     const user = await this.prisma.user.findUnique({
-      where: { email: loginDto.email },
+      where: { email: normalizedEmail },
     });
 
     if (!user) {

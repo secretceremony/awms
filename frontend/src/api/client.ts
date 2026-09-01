@@ -53,6 +53,17 @@ export const apiClient = {
       const errorMsg = (data && typeof data === 'object' && data.message) 
         ? String(data.message) 
         : `HTTP error! status: ${response.status}`;
+        
+      if (response.status === 401 && !path.startsWith('/auth/login')) {
+        // Dispatch custom event to notify auth context
+        window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+        
+        // Also fallback to hard redirect if we're not already on login
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+      }
+      
       throw new Error(errorMsg);
     }
 

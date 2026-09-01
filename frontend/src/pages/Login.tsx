@@ -17,7 +17,7 @@ export const Login = () => {
     setError(null);
     setIsLoadingForm(true);
     try {
-      await login(email, password);
+      await login(email.trim(), password);
       navigate('/');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Invalid credentials');
