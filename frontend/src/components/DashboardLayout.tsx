@@ -16,7 +16,8 @@ import {
   Menu,
   X,
   User,
-  Ruler
+  Ruler,
+  Briefcase
 } from 'lucide-react';
 import './DashboardLayout.css';
 
@@ -42,6 +43,7 @@ export const DashboardLayout = () => {
     { to: '/inventory/outgoing', label: 'Outgoing Stock', icon: ArrowUpRight },
     { type: 'header', label: 'Master Data' },
     { to: '/warehouses', label: 'Warehouses', icon: Warehouse },
+    { to: '/projects', label: 'Projects', icon: Briefcase },
     { to: '/customers', label: 'Customers', icon: Users },
     { to: '/units', label: 'Units', icon: Ruler },
     { type: 'header', label: 'Deliveries' },

@@ -43,6 +43,12 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum ProjectStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
@@ -112,14 +118,21 @@ model Customer {
 }
 
 model Project {
-  id          Int      @id @default(autoincrement())
+  id          Int           @id @default(autoincrement())
   name        String
-  description String?
-  customerId  Int      @map("customer_id")
-  customer    Customer @relation(fields: [customerId], references: [id])
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  jobNo       String?       @map("job_no")
+  location    String
+  attnName    String?       @map("attn_name")
+  leaderName  String?       @map("leader_name")
+  activity    String?
+  status      ProjectStatus @default(ACTIVE)
+  startedAt   DateTime?     @map("started_at")
+  endedAt     DateTime?     @map("ended_at")
+  customerId  Int?          @map("customer_id")
+  customer    Customer?     @relation(fields: [customerId], references: [id])
+  isActive    Boolean       @default(true) @map("is_active")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
 
   projectStocks  ProjectStock[]
   stockMovements StockMovement[]
