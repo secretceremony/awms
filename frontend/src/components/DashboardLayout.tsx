@@ -19,7 +19,6 @@ import {
   Ruler,
   Briefcase
 } from 'lucide-react';
-import './DashboardLayout.css';
 
 export const DashboardLayout = () => {
   const { user, logout } = useAuth();

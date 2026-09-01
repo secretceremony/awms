@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client.js';
-import { PageHeader, Button, Card } from '../../components/ui/index.js';
+import { PageHeader, Button, Card, StatusBadge } from '../../components/ui/index.js';
+import { ArrowLeft } from 'lucide-react';
 
 export const IncomingDetail = () => {
   const { id } = useParams();
@@ -11,10 +12,10 @@ export const IncomingDetail = () => {
   useEffect(() => {
     const fetchDetail = async () => {
       try {
-        const res = await apiClient.get<any>(`/stock-movements/incoming/${id}`);
-        setMovement(res.data.data || res.data);
+        const res: any = await apiClient.get(`/stock-movements/incoming/${id}`);
+        setMovement(res?.data || res);
       } catch (err) {
-        console.error(err);
+        console.error('Failed to load incoming detail:', err);
       }
     };
     if (id) {
@@ -23,71 +24,112 @@ export const IncomingDetail = () => {
   }, [id]);
 
   if (!movement) {
-    return <div className="page-container">Loading...</div>;
+    return (
+      <div className="page-container">
+        <div className="table-loading">
+          <p>Loading incoming movement detail...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="page-container">
-      <PageHeader 
-        title="Incoming Detail"
+      <div style={{ marginBottom: '16px' }}>
+        <Button variant="secondary" size="sm" onClick={() => navigate('/inventory/incoming')}>
+          <ArrowLeft size={16} /> Back to Incoming Records
+        </Button>
+      </div>
+
+      <PageHeader
+        title={`Incoming Movement: ${movement.movementNumber}`}
+        description={`Recorded on ${new Date(movement.createdAt).toLocaleString()}`}
         actions={
-          <Button variant="secondary" onClick={() => navigate('/inventory/incoming')}>
-            Back to List
-          </Button>
+          <StatusBadge type="status" status="in_stock" label="Received" />
         }
       />
 
-      <Card>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+      <Card title="Movement Details">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
           <div>
-            <strong>Movement No:</strong> {movement.movementNumber}
+            <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Destination Warehouse</span>
+            <p style={{ fontWeight: 600 }}>{movement.destinationWarehouse?.name || '-'}</p>
           </div>
           <div>
-            <strong>Reference Code:</strong> {movement.referenceNumber || '-'}
+            <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Reference / PO Number</span>
+            <p style={{ fontWeight: 600 }}>{movement.referenceNumber || '-'}</p>
           </div>
           <div>
-            <strong>Destination Wh:</strong> {movement.destinationWarehouse?.name || '-'}
+            <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Recorded By</span>
+            <p style={{ fontWeight: 600 }}>{movement.createdBy?.name || '-'}</p>
           </div>
           <div>
-            <strong>Date:</strong> {new Date(movement.createdAt).toLocaleString()}
-          </div>
-          <div>
-            <strong>Created By:</strong> {movement.createdBy?.name || '-'}
+            <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Movement Type</span>
+            <p style={{ fontWeight: 600 }}>{movement.movementType}</p>
           </div>
         </div>
 
-        <h3>Items</h3>
-        <table className="awms-table" style={{ width: '100%', marginTop: '1rem' }}>
-          <thead>
-            <tr>
-              <th>Item Name</th>
-              <th>Quantity</th>
-              <th>Serial Numbers</th>
-            </tr>
-          </thead>
-          <tbody>
-            {movement.items?.map((item: any) => (
-              <tr key={item.id}>
-                <td>{item.item?.name}</td>
-                <td>{item.quantity}</td>
-                <td>
-                  {item.serials && item.serials.length > 0 ? (
-                    <ul style={{ margin: 0, paddingLeft: '1.2rem' }}>
-                      {item.serials.map((s: any) => (
-                        <li key={s.id}>
-                          {s.serialNumber} {s.conditionLabel ? `(${s.conditionLabel})` : ''}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    '-'
-                  )}
-                </td>
+        <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#1F2839', marginBottom: '12px' }}>
+          Received Items
+        </h3>
+        <div className="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Item Name</th>
+                <th>Tracking</th>
+                <th>Quantity</th>
+                <th>Serial Numbers / Condition</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {movement.items?.map((item: any) => {
+                const serials = item.movementSerials || item.serials || [];
+                return (
+                  <tr key={item.id}>
+                    <td style={{ fontWeight: 500 }}>{item.item?.name}</td>
+                    <td>
+                      <StatusBadge type="tracking" status={item.item?.trackingType || 'BULK'} />
+                    </td>
+                    <td>
+                      {item.quantity} {item.item?.unit?.name || ''}
+                    </td>
+                    <td>
+                      {serials.length > 0 ? (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                          {serials.map((s: any, idx: number) => {
+                            const sn = s.itemSerial?.serialNumber || s.serialNumber;
+                            const state = s.itemSerial?.state || s.state || 'Standby Good';
+                            const cond = s.itemSerial?.conditionLabel || s.conditionLabel;
+                            return (
+                              <span
+                                key={idx}
+                                style={{
+                                  fontSize: '12px',
+                                  backgroundColor: '#F3F4F6',
+                                  padding: '2px 8px',
+                                  borderRadius: '4px',
+                                  border: '1px solid #E5E7EB',
+                                }}
+                              >
+                                <code>{sn}</code> {cond ? `(${cond})` : `[${state}]`}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </Card>
     </div>
   );
 };
+
+export default IncomingDetail;

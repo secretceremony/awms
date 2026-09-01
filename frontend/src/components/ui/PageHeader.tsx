@@ -1,27 +1,23 @@
 import React from 'react';
 
-interface PageHeaderProps {
+export interface PageHeaderProps {
   title: string;
   description?: string;
   actions?: React.ReactNode;
 }
 
-export const PageHeader: React.FC<PageHeaderProps> = ({ title, description, actions }) => {
+export const PageHeader: React.FC<PageHeaderProps> = ({
+  title,
+  description,
+  actions,
+}) => {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-      <div>
-        <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 600, color: '#1F2839' }}>{title}</h2>
-        {description && (
-          <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#B5B8BF' }}>
-            {description}
-          </p>
-        )}
+    <div className="page-header">
+      <div className="page-title-group">
+        <h2 className="page-title">{title}</h2>
+        {description && <p className="page-description">{description}</p>}
       </div>
-      {actions && (
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          {actions}
-        </div>
-      )}
+      {actions && <div className="page-actions">{actions}</div>}
     </div>
   );
 };

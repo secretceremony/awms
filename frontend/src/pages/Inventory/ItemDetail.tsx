@@ -1,76 +1,136 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client.js';
-import { PaginatedTable } from '../../components/PaginatedTable.js';
+import { PaginatedTable, type Column } from '../../components/PaginatedTable.js';
 import { PageHeader, Button, Card, StatusBadge } from '../../components/ui/index.js';
+import { ArrowLeft, Edit2 } from 'lucide-react';
+import { ItemFormModal, type Item } from '../../components/inventory/ItemFormModal.js';
 
-interface Item {
+interface ItemSerial {
   id: number;
-  name: string;
-  brand: string;
-  trackingType: string;
-  unit: { name: string };
-  isActive: boolean;
+  serialNumber: string;
+  state: string;
+  conditionLabel: string | null;
+  currentWarehouse?: { id: number; name: string };
+  currentProject?: { id: number; name: string };
 }
 
 export const ItemDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [item, setItem] = useState<Item | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const fetchItem = async () => {
+    try {
+      const res: any = await apiClient.get(`/items/${id}`);
+      setItem(res?.data || res);
+    } catch (err) {
+      console.error('Failed to load item detail:', err);
+    }
+  };
 
   useEffect(() => {
-    const fetchItem = async () => {
-      try {
-        const { data } = await apiClient.get<any>(`/items/${id}`);
-        setItem(data);
-      } catch (err) {
-        console.error(err);
-      }
-    };
     fetchItem();
-  }, [id]);
+  }, [id, refreshKey]);
 
-  if (!item) return <div className="page-container">Loading...</div>;
+  if (!item) {
+    return (
+      <div className="page-container">
+        <div className="table-loading">
+          <p>Loading item details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const serialColumns: Column<ItemSerial>[] = [
+    { header: 'Serial Number', key: 'serialNumber', render: (s) => <code>{s.serialNumber}</code> },
+    {
+      header: 'State / Condition',
+      key: 'state',
+      render: (s) => (
+        <StatusBadge type="condition" status={s.state} label={`${s.state}${s.conditionLabel ? ` (${s.conditionLabel})` : ''}`} />
+      ),
+    },
+    {
+      header: 'Current Warehouse',
+      key: 'currentWarehouse',
+      render: (s) => s.currentWarehouse?.name || '-',
+    },
+    {
+      header: 'Current Project',
+      key: 'currentProject',
+      render: (s) => s.currentProject?.name || '-',
+    },
+  ];
 
   return (
     <div className="page-container">
-      <PageHeader 
-        title={`Item Details: ${item.name}`}
+      <div style={{ marginBottom: '16px' }}>
+        <Button variant="secondary" size="sm" onClick={() => navigate('/inventory')}>
+          <ArrowLeft size={16} /> Back to Master Inventory
+        </Button>
+      </div>
+
+      <PageHeader
+        title={item.name}
+        description={`Brand: ${item.brand || 'N/A'} • Tracking: ${item.trackingType} • Unit: ${item.unit?.name || 'N/A'}`}
         actions={
-          <Link to={`/inventory/edit/${id}`}>
-            <Button variant="primary">Edit</Button>
-          </Link>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <StatusBadge status={item.isActive} />
+            <Button variant="primary" size="sm" onClick={() => setIsEditModalOpen(true)}>
+              <Edit2 size={14} /> Edit Item
+            </Button>
+          </div>
         }
       />
-      <Card>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <p><strong>Brand:</strong> {item.brand}</p>
-          <p><strong>Tracking:</strong> {item.trackingType}</p>
-          <p><strong>Unit:</strong> {item.unit?.name}</p>
-          <p>
-            <strong>Status:</strong>{' '}
-            <StatusBadge 
-              status={item.isActive ? 'active' : 'inactive'} 
-              label={item.isActive ? 'Active' : 'Inactive'} 
-            />
-          </p>
+
+      <Card title="Item Overview">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+          <div>
+            <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Brand</span>
+            <p style={{ fontWeight: 600 }}>{item.brand || '-'}</p>
+          </div>
+          <div>
+            <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Tracking Type</span>
+            <div><StatusBadge type="tracking" status={item.trackingType} /></div>
+          </div>
+          <div>
+            <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Unit of Measure</span>
+            <p style={{ fontWeight: 600 }}>{item.unit?.name || '-'}</p>
+          </div>
+          <div>
+            <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Status</span>
+            <div><StatusBadge status={item.isActive} /></div>
+          </div>
         </div>
       </Card>
 
       {item.trackingType === 'SERIALIZED' && (
-        <div style={{marginTop: '2rem'}}>
-          <h3>Serials</h3>
-          <PaginatedTable<any>
-            fetchUrl={`/items/${id}/serials`}
-            columns={[
-              { header: 'Serial Number', key: 'serialNumber' },
-              { header: 'State', key: 'state' },
-              { header: 'Condition', key: 'conditionLabel' },
-              { header: 'Warehouse', key: 'currentWarehouse', render: row => row.currentWarehouse?.name || '-' },
-              { header: 'Project', key: 'currentProject', render: row => row.currentProject?.name || '-' }
-            ]}
+        <div style={{ marginTop: '24px' }}>
+          <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#1F2839', marginBottom: '16px' }}>
+            Tracked Serial Numbers
+          </h3>
+          <PaginatedTable<ItemSerial>
+            key={`item-serials-${item.id}-${refreshKey}`}
+            fetchUrl={`/items/${item.id}/serials`}
+            searchPlaceholder="Search serial numbers..."
+            columns={serialColumns}
           />
         </div>
       )}
+
+      {/* Edit Item Modal */}
+      <ItemFormModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        item={item}
+        onSuccess={() => setRefreshKey((k) => k + 1)}
+      />
     </div>
   );
 };
+
+export default ItemDetail;

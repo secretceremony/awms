@@ -1,5 +1,5 @@
 import { Boxes, Warehouse, Truck, AlertCircle } from 'lucide-react';
-import './Pages.css';
+import { Card } from '../components/ui/index.js';
 
 export const Dashboard = () => {
   const stats = [
@@ -28,18 +28,17 @@ export const Dashboard = () => {
         })}
       </div>
 
-      <div className="dashboard-content-grid">
-        <div className="content-card">
-          <h3>Welcome to ALSSA Warehouse Management System</h3>
-          <p>
-            This system helps you track serial and bulk inventory items, manage warehouse stock distributions,
-            process outbound delivery orders, and monitor system activities.
-          </p>
-          <div className="action-links">
-            <span className="info-text">Select an option from the sidebar menu to start.</span>
-          </div>
-        </div>
-      </div>
+      <Card title="Welcome to ALSSA Warehouse Management System">
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.6 }}>
+          This system helps you track serial and bulk inventory items, manage warehouse stock distributions,
+          process outbound delivery orders, and monitor system activities.
+        </p>
+        <p style={{ color: '#9CA3AF', fontSize: '0.875rem', marginTop: '1rem' }}>
+          Select an option from the sidebar menu to start.
+        </p>
+      </Card>
     </div>
   );
 };
+
+export default Dashboard;

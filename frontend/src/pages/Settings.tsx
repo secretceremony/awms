@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import './Settings.css';
+import { PageHeader, Card, FormField, Input, NumberInput, Button } from '../components/ui/index.js';
 
 export const Settings = () => {
   const [appTitle, setAppTitle] = useState('AWMS Corporate Portal');
@@ -15,54 +15,50 @@ export const Settings = () => {
 
   return (
     <div className="page-container">
-      <div className="content-card">
-        <h3>System Preferences</h3>
-        <p>Configure general parameters of the ALSSA Warehouse Management System portal.</p>
+      <PageHeader
+        title="System Preferences"
+        description="Configure general portal parameters and operational thresholds."
+      />
 
+      <Card>
         {successMsg && (
-          <div className="settings-success-alert">
-            <span>Settings saved successfully.</span>
+          <div className="alert-success">
+            Settings saved successfully.
           </div>
         )}
 
-        <form onSubmit={handleSave} className="settings-form">
-          <div className="form-group-settings">
-            <label htmlFor="appTitle">Application Title</label>
-            <input
-              id="appTitle"
+        <form onSubmit={handleSave} style={{ maxWidth: '600px' }}>
+          <FormField label="Application Title">
+            <Input
               type="text"
               value={appTitle}
               onChange={(e) => setAppTitle(e.target.value)}
             />
-          </div>
+          </FormField>
 
-          <div className="form-row-settings">
-            <div className="form-group-settings">
-              <label htmlFor="lowStockThreshold">Low Stock Alert Threshold</label>
-              <input
-                id="lowStockThreshold"
-                type="number"
+          <div className="form-grid" style={{ marginBottom: '1.25rem' }}>
+            <FormField label="Low Stock Alert Threshold" style={{ marginBottom: 0 }}>
+              <NumberInput
                 value={lowStockThreshold}
-                onChange={(e) => setLowStockThreshold(Number(e.target.value))}
+                onChange={(val) => setLowStockThreshold(val)}
               />
-            </div>
+            </FormField>
 
-            <div className="form-group-settings">
-              <label htmlFor="sessionTimeout">Session Inactivity Timeout (Hours)</label>
-              <input
-                id="sessionTimeout"
-                type="number"
+            <FormField label="Session Inactivity Timeout (Hours)" style={{ marginBottom: 0 }}>
+              <NumberInput
                 value={sessionTimeout}
-                onChange={(e) => setSessionTimeout(Number(e.target.value))}
+                onChange={(val) => setSessionTimeout(val)}
               />
-            </div>
+            </FormField>
           </div>
 
-          <button type="submit" className="btn-save-settings">
+          <Button type="submit" variant="primary">
             Save Preferences
-          </button>
+          </Button>
         </form>
-      </div>
+      </Card>
     </div>
   );
 };
+
+export default Settings;

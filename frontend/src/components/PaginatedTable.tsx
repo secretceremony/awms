@@ -1,7 +1,6 @@
 import { useState, useEffect, type ReactNode } from 'react';
 import { apiClient } from '../api/client.js';
 import { Search, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
-import './PaginatedTable.css';
 
 export interface Column<T> {
   header: string;

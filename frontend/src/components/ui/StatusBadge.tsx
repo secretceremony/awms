@@ -1,53 +1,54 @@
 import React from 'react';
 
-interface StatusBadgeProps {
+export interface StatusBadgeProps {
   status: boolean | string;
   activeText?: string;
   inactiveText?: string;
-  type?: 'success-error' | 'default';
+  type?: 'status' | 'tracking' | 'condition';
   label?: string;
 }
 
-export const StatusBadge: React.FC<StatusBadgeProps> = ({ 
-  status, 
-  activeText = 'Active', 
+export const StatusBadge: React.FC<StatusBadgeProps> = ({
+  status,
+  activeText = 'Active',
   inactiveText = 'Inactive',
-  type = 'default',
-  label: customLabel
+  type = 'status',
+  label: customLabel,
 }) => {
-  let isActive = false;
-  let label = '';
-  
-  if (typeof status === 'boolean') {
-    isActive = status;
-    label = customLabel || (isActive ? activeText : inactiveText);
-  } else {
-    isActive = status.toLowerCase() === 'active' || status.toLowerCase() === 'completed' || status.toLowerCase() === 'approved';
-    label = customLabel || status;
-  }
-
-  // Assuming global CSS classes for badge-status exist
-  // We can also use inline styles based on type
-  if (type === 'default') {
+  if (type === 'tracking') {
+    const isSerialized = String(status).toUpperCase() === 'SERIALIZED';
     return (
-      <span className={`badge-status ${isActive ? 'active' : 'inactive'}`}>
-        {label}
+      <span className={`badge-tracking ${isSerialized ? 'type-serialized' : 'type-bulk'}`}>
+        {customLabel || (isSerialized ? 'Serialized' : 'Bulk')}
       </span>
     );
   }
 
+  if (type === 'condition') {
+    const val = String(status).toLowerCase();
+    let conditionClass = 'good';
+    if (val.includes('bad')) conditionClass = 'bad';
+    else if (val.includes('repair')) conditionClass = 'repair';
+    else if (val.includes('deploy')) conditionClass = 'deploy';
+
+    return (
+      <span className={`badge-condition ${conditionClass}`}>
+        {customLabel || status}
+      </span>
+    );
+  }
+
+  let isActive = false;
+  if (typeof status === 'boolean') {
+    isActive = status;
+  } else {
+    const s = String(status).toLowerCase();
+    isActive = s === 'active' || s === 'completed' || s === 'approved' || s === 'in_stock';
+  }
+
   return (
-    <span 
-      style={{
-        padding: '4px 8px',
-        borderRadius: '9999px',
-        fontSize: '12px',
-        fontWeight: 500,
-        backgroundColor: isActive ? '#D1FAE5' : '#FEE2E2',
-        color: isActive ? '#065F46' : '#991B1B',
-      }}
-    >
-      {label}
+    <span className={`badge-status ${isActive ? 'active' : 'inactive'}`}>
+      {customLabel || (isActive ? activeText : inactiveText)}
     </span>
   );
 };

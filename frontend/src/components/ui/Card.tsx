@@ -1,20 +1,25 @@
 import React from 'react';
 
-interface CardProps extends React.HTMLAttributes<HTMLDivElement> {}
+export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  title?: string;
+  actions?: React.ReactNode;
+}
 
-export const Card: React.FC<CardProps> = ({ className = '', style, children, ...props }) => {
+export const Card: React.FC<CardProps> = ({
+  title,
+  actions,
+  children,
+  className = '',
+  ...props
+}) => {
   return (
-    <div
-      className={`content-card ${className}`}
-      style={{
-        padding: '24px',
-        backgroundColor: '#FFFFFF',
-        borderRadius: '8px',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-        ...style,
-      }}
-      {...props}
-    >
+    <div className={`content-card ${className}`.trim()} {...props}>
+      {(title || actions) && (
+        <div className="card-header">
+          {title && <h3 className="card-title">{title}</h3>}
+          {actions && <div className="card-actions">{actions}</div>}
+        </div>
+      )}
       {children}
     </div>
   );
