@@ -10,6 +10,8 @@ import { ItemDetail } from "./pages/Inventory/ItemDetail.js";
 import { InitialStock } from "./pages/Inventory/InitialStock.js";
 
 import { Incoming } from './pages/Inventory/Incoming.js';
+import { AddIncomingForm } from './pages/Inventory/AddIncomingForm.js';
+import { IncomingDetail } from './pages/Inventory/IncomingDetail.js';
 import { Outgoing } from './pages/Inventory/Outgoing.js';
 import { Warehouses } from './pages/Warehouses.js';
 import { Projects } from './pages/Projects.js';
@@ -40,6 +42,8 @@ function App() {
               <Route path="/inventory/initial-stock" element={<InitialStock />} />
 
               <Route path="/inventory/incoming" element={<Incoming />} />
+              <Route path="/inventory/incoming/new" element={<AddIncomingForm />} />
+              <Route path="/inventory/incoming/:id" element={<IncomingDetail />} />
               <Route path="/inventory/outgoing" element={<Outgoing />} />
               <Route path="/warehouses" element={<Warehouses />} />
               <Route path="/projects" element={<Projects />} />

@@ -10,9 +10,85 @@ import {
   TrackingType,
 } from '../../generated/prisma/client.js';
 
+import {
+  getSkipAndTake,
+  createPaginationResult,
+  PaginatedResult,
+} from '../common/helpers/pagination.helper.js';
+import { PaginationDto } from '../common/dto/pagination.dto.js';
+
 @Injectable()
 export class StockMovementsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async findAllIncoming(
+    paginationDto: PaginationDto,
+  ): Promise<PaginatedResult<any>> {
+    const page = paginationDto.page ?? 1;
+    const limit = paginationDto.limit ?? 10;
+    const { skip, take } = getSkipAndTake(page, limit);
+
+    const where: any = {
+      movementType: MovementType.INCOMING,
+    };
+
+    if (paginationDto.search) {
+      where.OR = [
+        { referenceNumber: { contains: paginationDto.search, mode: 'insensitive' } },
+        { items: { some: { item: { name: { contains: paginationDto.search, mode: 'insensitive' } } } } },
+      ];
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.stockMovement.findMany({
+        where,
+        skip,
+        take,
+        include: {
+          destinationWarehouse: { select: { name: true } },
+          createdBy: { select: { name: true } },
+          items: {
+            include: {
+              item: { select: { name: true, trackingType: true } },
+              movementSerials: {
+                include: { itemSerial: { select: { serialNumber: true } } },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.stockMovement.count({ where }),
+    ]);
+
+    return createPaginationResult(data, total, page, limit);
+  }
+
+  async findOneIncoming(id: number) {
+    const movement = await this.prisma.stockMovement.findUnique({
+      where: { id, movementType: MovementType.INCOMING },
+      include: {
+        destinationWarehouse: { select: { name: true } },
+        createdBy: { select: { name: true } },
+        items: {
+          include: {
+            item: { select: { name: true, trackingType: true, unit: { select: { name: true } } } },
+            movementSerials: {
+              include: {
+                itemSerial: { select: { serialNumber: true, state: true, conditionLabel: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!movement) {
+      throw new NotFoundException(`Incoming movement with ID ${id} not found`);
+    }
+
+    return movement;
+  }
 
   async createMovement(userId: number, dto: CreateStockMovementDto) {
     const {
