@@ -11,15 +11,16 @@ interface ItemSerial {
   serialNumber: string;
   state: string;
   conditionLabel: string | null;
-  currentWarehouse?: { id: number; name: string };
-  currentProject?: { id: number; name: string };
+  notes: string | null;
+  currentWarehouse?: { id: number; name: string; cityCode?: string | null };
+  currentProject?: { id: number; name: string; jobNo?: string | null; location?: string | null };
 }
 
 interface WarehouseStockBalance {
   id: number;
   warehouseId: number;
   quantity: number;
-  warehouse: { id: number; name: string; location: string };
+  warehouse: { id: number; name: string; cityCode?: string | null; location: string };
 }
 
 export const ItemDetail = () => {
@@ -53,29 +54,97 @@ export const ItemDetail = () => {
   }
 
   const serialColumns: Column<ItemSerial>[] = [
-    { header: 'Serial Number', key: 'serialNumber', render: (s) => <code>{s.serialNumber}</code> },
     {
-      header: 'State / Condition',
-      key: 'state',
+      header: 'Serial Number',
+      key: 'serialNumber',
+      render: (s) => (
+        <code
+          style={{
+            backgroundColor: '#F3F4F6',
+            padding: '2px 6px',
+            borderRadius: '4px',
+            border: '1px solid #E5E7EB',
+            fontSize: '12px',
+          }}
+        >
+          {s.serialNumber}
+        </code>
+      ),
+    },
+    {
+      header: 'Current Location',
+      key: 'currentWarehouse',
+      render: (s) => {
+        if (s.currentProject) {
+          return (
+            <span style={{ fontWeight: 600, color: '#1F2839' }}>
+              {s.currentProject.jobNo || s.currentProject.name || s.currentProject.location}
+            </span>
+          );
+        }
+        if (s.currentWarehouse) {
+          return (
+            <span style={{ fontWeight: 600, color: '#1F2839' }}>
+              {s.currentWarehouse.cityCode || s.currentWarehouse.name}
+            </span>
+          );
+        }
+        return '-';
+      },
+    },
+    {
+      header: 'Condition',
+      key: 'conditionLabel',
       render: (s) => (
         <StatusBadge
           type="condition"
-          status={s.state}
-          label={`${s.state}${s.conditionLabel ? ` (${s.conditionLabel})` : ''}`}
+          status={s.conditionLabel || s.state}
         />
       ),
     },
     {
-      header: 'Current Warehouse',
-      key: 'currentWarehouse',
-      render: (s) => s.currentWarehouse?.name || '-',
+      header: 'Current Status',
+      key: 'state',
+      render: (s) => {
+        let statusText = 'In Warehouse';
+        let badgeVariant: 'active' | 'inactive' | 'pending' = 'active';
+
+        if (s.currentProject) {
+          statusText = 'Deploy';
+          badgeVariant = 'pending';
+        } else {
+          const condLower = (s.conditionLabel || s.state || '').toLowerCase();
+          if (s.state === 'UNDER_REPAIR' || condLower.includes('repair')) {
+            statusText = 'Under Repair';
+            badgeVariant = 'inactive';
+          } else if (s.state === 'STANDBY_BAD' || condLower.includes('bad')) {
+            statusText = 'Standby Bad';
+            badgeVariant = 'inactive';
+          } else if (s.state === 'STANDBY_GOOD' || condLower.includes('good')) {
+            statusText = 'Standby Good';
+            badgeVariant = 'active';
+          }
+        }
+
+        return (
+          <span className={`badge-status badge-${badgeVariant}`}>
+            {statusText}
+          </span>
+        );
+      },
     },
     {
-      header: 'Current Project',
-      key: 'currentProject',
-      render: (s) => s.currentProject?.name || '-',
+      header: 'Note',
+      key: 'notes',
+      render: (s) => (
+        <span style={{ fontSize: '12px', color: '#6B7280' }}>
+          {s.notes || '-'}
+        </span>
+      ),
     },
   ];
+
+  const unitDisplay = item.unit?.symbol || item.unit?.name || '-';
 
   return (
     <div className="page-container">
@@ -87,7 +156,7 @@ export const ItemDetail = () => {
 
       <PageHeader
         title={item.name}
-        description={`Brand: ${item.brand || 'N/A'} • MN: ${item.modelNumber || 'N/A'} • Unit: ${item.unit?.name || 'N/A'}`}
+        description={`Brand: ${item.brand || 'N/A'} • MN: ${item.modelNumber || 'N/A'} • Unit: ${unitDisplay}`}
         actions={
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
             <StatusBadge status={item.isActive} />
@@ -102,40 +171,39 @@ export const ItemDetail = () => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.25rem' }}>
           <div>
             <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Brand</span>
-            <p style={{ fontWeight: 600 }}>{item.brand || '-'}</p>
+            <p style={{ fontWeight: 600, margin: '4px 0 0' }}>{item.brand || '-'}</p>
           </div>
           <div>
             <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Model Number / MN</span>
-            <p style={{ fontWeight: 600 }}>{item.modelNumber || '-'}</p>
+            <p style={{ fontWeight: 600, margin: '4px 0 0' }}>{item.modelNumber || '-'}</p>
           </div>
           <div>
             <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Tracking Type</span>
-            <div><StatusBadge type="tracking" status={item.trackingType} /></div>
+            <div style={{ marginTop: '4px' }}><StatusBadge type="tracking" status={item.trackingType} /></div>
           </div>
           <div>
             <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Unit of Measure</span>
-            <p style={{ fontWeight: 600 }}>
-              {item.unit?.name || '-'} {item.unit?.symbol ? `(${item.unit.symbol})` : ''}
+            <p style={{ fontWeight: 600, margin: '4px 0 0' }}>
+              {unitDisplay}
             </p>
           </div>
           <div>
             <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Status</span>
-            <div><StatusBadge status={item.isActive} /></div>
+            <div style={{ marginTop: '4px' }}><StatusBadge status={item.isActive} /></div>
           </div>
         </div>
       </Card>
 
-      {/* Bulk Stock Breakdown by Warehouse */}
+      {/* Bulk Stock Breakdown by Location */}
       {item.trackingType === 'BULK' && (
         <div style={{ marginTop: '24px' }}>
           <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#1F2839', marginBottom: '16px' }}>
-            Warehouse Stock Distribution
+            Current Warehouse Stock Distribution
           </h3>
           <div className="table-container">
             <table>
               <thead>
                 <tr>
-                  <th>Warehouse</th>
                   <th>Location</th>
                   <th>Quantity on Hand</th>
                   <th>Unit</th>
@@ -145,15 +213,16 @@ export const ItemDetail = () => {
                 {item.warehouseStocks && item.warehouseStocks.length > 0 ? (
                   item.warehouseStocks.map((ws) => (
                     <tr key={ws.id}>
-                      <td style={{ fontWeight: 500 }}>{ws.warehouse.name}</td>
-                      <td>{ws.warehouse.location}</td>
+                      <td style={{ fontWeight: 600, color: '#1F2839' }}>
+                        {ws.warehouse.cityCode || ws.warehouse.name}
+                      </td>
                       <td style={{ fontWeight: 600 }}>{ws.quantity}</td>
-                      <td>{item.unit?.symbol || item.unit?.name || '-'}</td>
+                      <td>{unitDisplay}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4} style={{ textAlign: 'center', color: '#6B7280', padding: '24px' }}>
+                    <td colSpan={3} style={{ textAlign: 'center', color: '#6B7280', padding: '24px' }}>
                       No active stock in any warehouse.
                     </td>
                   </tr>
@@ -168,7 +237,7 @@ export const ItemDetail = () => {
       {item.trackingType === 'SERIALIZED' && (
         <div style={{ marginTop: '24px' }}>
           <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#1F2839', marginBottom: '16px' }}>
-            Tracked Serial Numbers
+            Current Serialized Devices
           </h3>
           <PaginatedTable<ItemSerial>
             key={`item-serials-${item.id}-${refreshKey}`}

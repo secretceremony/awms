@@ -41,6 +41,21 @@ export class ItemsController {
     return this.itemsService.findAll(paginationDto);
   }
 
+  @Get('check-duplicate')
+  checkDuplicate(
+    @Query('name') name: string,
+    @Query('brand') brand?: string,
+    @Query('modelNumber') modelNumber?: string,
+    @Query('excludeId') excludeId?: string,
+  ) {
+    return this.itemsService.checkDuplicate(
+      name,
+      brand,
+      modelNumber,
+      excludeId ? parseInt(excludeId, 10) : undefined,
+    );
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.itemsService.findOne(id);

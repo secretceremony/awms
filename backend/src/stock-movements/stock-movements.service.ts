@@ -341,6 +341,7 @@ export class StockMovementsService {
                     currentProjectId: null,
                     state: sData.state ?? 'STANDBY_GOOD',
                     conditionLabel: sData.conditionLabel ?? serial.conditionLabel,
+                    notes: sData.notes ?? serial.notes,
                   },
                 });
               } else {
@@ -352,6 +353,7 @@ export class StockMovementsService {
                     currentProjectId: null,
                     state: sData.state ?? 'STANDBY_GOOD',
                     conditionLabel: sData.conditionLabel ?? null,
+                    notes: sData.notes ?? null,
                   },
                 });
               }

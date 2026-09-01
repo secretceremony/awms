@@ -34,6 +34,48 @@ export class ItemsService {
     return item;
   }
 
+  async checkDuplicate(name: string, brand?: string, modelNumber?: string, excludeId?: number) {
+    const trimmedName = name?.trim();
+    if (!trimmedName) return { isDuplicate: false, matches: [] };
+
+    const trimmedBrand = brand?.trim();
+    const trimmedMN = modelNumber?.trim();
+
+    const orConditions: Prisma.ItemWhereInput[] = [
+      { name: { equals: trimmedName, mode: 'insensitive' } },
+    ];
+
+    if (trimmedMN) {
+      orConditions.push({ modelNumber: { equals: trimmedMN, mode: 'insensitive' } });
+    }
+
+    if (trimmedBrand && trimmedMN) {
+      orConditions.push({
+        AND: [
+          { brand: { equals: trimmedBrand, mode: 'insensitive' } },
+          { modelNumber: { equals: trimmedMN, mode: 'insensitive' } },
+        ],
+      });
+    }
+
+    const matches = await this.prisma.item.findMany({
+      where: {
+        isActive: true,
+        ...(excludeId && { id: { not: excludeId } }),
+        OR: orConditions,
+      },
+      include: {
+        unit: { select: { id: true, name: true, symbol: true } },
+      },
+      take: 5,
+    });
+
+    return {
+      isDuplicate: matches.length > 0,
+      matches,
+    };
+  }
+
   async findAll(paginationDto: PaginationDto): Promise<PaginatedResult<any>> {
     const page = paginationDto.page ?? 1;
     const limit = paginationDto.limit ?? 10;
@@ -162,8 +204,8 @@ export class ItemsService {
         skip,
         take,
         include: {
-          currentWarehouse: { select: { name: true } },
-          currentProject: { select: { name: true } },
+          currentWarehouse: { select: { id: true, name: true, cityCode: true } },
+          currentProject: { select: { id: true, name: true, jobNo: true, location: true } },
         },
         orderBy: { serialNumber: 'asc' },
       }),

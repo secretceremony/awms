@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, FormField, Input, Select, Button } from '../ui/index.js';
 import { apiClient } from '../../api/client.js';
+import { DuplicateItemWarningModal, type MatchingItem } from './DuplicateItemWarningModal.js';
 
 export interface Item {
   id: number;
@@ -37,6 +38,10 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Duplicate warning state
+  const [duplicateMatches, setDuplicateMatches] = useState<MatchingItem[]>([]);
+  const [isWarningOpen, setIsWarningOpen] = useState(false);
+
   useEffect(() => {
     const fetchUnits = async () => {
       try {
@@ -70,10 +75,11 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({
       });
     }
     setErrorMsg(null);
+    setIsWarningOpen(false);
+    setDuplicateMatches([]);
   }, [item, isOpen]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const executeSave = async () => {
     setIsSaving(true);
     setErrorMsg(null);
 
@@ -100,6 +106,7 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({
         await apiClient.post('/items', payload);
       }
 
+      setIsWarningOpen(false);
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -110,86 +117,132 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim()) {
+      setErrorMsg('Item name is required');
+      return;
+    }
+    if (!formData.unitId) {
+      setErrorMsg('Unit of measurement is required');
+      return;
+    }
+
+    // Check duplicate master item on creation
+    if (!item) {
+      try {
+        const dupRes: any = await apiClient.get('/items/check-duplicate', {
+          params: {
+            name: formData.name.trim(),
+            brand: formData.brand.trim() || undefined,
+            modelNumber: formData.modelNumber.trim() || undefined,
+          },
+        });
+
+        const matches = dupRes?.matches || (Array.isArray(dupRes) ? dupRes : []);
+        if (matches && matches.length > 0) {
+          setDuplicateMatches(matches);
+          setIsWarningOpen(true);
+          return;
+        }
+      } catch (err) {
+        console.warn('Duplicate check failed, proceeding with save:', err);
+      }
+    }
+
+    await executeSave();
+  };
+
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={item ? 'Edit Master Item' : 'Add Master Item'}
-      maxWidth="500px"
-    >
-      <form onSubmit={handleSubmit}>
-        <div className="modal-body">
-          {errorMsg && <div className="alert-error">{errorMsg}</div>}
+    <>
+      <Modal
+        isOpen={isOpen && !isWarningOpen}
+        onClose={onClose}
+        title={item ? 'Edit Master Item' : 'Add Master Item'}
+        maxWidth="500px"
+      >
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body">
+            {errorMsg && <div className="alert-error">{errorMsg}</div>}
 
-          <FormField label="Item Name" required>
-            <Input
-              type="text"
-              required
-              placeholder="e.g. Radio Base Station OSDR-10-L-0350"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            />
-          </FormField>
-
-          <div className="form-grid" style={{ marginBottom: '1rem' }}>
-            <FormField label="Brand / Manufacturer" style={{ marginBottom: 0 }}>
+            <FormField label="Item Name" required>
               <Input
                 type="text"
-                placeholder="e.g. Intracom, HPE, Cisco"
-                value={formData.brand}
-                onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-              />
-            </FormField>
-
-            <FormField label="Model Number / MN" style={{ marginBottom: 0 }}>
-              <Input
-                type="text"
-                placeholder="e.g. OSDR-10-L-0350"
-                value={formData.modelNumber}
-                onChange={(e) => setFormData({ ...formData, modelNumber: e.target.value })}
-              />
-            </FormField>
-          </div>
-
-          <div className="form-grid" style={{ marginBottom: '1rem' }}>
-            <FormField label="Unit of Measurement" required style={{ marginBottom: 0 }}>
-              <Select
                 required
-                value={formData.unitId}
-                onChange={(e) => setFormData({ ...formData, unitId: e.target.value })}
-              >
-                <option value="">-- Select Unit --</option>
-                {units.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name} {u.symbol ? `(${u.symbol})` : ''}
-                  </option>
-                ))}
-              </Select>
+                placeholder="e.g. Radio Base Station OSDR-10-L-0350"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
             </FormField>
 
-            <FormField label="Tracking Type" required style={{ marginBottom: 0 }}>
-              <Select
-                value={formData.trackingType}
-                onChange={(e) =>
-                  setFormData({ ...formData, trackingType: e.target.value as 'BULK' | 'SERIALIZED' })
-                }
-              >
-                <option value="BULK">Bulk (Qty only)</option>
-                <option value="SERIALIZED">Serialized (SN Tracked)</option>
-              </Select>
-            </FormField>
+            <div className="form-grid" style={{ marginBottom: '1rem' }}>
+              <FormField label="Brand / Manufacturer" style={{ marginBottom: 0 }}>
+                <Input
+                  type="text"
+                  placeholder="e.g. Intracom, HPE, Cisco"
+                  value={formData.brand}
+                  onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                />
+              </FormField>
+
+              <FormField label="Model Number / MN" style={{ marginBottom: 0 }}>
+                <Input
+                  type="text"
+                  placeholder="e.g. OSDR-10-L-0350"
+                  value={formData.modelNumber}
+                  onChange={(e) => setFormData({ ...formData, modelNumber: e.target.value })}
+                />
+              </FormField>
+            </div>
+
+            <div className="form-grid" style={{ marginBottom: '1rem' }}>
+              <FormField label="Unit of Measurement" required style={{ marginBottom: 0 }}>
+                <Select
+                  required
+                  value={formData.unitId}
+                  onChange={(e) => setFormData({ ...formData, unitId: e.target.value })}
+                >
+                  <option value="">-- Select Unit --</option>
+                  {units.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} {u.symbol ? `(${u.symbol})` : ''}
+                    </option>
+                  ))}
+                </Select>
+              </FormField>
+
+              <FormField label="Tracking Type" required style={{ marginBottom: 0 }}>
+                <Select
+                  value={formData.trackingType}
+                  onChange={(e) =>
+                    setFormData({ ...formData, trackingType: e.target.value as 'BULK' | 'SERIALIZED' })
+                  }
+                >
+                  <option value="BULK">Bulk (Qty only)</option>
+                  <option value="SERIALIZED">Serialized (SN Tracked)</option>
+                </Select>
+              </FormField>
+            </div>
           </div>
-        </div>
 
-        <div className="modal-footer">
-          <Button variant="secondary" type="button" onClick={onClose} disabled={isSaving}>
-            Cancel
-          </Button>
-          <Button variant="primary" type="submit" isLoading={isSaving}>
-            {item ? 'Save Changes' : 'Add Item'}
-          </Button>
-        </div>
-      </form>
-    </Modal>
+          <div className="modal-footer">
+            <Button variant="secondary" type="button" onClick={onClose} disabled={isSaving}>
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit" isLoading={isSaving}>
+              {item ? 'Save Changes' : 'Add Item'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Duplicate Warning Confirmation Modal */}
+      <DuplicateItemWarningModal
+        isOpen={isWarningOpen}
+        matches={duplicateMatches}
+        onCancel={() => setIsWarningOpen(false)}
+        onContinue={executeSave}
+      />
+    </>
   );
 };
