@@ -13,7 +13,7 @@ export interface StockRow {
   itemId: number;
   registeredDate: string;
   location: string;
-  locationType: 'WAREHOUSE' | 'PROJECT';
+  locationType: 'WAREHOUSE' | 'PROJECT' | 'NONE';
   itemName: string;
   brand: string | null;
   modelNumber: string | null;
@@ -42,166 +42,213 @@ export class StocksService {
 
     const rows: StockRow[] = [];
 
-    // 1. Fetch Bulk Stocks from warehouse_stocks (ONE ROW PER ITEM + CURRENT LOCATION)
+    // 1. Bulk Items & Stocks
     if (!trackingFilter || trackingFilter === 'ALL' || trackingFilter === 'BULK') {
-      const whStocks = await this.prisma.warehouseStock.findMany({
+      const bulkItems = await this.prisma.item.findMany({
         where: {
-          quantity: { gt: 0 },
-          item: {
-            trackingType: TrackingType.BULK,
-            isActive: true,
-          },
-          ...(warehouseFilter && { warehouseId: warehouseFilter }),
+          trackingType: TrackingType.BULK,
+          isActive: true,
         },
         include: {
-          warehouse: { select: { id: true, name: true, cityCode: true, location: true } },
-          item: {
-            select: {
-              id: true,
-              name: true,
-              brand: true,
-              modelNumber: true,
-              trackingType: true,
-              createdAt: true,
-              unit: { select: { name: true, symbol: true } },
-              stockMovementItems: {
-                take: 1,
-                orderBy: { createdAt: 'asc' }, // First recorded movement
-                select: { createdAt: true },
-              },
+          unit: { select: { name: true, symbol: true } },
+          warehouseStocks: {
+            where: {
+              ...(warehouseFilter && { warehouseId: warehouseFilter }),
+            },
+            include: {
+              warehouse: { select: { id: true, name: true, cityCode: true, location: true } },
             },
           },
+          stockMovementItems: {
+            take: 1,
+            orderBy: { createdAt: 'asc' },
+            select: { createdAt: true },
+          },
         },
-        orderBy: [{ warehouse: { name: 'asc' } }, { item: { name: 'asc' } }],
+        orderBy: { name: 'asc' },
       });
 
-      for (const stock of whStocks) {
-        // Stable registration date
+      for (const item of bulkItems) {
         const regDate =
-          stock.item.stockMovementItems[0]?.createdAt?.toISOString() ||
-          stock.createdAt?.toISOString() ||
-          stock.item.createdAt?.toISOString();
+          item.stockMovementItems[0]?.createdAt?.toISOString() ||
+          item.createdAt?.toISOString();
 
-        // Short readable location: cityCode if available, otherwise warehouse name
-        const locName = stock.warehouse.cityCode || stock.warehouse.name;
+        const activeStocks = item.warehouseStocks.filter((ws) => ws.quantity > 0);
 
-        rows.push({
-          id: `bulk-wh-${stock.warehouseId}-item-${stock.itemId}`,
-          itemId: stock.itemId,
-          registeredDate: regDate,
-          location: locName,
-          locationType: 'WAREHOUSE',
-          itemName: stock.item.name,
-          brand: stock.item.brand,
-          modelNumber: stock.item.modelNumber,
-          serialNumber: '-',
-          trackingType: 'BULK',
-          quantity: stock.quantity,
-          unit: stock.item.unit.name,
-          unitSymbol: stock.item.unit.symbol || stock.item.unit.name,
-          condition: '-',
-          currentStatus: 'In Warehouse',
-          notes: '-',
-        });
+        if (activeStocks.length > 0) {
+          for (const stock of activeStocks) {
+            const locName = stock.warehouse.cityCode || stock.warehouse.name;
+            rows.push({
+              id: `bulk-wh-${stock.warehouseId}-item-${item.id}`,
+              itemId: item.id,
+              registeredDate: regDate,
+              location: locName,
+              locationType: 'WAREHOUSE',
+              itemName: item.name,
+              brand: item.brand,
+              modelNumber: item.modelNumber,
+              serialNumber: '-',
+              trackingType: 'BULK',
+              quantity: stock.quantity,
+              unit: item.unit.name,
+              unitSymbol: item.unit.symbol || item.unit.name,
+              condition: '-',
+              currentStatus: 'In Warehouse',
+              notes: '-',
+            });
+          }
+        } else if (!warehouseFilter) {
+          // Unassigned / 0 quantity bulk item
+          rows.push({
+            id: `bulk-item-${item.id}-nostock`,
+            itemId: item.id,
+            registeredDate: regDate,
+            location: '-',
+            locationType: 'NONE',
+            itemName: item.name,
+            brand: item.brand,
+            modelNumber: item.modelNumber,
+            serialNumber: '-',
+            trackingType: 'BULK',
+            quantity: 0,
+            unit: item.unit.name,
+            unitSymbol: item.unit.symbol || item.unit.name,
+            condition: '-',
+            currentStatus: 'Out of Stock',
+            notes: '-',
+          });
+        }
       }
     }
 
-    // 2. Fetch Serialized Stocks from item_serials (ONE ROW PER SERIAL NUMBER)
+    // 2. Serialized Items & Serials
     if (!trackingFilter || trackingFilter === 'ALL' || trackingFilter === 'SERIALIZED') {
-      const serials = await this.prisma.itemSerial.findMany({
+      const serializedItems = await this.prisma.item.findMany({
         where: {
-          item: {
-            trackingType: TrackingType.SERIALIZED,
-            isActive: true,
-          },
-          OR: [
-            { currentWarehouseId: { not: null } },
-            { currentProjectId: { not: null } },
-          ],
-          ...(warehouseFilter && { currentWarehouseId: warehouseFilter }),
+          trackingType: TrackingType.SERIALIZED,
+          isActive: true,
         },
         include: {
-          item: {
-            select: {
-              id: true,
-              name: true,
-              brand: true,
-              modelNumber: true,
-              trackingType: true,
-              createdAt: true,
-              unit: { select: { name: true, symbol: true } },
+          unit: { select: { name: true, symbol: true } },
+          itemSerials: {
+            where: {
+              ...(warehouseFilter && { currentWarehouseId: warehouseFilter }),
             },
-          },
-          currentWarehouse: { select: { id: true, name: true, cityCode: true } },
-          currentProject: { select: { id: true, name: true, jobNo: true, location: true } },
-          movementSerials: {
-            take: 1,
-            orderBy: { createdAt: 'asc' },
-            select: {
-              stockMovementItem: {
+            include: {
+              currentWarehouse: { select: { id: true, name: true, cityCode: true } },
+              currentProject: { select: { id: true, name: true, jobNo: true, location: true } },
+              movementSerials: {
+                take: 1,
+                orderBy: { createdAt: 'asc' },
                 select: {
-                  stockMovement: {
-                    select: { createdAt: true },
+                  stockMovementItem: {
+                    select: {
+                      stockMovement: {
+                        select: { createdAt: true },
+                      },
+                    },
                   },
                 },
               },
             },
+            orderBy: [{ createdAt: 'desc' }, { serialNumber: 'asc' }],
+          },
+          stockMovementItems: {
+            take: 1,
+            orderBy: { createdAt: 'asc' },
+            select: { createdAt: true },
           },
         },
-        orderBy: [{ createdAt: 'desc' }, { serialNumber: 'asc' }],
+        orderBy: { name: 'asc' },
       });
 
-      for (const s of serials) {
-        // Registered Date: prefer first movement date or serial creation date
-        const regDate =
-          s.movementSerials[0]?.stockMovementItem?.stockMovement?.createdAt?.toISOString() ||
-          s.createdAt?.toISOString() ||
-          s.item.createdAt?.toISOString();
+      for (const item of serializedItems) {
+        const itemRegDate =
+          item.stockMovementItems[0]?.createdAt?.toISOString() ||
+          item.createdAt?.toISOString();
 
-        // Short readable location label
-        let locName = 'Unassigned';
-        let locType: 'WAREHOUSE' | 'PROJECT' = 'WAREHOUSE';
-        let currentStatus = 'In Warehouse';
+        if (item.itemSerials.length > 0) {
+          for (const s of item.itemSerials) {
+            const regDate =
+              s.movementSerials[0]?.stockMovementItem?.stockMovement?.createdAt?.toISOString() ||
+              s.createdAt?.toISOString() ||
+              itemRegDate;
 
-        if (s.currentProjectId && s.currentProject) {
-          locName = s.currentProject.jobNo || s.currentProject.name || s.currentProject.location;
-          locType = 'PROJECT';
-          currentStatus = 'Deploy';
-        } else if (s.currentWarehouse) {
-          locName = s.currentWarehouse.cityCode || s.currentWarehouse.name;
-          locType = 'WAREHOUSE';
-          const condLower = (s.conditionLabel || s.state || '').toLowerCase();
-          if (s.state === 'UNDER_REPAIR' || condLower.includes('repair')) {
-            currentStatus = 'Under Repair';
-          } else if (s.state === 'STANDBY_BAD' || condLower.includes('bad')) {
-            currentStatus = 'Standby Bad';
-          } else if (s.state === 'STANDBY_GOOD' || condLower.includes('good')) {
-            currentStatus = 'Standby Good';
-          } else {
-            currentStatus = 'In Warehouse';
+            let locName = '-';
+            let locType: 'WAREHOUSE' | 'PROJECT' | 'NONE' = 'NONE';
+            let currentStatus = 'In Warehouse';
+
+            if (s.currentProjectId && s.currentProject) {
+              locName = s.currentProject.jobNo || s.currentProject.name || s.currentProject.location;
+              locType = 'PROJECT';
+              currentStatus = 'Deploy';
+            } else if (s.currentWarehouse) {
+              locName = s.currentWarehouse.cityCode || s.currentWarehouse.name;
+              locType = 'WAREHOUSE';
+              const condLower = (s.conditionLabel || s.state || '').toLowerCase();
+              if (s.state === 'UNDER_REPAIR' || condLower.includes('repair')) {
+                currentStatus = 'Under Repair';
+              } else if (s.state === 'STANDBY_BAD' || condLower.includes('bad')) {
+                currentStatus = 'Standby Bad';
+              } else if (s.state === 'STANDBY_GOOD' || condLower.includes('good')) {
+                currentStatus = 'Standby Good';
+              } else {
+                currentStatus = 'In Warehouse';
+              }
+            } else {
+              currentStatus = 'Out of Stock';
+            }
+
+            const conditionDisplay =
+              s.conditionLabel ||
+              (s.state === 'STANDBY_GOOD'
+                ? 'Standby Good'
+                : s.state === 'STANDBY_BAD'
+                ? 'Standby Bad'
+                : s.state === 'UNDER_REPAIR'
+                ? 'Under Repair'
+                : s.state);
+
+            rows.push({
+              id: `ser-${s.id}`,
+              itemId: item.id,
+              registeredDate: regDate,
+              location: locName,
+              locationType: locType,
+              itemName: item.name,
+              brand: item.brand,
+              modelNumber: item.modelNumber,
+              serialNumber: s.serialNumber,
+              trackingType: 'SERIALIZED',
+              quantity: 1,
+              unit: item.unit.name,
+              unitSymbol: item.unit.symbol || item.unit.name,
+              condition: conditionDisplay,
+              currentStatus,
+              notes: s.notes || '-',
+            });
           }
+        } else if (!warehouseFilter) {
+          // Serialized item without serial records yet
+          rows.push({
+            id: `ser-item-${item.id}-nostock`,
+            itemId: item.id,
+            registeredDate: itemRegDate,
+            location: '-',
+            locationType: 'NONE',
+            itemName: item.name,
+            brand: item.brand,
+            modelNumber: item.modelNumber,
+            serialNumber: '-',
+            trackingType: 'SERIALIZED',
+            quantity: 0,
+            unit: item.unit.name,
+            unitSymbol: item.unit.symbol || item.unit.name,
+            condition: '-',
+            currentStatus: 'Out of Stock',
+            notes: '-',
+          });
         }
-
-        const conditionDisplay = s.conditionLabel || (s.state === 'STANDBY_GOOD' ? 'Standby Good' : s.state === 'STANDBY_BAD' ? 'Standby Bad' : s.state === 'UNDER_REPAIR' ? 'Under Repair' : s.state);
-
-        rows.push({
-          id: `ser-${s.id}`,
-          itemId: s.itemId,
-          registeredDate: regDate,
-          location: locName,
-          locationType: locType,
-          itemName: s.item.name,
-          brand: s.item.brand,
-          modelNumber: s.item.modelNumber,
-          serialNumber: s.serialNumber,
-          trackingType: 'SERIALIZED',
-          quantity: 1, // Always 1 for individual serial
-          unit: s.item.unit.name,
-          unitSymbol: s.item.unit.symbol || s.item.unit.name,
-          condition: conditionDisplay,
-          currentStatus,
-          notes: s.notes || '-',
-        });
       }
     }
 
