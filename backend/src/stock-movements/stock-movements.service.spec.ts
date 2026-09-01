@@ -5,7 +5,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import {
   MovementType,
   TrackingType,
-  SerialStatus,
+ 
 } from '../../generated/prisma/client';
 
 describe('StockMovementsService', () => {
@@ -88,7 +88,7 @@ describe('StockMovementsService', () => {
     it('should successfully create bulk stock incoming movement', async () => {
       const mockItem = {
         id: 10,
-        sku: 'BULK-ITEM',
+        brand: 'BULK-ITEM',
         name: 'Bulk Item Box',
         trackingType: TrackingType.BULK,
         isActive: true,
@@ -140,7 +140,7 @@ describe('StockMovementsService', () => {
     it('should throw BadRequestException if serialized item has missing serials', async () => {
       mockPrisma.item.findUnique.mockResolvedValue({
         id: 20,
-        sku: 'SER-ITEM',
+        brand: 'SER-ITEM',
         name: 'Serialized Item',
         trackingType: TrackingType.SERIALIZED,
         isActive: true,
@@ -164,7 +164,7 @@ describe('StockMovementsService', () => {
     it('should successfully handle serialized outgoing movement', async () => {
       mockPrisma.item.findUnique.mockResolvedValue({
         id: 20,
-        sku: 'SER-ITEM',
+        brand: 'SER-ITEM',
         name: 'Serialized Item',
         trackingType: TrackingType.SERIALIZED,
         isActive: true,
@@ -183,7 +183,7 @@ describe('StockMovementsService', () => {
       mockPrisma.itemSerial.findUnique.mockResolvedValue({
         id: 100,
         serialNumber: 'SN-ABC',
-        status: SerialStatus.IN_STOCK,
+        state: "STANDBY_GOOD", currentWarehouseId: 1,
       });
       mockPrisma.itemSerial.update.mockResolvedValue({});
       mockPrisma.stockMovementItemSerial.create.mockResolvedValue({});
@@ -204,14 +204,14 @@ describe('StockMovementsService', () => {
       expect(mockPrisma.warehouseStock.update).toHaveBeenCalled();
       expect(mockPrisma.itemSerial.update).toHaveBeenCalledWith({
         where: { id: 100 },
-        data: { status: SerialStatus.DELIVERED },
+        data: { state: "DEPLOYED", currentWarehouseId: null, currentProjectId: undefined, conditionLabel: undefined },
       });
     });
 
     it('should throw BadRequestException if outgoing serial number is not in stock', async () => {
       mockPrisma.item.findUnique.mockResolvedValue({
         id: 20,
-        sku: 'SER-ITEM',
+        brand: 'SER-ITEM',
         name: 'Serialized Item',
         trackingType: TrackingType.SERIALIZED,
         isActive: true,
@@ -229,7 +229,7 @@ describe('StockMovementsService', () => {
       mockPrisma.itemSerial.findUnique.mockResolvedValue({
         id: 100,
         serialNumber: 'SN-ABC',
-        status: SerialStatus.DELIVERED,
+        state: "DEPLOYED",
       });
 
       await expect(

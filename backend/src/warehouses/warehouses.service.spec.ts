@@ -128,7 +128,7 @@ describe('WarehousesService', () => {
           item: {
             id: 10,
             name: 'Bulk Item',
-            sku: 'SKU-BULK',
+            brand: 'SKU-BULK',
             trackingType: 'BULK',
             unit: { name: 'Pcs' },
           },

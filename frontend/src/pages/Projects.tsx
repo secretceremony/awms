@@ -26,7 +26,7 @@ interface ProjectStock {
   item: {
     id: number;
     name: string;
-    sku: string;
+    brand: string;
     trackingType: 'SERIALIZED' | 'BULK';
     unit?: {
       name: string;
@@ -608,7 +608,7 @@ export const Projects = () => {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid #E5E7EB', textAlign: 'left', color: '#4B5563' }}>
-                        <th style={{ padding: '8px 12px' }}>SKU</th>
+                        <th style={{ padding: '8px 12px' }}>Brand</th>
                         <th style={{ padding: '8px 12px' }}>Item Name</th>
                         <th style={{ padding: '8px 12px' }}>Tracking Type</th>
                         <th style={{ padding: '8px 12px' }}>Quantity</th>
@@ -617,7 +617,7 @@ export const Projects = () => {
                     <tbody>
                       {viewingProject.projectStocks.map((stock) => (
                         <tr key={stock.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
-                          <td style={{ padding: '8px 12px', fontWeight: 500 }}>{stock.item.sku}</td>
+                          <td style={{ padding: '8px 12px', fontWeight: 500 }}>{stock.item.brand}</td>
                           <td style={{ padding: '8px 12px' }}>{stock.item.name}</td>
                           <td style={{ padding: '8px 12px' }}>
                             <span

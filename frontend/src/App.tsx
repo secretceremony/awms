@@ -5,6 +5,10 @@ import { DashboardLayout } from './components/DashboardLayout.js';
 import { Login } from './pages/Login.js';
 import { Dashboard } from './pages/Dashboard.js';
 import { StockList } from './pages/Inventory/StockList.js';
+import { ItemForm } from "./pages/Inventory/ItemForm.js";
+import { ItemDetail } from "./pages/Inventory/ItemDetail.js";
+import { InitialStock } from "./pages/Inventory/InitialStock.js";
+
 import { Incoming } from './pages/Inventory/Incoming.js';
 import { Outgoing } from './pages/Inventory/Outgoing.js';
 import { Warehouses } from './pages/Warehouses.js';
@@ -30,6 +34,11 @@ function App() {
             <Route element={<DashboardLayout />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/inventory" element={<StockList />} />
+              <Route path="/inventory/new" element={<ItemForm />} />
+              <Route path="/inventory/edit/:id" element={<ItemForm />} />
+              <Route path="/inventory/item/:id" element={<ItemDetail />} />
+              <Route path="/inventory/initial-stock" element={<InitialStock />} />
+
               <Route path="/inventory/incoming" element={<Incoming />} />
               <Route path="/inventory/outgoing" element={<Outgoing />} />
               <Route path="/warehouses" element={<Warehouses />} />

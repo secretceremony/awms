@@ -1,0 +1,98 @@
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { apiClient } from '../../api/client.js';
+
+export const ItemForm = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    name: '',
+    brand: '',
+    unitId: '',
+    trackingType: 'BULK',
+    isActive: true
+  });
+  const [units, setUnits] = useState<{id: number, name: string}[]>([]);
+
+  useEffect(() => {
+    const fetchUnits = async () => {
+      try {
+        const { data } = await apiClient.get<any>('/units');
+        setUnits(data.data || []);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchUnits();
+
+    if (id) {
+      const fetchItem = async () => {
+        try {
+          const { data } = await apiClient.get<any>(`/items/${id}`);
+          setFormData({
+            name: data.name,
+            brand: data.brand || '',
+            unitId: data.unitId.toString(),
+            trackingType: data.trackingType,
+            isActive: data.isActive
+          });
+        } catch (err) {
+          console.error(err);
+        }
+      };
+      fetchItem();
+    }
+  }, [id]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const payload = {
+      ...formData,
+      unitId: parseInt(formData.unitId),
+    };
+    try {
+      if (id) {
+        await apiClient.patch(`/items/${id}`, payload);
+      } else {
+        await apiClient.post('/items', payload);
+      }
+      navigate('/inventory');
+    } catch (err) {
+      console.error(err);
+      alert('Error saving item');
+    }
+  };
+
+  return (
+    <div className="page-container">
+      <h2>{id ? 'Edit Item' : 'Create Item'}</h2>
+      <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '400px'}}>
+        <label>
+          Name:
+          <input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
+        </label>
+        <label>
+          Brand:
+          <input value={formData.brand} onChange={e => setFormData({...formData, brand: e.target.value})} />
+        </label>
+        <label>
+          Unit:
+          <select value={formData.unitId} onChange={e => setFormData({...formData, unitId: e.target.value})} required>
+            <option value="">Select Unit</option>
+            {units.map(u => (
+              <option key={u.id} value={u.id}>{u.name}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Tracking Type:
+          <select value={formData.trackingType} onChange={e => setFormData({...formData, trackingType: e.target.value})} disabled={!!id}>
+            <option value="BULK">Bulk</option>
+            <option value="SERIALIZED">Serialized</option>
+          </select>
+        </label>
+        <button type="submit">Save</button>
+      </form>
+    </div>
+  );
+};

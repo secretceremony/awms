@@ -263,7 +263,7 @@ export class WarehousesService {
         const serials = await this.prisma.itemSerial.findMany({
           where: {
             itemId: item.id,
-            status: 'IN_STOCK',
+            currentWarehouseId: warehouseId,
           },
           include: {
             movementSerials: {
@@ -283,7 +283,7 @@ export class WarehousesService {
         });
 
         // Filter for serials whose latest movement was to this warehouse
-        const activeSerials = serials.filter((s) => {
+        const activeSerials = (serials as any[]).filter((s) => {
           const latestMovement =
             s.movementSerials[0]?.stockMovementItem?.stockMovement;
           return latestMovement?.destinationWarehouseId === warehouseId;
@@ -295,7 +295,7 @@ export class WarehousesService {
       data.push({
         itemId: item.id,
         itemName: item.name,
-        sku: item.sku,
+        brand: item.name,
         trackingType: item.trackingType,
         quantity: ws.quantity,
         unit: item.unit?.name || null,

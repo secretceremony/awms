@@ -7,7 +7,6 @@ import { PrismaService } from '../prisma.service.js';
 import { CreateStockMovementDto } from './dto/create-stock-movement.dto.js';
 import {
   MovementType,
-  SerialStatus,
   TrackingType,
 } from '../../generated/prisma/client.js';
 
@@ -91,18 +90,17 @@ export class StockMovementsService {
           );
         }
 
+        const serials: any[] = entry.serialDetails || entry.serialNumbers?.map(sn => ({ serialNumber: sn })) || [];
+
         // Validate serial tracking constraint
         if (item.trackingType === TrackingType.SERIALIZED) {
-          if (
-            !entry.serialNumbers ||
-            entry.serialNumbers.length !== entry.quantity
-          ) {
+          if (serials.length !== entry.quantity) {
             throw new BadRequestException(
               `Item ${item.name} is serialized and requires exactly ${entry.quantity} serial numbers`,
             );
           }
         } else {
-          if (entry.serialNumbers && entry.serialNumbers.length > 0) {
+          if (serials.length > 0) {
             throw new BadRequestException(
               `Bulk item ${item.name} cannot have serial numbers`,
             );
@@ -132,7 +130,7 @@ export class StockMovementsService {
 
           if (!whStock || whStock.quantity < entry.quantity) {
             throw new BadRequestException(
-              `Insufficient stock for item ${item.sku} in source warehouse`,
+              `Insufficient stock for item ${item.name} in source warehouse`,
             );
           }
 
@@ -195,7 +193,7 @@ export class StockMovementsService {
 
             if (!projStock || projStock.quantity < entry.quantity) {
               throw new BadRequestException(
-                `Insufficient stock for item ${item.sku} in project`,
+                `Insufficient stock for item ${item.name} in project`,
               );
             }
 
@@ -209,63 +207,103 @@ export class StockMovementsService {
         // Handle Serial numbers updates if SERIALIZED
         if (
           item.trackingType === TrackingType.SERIALIZED &&
-          entry.serialNumbers
+          serials.length > 0
         ) {
-          for (const sn of entry.serialNumbers) {
+          for (const sData of serials) {
+            const sn = sData.serialNumber;
             let serial = await tx.itemSerial.findUnique({
               where: { serialNumber: sn },
             });
 
-            // Set Serial target status based on movement type
-            let targetStatus: SerialStatus;
+            // Handle Serial target status based on movement type
             if (movementType === MovementType.OUTGOING) {
-              if (!serial || serial.status !== SerialStatus.IN_STOCK) {
+              if (!serial || serial.currentWarehouseId !== sourceWarehouseId) {
                 throw new BadRequestException(
-                  `Serial number ${sn} is not available in stock`,
+                  `Serial number ${sn} is not available in source warehouse`,
                 );
               }
-              targetStatus = SerialStatus.DELIVERED;
+              serial = await tx.itemSerial.update({
+                where: { id: serial.id },
+                data: {
+                  currentWarehouseId: null,
+                  currentProjectId: projectId,
+                  state: 'DEPLOYED',
+                  conditionLabel: sData.conditionLabel ?? serial.conditionLabel,
+                },
+              });
             } else if (movementType === MovementType.RETURN) {
-              if (!serial || serial.status === SerialStatus.IN_STOCK) {
+              if (!serial || serial.currentProjectId !== projectId) {
                 throw new BadRequestException(
-                  `Serial number ${sn} is already marked as in stock`,
+                  `Serial number ${sn} is not deployed in project`,
                 );
               }
-              targetStatus = SerialStatus.IN_STOCK;
+              serial = await tx.itemSerial.update({
+                where: { id: serial.id },
+                data: {
+                  currentWarehouseId: destinationWarehouseId,
+                  currentProjectId: null,
+                  state: sData.state ?? 'STANDBY_GOOD', // Default assumption on return
+                  conditionLabel: sData.conditionLabel ?? serial.conditionLabel,
+                },
+              });
             } else if (
               movementType === MovementType.INITIAL ||
               movementType === MovementType.INCOMING
             ) {
-              if (serial && serial.status === SerialStatus.IN_STOCK) {
-                throw new BadRequestException(
-                  `Serial number ${sn} already exists in stock`,
-                );
+              if (serial) {
+                if (serial.currentWarehouseId) {
+                  throw new BadRequestException(
+                    `Serial number ${sn} already exists in a warehouse`,
+                  );
+                }
+                serial = await tx.itemSerial.update({
+                  where: { id: serial.id },
+                  data: {
+                    currentWarehouseId: destinationWarehouseId,
+                    currentProjectId: null,
+                    state: sData.state ?? 'STANDBY_GOOD',
+                    conditionLabel: sData.conditionLabel ?? serial.conditionLabel,
+                  },
+                });
+              } else {
+                serial = await tx.itemSerial.create({
+                  data: {
+                    serialNumber: sn,
+                    itemId: item.id,
+                    currentWarehouseId: destinationWarehouseId,
+                    currentProjectId: null,
+                    state: sData.state ?? 'STANDBY_GOOD',
+                    conditionLabel: sData.conditionLabel ?? null,
+                  },
+                });
               }
-              targetStatus = SerialStatus.IN_STOCK;
             } else {
               // ADJUSTMENT
-              targetStatus = destinationWarehouseId
-                ? SerialStatus.IN_STOCK
-                : SerialStatus.MOVED;
+              if (!serial) {
+                 serial = await tx.itemSerial.create({
+                   data: {
+                     serialNumber: sn,
+                     itemId: item.id,
+                     currentWarehouseId: destinationWarehouseId,
+                     currentProjectId: null,
+                     state: sData.state ?? 'STANDBY_GOOD',
+                     conditionLabel: sData.conditionLabel ?? null,
+                   },
+                 });
+              } else {
+                 serial = await tx.itemSerial.update({
+                   where: { id: serial.id },
+                   data: {
+                     currentWarehouseId: destinationWarehouseId,
+                     currentProjectId: null,
+                     state: sData.state ?? serial.state,
+                     conditionLabel: sData.conditionLabel ?? serial.conditionLabel,
+                   },
+                 });
+              }
             }
 
-            // Create or update serial record
-            if (!serial) {
-              serial = await tx.itemSerial.create({
-                data: {
-                  serialNumber: sn,
-                  itemId: item.id,
-                  status: targetStatus,
-                },
-              });
-            } else {
-              serial = await tx.itemSerial.update({
-                where: { id: serial.id },
-                data: { status: targetStatus },
-              });
-            }
-
-            // Link serial mapping to the movement item
+            // Create movement serial relation
             await tx.stockMovementItemSerial.create({
               data: {
                 stockMovementItemId: movementItem.id,

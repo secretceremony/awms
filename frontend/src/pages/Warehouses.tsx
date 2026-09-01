@@ -18,7 +18,7 @@ interface Warehouse {
 interface WarehouseStock {
   itemId: number;
   itemName: string;
-  sku: string;
+  brand: string;
   trackingType: 'BULK' | 'SERIALIZED';
   quantity: number;
   unit: string | null;
@@ -188,7 +188,7 @@ export const Warehouses = () => {
   ];
 
   const stockColumns: Column<WarehouseStock>[] = [
-    { header: 'SKU', key: 'sku' },
+    { header: 'Brand', key: 'brand' },
     { header: 'Item Name', key: 'itemName' },
     { header: 'Type', key: 'trackingType', render: (item) => (
         <span style={{ fontSize: '12px', fontWeight: 500, color: item.trackingType === 'SERIALIZED' ? '#8B5CF6' : '#10B981' }}>
@@ -320,7 +320,7 @@ export const Warehouses = () => {
           <PaginatedTable<WarehouseStock>
             columns={stockColumns}
             fetchUrl={`/warehouses/${viewingWarehouse.id}/stocks`}
-            searchPlaceholder="Search stock by item name or SKU..."
+            searchPlaceholder="Search stock by item name or Brand..."
           />
         </div>
       </div>

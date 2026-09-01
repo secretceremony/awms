@@ -1,8 +1,9 @@
+import { Link } from 'react-router-dom';
 import { PaginatedTable, type Column } from '../../components/PaginatedTable.js';
 
 interface Item {
   id: number;
-  sku: string;
+  brand: string;
   name: string;
   trackingType: string;
   unit?: {
@@ -12,8 +13,12 @@ interface Item {
 
 export const StockList = () => {
   const columns: Column<Item>[] = [
-    { header: 'SKU', key: 'sku' },
-    { header: 'Name', key: 'name' },
+    { header: 'Brand', key: 'brand' },
+    { 
+      header: 'Name', 
+      key: 'name',
+      render: (item) => <Link to={`/inventory/item/${item.id}`}>{item.name}</Link>
+    },
     { 
       header: 'Unit', 
       key: 'unit',
@@ -32,10 +37,17 @@ export const StockList = () => {
 
   return (
     <div className="page-container">
+      <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '1rem'}}>
+        <h2>Inventory Items</h2>
+        <div>
+          <Link to="/inventory/new"><button style={{marginRight: '1rem'}}>Add Item</button></Link>
+          <Link to="/inventory/initial-stock"><button>Add Initial Stock</button></Link>
+        </div>
+      </div>
       <PaginatedTable<Item>
         columns={columns}
         fetchUrl="/items"
-        searchPlaceholder="Search items by SKU or Name..."
+        searchPlaceholder="Search items by Brand or Name..."
       />
     </div>
   );

@@ -12,6 +12,20 @@ import {
 import { Type } from 'class-transformer';
 import { MovementType } from '../../../generated/prisma/client.js';
 
+export class SerialDetailDto {
+  @IsString()
+  @IsNotEmpty()
+  serialNumber!: string;
+
+  @IsOptional()
+  @IsString()
+  conditionLabel?: string;
+
+  @IsOptional()
+  @IsString()
+  state?: string;
+}
+
 export class StockMovementItemDto {
   @IsInt()
   @IsPositive()
@@ -25,6 +39,12 @@ export class StockMovementItemDto {
   @IsArray()
   @IsString({ each: true })
   serialNumbers?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SerialDetailDto)
+  serialDetails?: SerialDetailDto[];
 }
 
 export class CreateStockMovementDto {
