@@ -173,7 +173,6 @@ model ItemSerial {
   currentProjectId   Int?       @map("current_project_id")
   currentProject     Project?   @relation("ItemSerialCurrentProject", fields: [currentProjectId], references: [id])
   notes              String?
-  isActive           Boolean    @default(true) @map("is_active")
   createdAt          DateTime   @default(now()) @map("created_at")
   updatedAt          DateTime   @updatedAt @map("updated_at")
 

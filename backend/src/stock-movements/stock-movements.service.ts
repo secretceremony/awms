@@ -251,9 +251,9 @@ export class StockMovementsService {
               movementType === MovementType.INCOMING
             ) {
               if (serial) {
-                if (serial.currentWarehouseId) {
+                if (serial.currentWarehouseId || serial.currentProjectId) {
                   throw new BadRequestException(
-                    `Serial number ${sn} already exists in a warehouse`,
+                    `Serial number ${sn} already exists in a warehouse or project`,
                   );
                 }
                 serial = await tx.itemSerial.update({
