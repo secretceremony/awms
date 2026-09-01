@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.js';
 import {
   LayoutDashboard,
@@ -13,8 +12,6 @@ import {
   FileText,
   Settings as SettingsIcon,
   LogOut,
-  Menu,
-  X,
   User,
   Ruler,
   Briefcase
@@ -23,7 +20,7 @@ import {
 export const DashboardLayout = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const location = useLocation();
 
   const handleLogout = async () => {
     try {
@@ -53,25 +50,12 @@ export const DashboardLayout = () => {
     { to: '/settings', label: 'Settings', icon: SettingsIcon },
   ];
 
+  const currentNav = navItems.find((item) => item.to === location.pathname);
+
   return (
     <div className="dashboard-container">
-      {/* Mobile Top Bar */}
-      <header className="mobile-header">
-        <div className="mobile-logo-section">
-          <div className="logo-box">A</div>
-          <span>ALSSA WMS</span>
-        </div>
-        <button
-          type="button"
-          className="menu-toggle"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        >
-          {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
-      </header>
-
       {/* Sidebar Navigation */}
-      <aside className={`sidebar ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
+      <aside className="sidebar">
         <div className="logo-section">
           <div className="logo-cube">A</div>
           <div className="logo-text">
@@ -97,7 +81,6 @@ export const DashboardLayout = () => {
                 className={({ isActive }) =>
                   `nav-link ${isActive ? 'active' : ''}`
                 }
-                onClick={() => setIsMobileMenuOpen(false)}
               >
                 <Icon size={18} />
                 <span>{item.label}</span>
@@ -136,15 +119,15 @@ export const DashboardLayout = () => {
       <main className="main-content-layout">
         <header className="content-header">
           <div className="header-title-area">
-            <div className="breadcrumb">
-              ALSSA WMS &nbsp;/&nbsp; {navItems.find((item) => item.to === window.location.pathname)?.label || 'Panel'}
+            <div className="breadcrumb" style={{ fontSize: '0.8rem', color: '#6B7280' }}>
+              ALSSA WMS &nbsp;/&nbsp; {currentNav?.label || 'Panel'}
             </div>
-            <h1>
-              {navItems.find((item) => item.to === window.location.pathname)?.label || 'AWMS Panel'}
+            <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>
+              {currentNav?.label || 'AWMS Panel'}
             </h1>
           </div>
           <div className="header-meta">
-            <span className="badge">Active Session</span>
+            <span className="badge-status active" style={{ fontSize: '0.75rem' }}>Active Session</span>
           </div>
         </header>
         <div className="content-body">
@@ -154,3 +137,5 @@ export const DashboardLayout = () => {
     </div>
   );
 };
+
+export default DashboardLayout;

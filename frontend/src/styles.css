@@ -928,9 +928,6 @@ tr:hover td {
     width: 100%;
     padding: 2rem 1.5rem;
   }
-  .sidebar {
-    display: none;
-  }
   .content-header {
     padding: 1rem 1.25rem;
   }
