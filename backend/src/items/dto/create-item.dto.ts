@@ -10,6 +10,10 @@ export class CreateItemDto {
   @IsOptional()
   brand?: string;
 
+  @IsString()
+  @IsOptional()
+  modelNumber?: string;
+
   @IsInt()
   @IsNotEmpty()
   unitId: number;

@@ -46,6 +46,7 @@ export class ItemsService {
         OR: [
           { name: { contains: search, mode: 'insensitive' } },
           { brand: { contains: search, mode: 'insensitive' } },
+          { modelNumber: { contains: search, mode: 'insensitive' } },
         ],
       }),
     };
@@ -58,7 +59,9 @@ export class ItemsService {
         include: {
           unit: {
             select: {
+              id: true,
               name: true,
+              symbol: true,
             },
           },
         },
@@ -78,7 +81,15 @@ export class ItemsService {
       include: {
         unit: {
           select: {
+            id: true,
             name: true,
+            symbol: true,
+          },
+        },
+        warehouseStocks: {
+          where: { quantity: { gt: 0 } },
+          include: {
+            warehouse: { select: { id: true, name: true, location: true } },
           },
         },
       },

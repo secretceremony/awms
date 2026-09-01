@@ -6,8 +6,9 @@ export interface Item {
   id: number;
   name: string;
   brand: string | null;
+  modelNumber: string | null;
   unitId: number;
-  unit?: { id: number; name: string };
+  unit?: { id: number; name: string; symbol: string | null };
   trackingType: 'BULK' | 'SERIALIZED';
   isActive: boolean;
 }
@@ -25,10 +26,11 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({
   item,
   onSuccess,
 }) => {
-  const [units, setUnits] = useState<{ id: number; name: string }[]>([]);
+  const [units, setUnits] = useState<{ id: number; name: string; symbol: string | null }[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     brand: '',
+    modelNumber: '',
     unitId: '',
     trackingType: 'BULK' as 'BULK' | 'SERIALIZED',
   });
@@ -56,6 +58,7 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({
       setFormData({
         name: item.name,
         brand: item.brand || '',
+        modelNumber: item.modelNumber || '',
         unitId: String(item.unitId || ''),
         trackingType: item.trackingType || 'BULK',
       });
@@ -63,6 +66,7 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({
       setFormData({
         name: '',
         brand: '',
+        modelNumber: '',
         unitId: '',
         trackingType: 'BULK',
       });
@@ -79,6 +83,7 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({
       const payload: any = {
         name: formData.name.trim(),
         brand: formData.brand.trim() || undefined,
+        modelNumber: formData.modelNumber.trim() || undefined,
         unitId: parseInt(formData.unitId, 10),
       };
 
@@ -112,7 +117,7 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={item ? 'Edit Master Item' : 'Add Master Item'}
-      maxWidth="480px"
+      maxWidth="500px"
     >
       <form onSubmit={handleSubmit}>
         <div className="modal-body">
@@ -122,20 +127,31 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({
             <Input
               type="text"
               required
-              placeholder="e.g. Cisco Switch 24-Port"
+              placeholder="e.g. Radio Base Station OSDR-10-L-0350"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             />
           </FormField>
 
-          <FormField label="Brand / Manufacturer">
-            <Input
-              type="text"
-              placeholder="e.g. Cisco, Ubiquiti, Schneider"
-              value={formData.brand}
-              onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-            />
-          </FormField>
+          <div className="form-grid" style={{ marginBottom: '1rem' }}>
+            <FormField label="Brand / Manufacturer" style={{ marginBottom: 0 }}>
+              <Input
+                type="text"
+                placeholder="e.g. Intracom, HPE, Cisco"
+                value={formData.brand}
+                onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+              />
+            </FormField>
+
+            <FormField label="Model Number / MN" style={{ marginBottom: 0 }}>
+              <Input
+                type="text"
+                placeholder="e.g. OSDR-10-L-0350"
+                value={formData.modelNumber}
+                onChange={(e) => setFormData({ ...formData, modelNumber: e.target.value })}
+              />
+            </FormField>
+          </div>
 
           <div className="form-grid" style={{ marginBottom: '1rem' }}>
             <FormField label="Unit of Measurement" required style={{ marginBottom: 0 }}>
@@ -147,7 +163,7 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({
                 <option value="">-- Select Unit --</option>
                 {units.map((u) => (
                   <option key={u.id} value={u.id}>
-                    {u.name}
+                    {u.name} {u.symbol ? `(${u.symbol})` : ''}
                   </option>
                 ))}
               </Select>

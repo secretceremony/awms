@@ -15,10 +15,17 @@ interface ItemSerial {
   currentProject?: { id: number; name: string };
 }
 
+interface WarehouseStockBalance {
+  id: number;
+  warehouseId: number;
+  quantity: number;
+  warehouse: { id: number; name: string; location: string };
+}
+
 export const ItemDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [item, setItem] = useState<Item | null>(null);
+  const [item, setItem] = useState<(Item & { warehouseStocks?: WarehouseStockBalance[] }) | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -51,7 +58,11 @@ export const ItemDetail = () => {
       header: 'State / Condition',
       key: 'state',
       render: (s) => (
-        <StatusBadge type="condition" status={s.state} label={`${s.state}${s.conditionLabel ? ` (${s.conditionLabel})` : ''}`} />
+        <StatusBadge
+          type="condition"
+          status={s.state}
+          label={`${s.state}${s.conditionLabel ? ` (${s.conditionLabel})` : ''}`}
+        />
       ),
     },
     {
@@ -70,13 +81,13 @@ export const ItemDetail = () => {
     <div className="page-container">
       <div style={{ marginBottom: '16px' }}>
         <Button variant="secondary" size="sm" onClick={() => navigate('/inventory')}>
-          <ArrowLeft size={16} /> Back to Master Inventory
+          <ArrowLeft size={16} /> Back to Stock List
         </Button>
       </div>
 
       <PageHeader
         title={item.name}
-        description={`Brand: ${item.brand || 'N/A'} • Tracking: ${item.trackingType} • Unit: ${item.unit?.name || 'N/A'}`}
+        description={`Brand: ${item.brand || 'N/A'} • MN: ${item.modelNumber || 'N/A'} • Unit: ${item.unit?.name || 'N/A'}`}
         actions={
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
             <StatusBadge status={item.isActive} />
@@ -87,11 +98,15 @@ export const ItemDetail = () => {
         }
       />
 
-      <Card title="Item Overview">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+      <Card title="Item Master Overview">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.25rem' }}>
           <div>
             <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Brand</span>
             <p style={{ fontWeight: 600 }}>{item.brand || '-'}</p>
+          </div>
+          <div>
+            <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Model Number / MN</span>
+            <p style={{ fontWeight: 600 }}>{item.modelNumber || '-'}</p>
           </div>
           <div>
             <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Tracking Type</span>
@@ -99,7 +114,9 @@ export const ItemDetail = () => {
           </div>
           <div>
             <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Unit of Measure</span>
-            <p style={{ fontWeight: 600 }}>{item.unit?.name || '-'}</p>
+            <p style={{ fontWeight: 600 }}>
+              {item.unit?.name || '-'} {item.unit?.symbol ? `(${item.unit.symbol})` : ''}
+            </p>
           </div>
           <div>
             <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Status</span>
@@ -108,6 +125,46 @@ export const ItemDetail = () => {
         </div>
       </Card>
 
+      {/* Bulk Stock Breakdown by Warehouse */}
+      {item.trackingType === 'BULK' && (
+        <div style={{ marginTop: '24px' }}>
+          <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#1F2839', marginBottom: '16px' }}>
+            Warehouse Stock Distribution
+          </h3>
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Warehouse</th>
+                  <th>Location</th>
+                  <th>Quantity on Hand</th>
+                  <th>Unit</th>
+                </tr>
+              </thead>
+              <tbody>
+                {item.warehouseStocks && item.warehouseStocks.length > 0 ? (
+                  item.warehouseStocks.map((ws) => (
+                    <tr key={ws.id}>
+                      <td style={{ fontWeight: 500 }}>{ws.warehouse.name}</td>
+                      <td>{ws.warehouse.location}</td>
+                      <td style={{ fontWeight: 600 }}>{ws.quantity}</td>
+                      <td>{item.unit?.symbol || item.unit?.name || '-'}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} style={{ textAlign: 'center', color: '#6B7280', padding: '24px' }}>
+                      No active stock in any warehouse.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Serialized Item Serials List */}
       {item.trackingType === 'SERIALIZED' && (
         <div style={{ marginTop: '24px' }}>
           <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#1F2839', marginBottom: '16px' }}>
