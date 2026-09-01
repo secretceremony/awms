@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { PaginatedTable, type Column } from '../components/PaginatedTable.js';
 import { apiClient } from '../api/client.js';
 import { Eye, Edit2, PowerOff, ArrowLeft } from 'lucide-react';
+import { Button, Input, FormField, Modal, StatusBadge, PageHeader, Card } from '../components/ui/index.js';
 
 interface Warehouse {
   id: number;
@@ -131,9 +132,7 @@ export const Warehouses = () => {
       header: 'Status',
       key: 'isActive',
       render: (item) => (
-        <span className={`badge-status ${item.isActive ? 'active' : 'inactive'}`}>
-          {item.isActive ? 'Active' : 'Inactive'}
-        </span>
+        <StatusBadge status={item.isActive} />
       ),
     },
     {
@@ -141,46 +140,10 @@ export const Warehouses = () => {
       key: 'actions',
       render: (item) => (
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            onClick={() => setViewingWarehouse(item)}
-            title="View Details & Stock"
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '4px',
-              color: '#2250A1',
-            }}
-          >
-            <Eye size={16} />
-          </button>
-          <button
-            onClick={() => openModal(item)}
-            title="Edit Warehouse"
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '4px',
-              color: '#4B5563',
-            }}
-          >
-            <Edit2 size={16} />
-          </button>
+          <Button variant="icon" onClick={() => setViewingWarehouse(item)} title="View Details & Stock" style={{ color: "#2250A1" }}><Eye size={16} /></Button>
+          <Button variant="icon" onClick={() => openModal(item)} title="Edit Warehouse"><Edit2 size={16} /></Button>
           {item.isActive && (
-            <button
-              onClick={() => handleDeactivate(item)}
-              title="Deactivate Warehouse"
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '4px',
-                color: '#EF4444',
-              }}
-            >
-              <PowerOff size={16} />
-            </button>
+            <Button variant="icon" onClick={() => handleDeactivate(item)} title="Deactivate Warehouse" style={{ color: "#EF4444" }}><PowerOff size={16} /></Button>
           )}
         </div>
       ),
@@ -260,7 +223,7 @@ export const Warehouses = () => {
         </div>
 
         {/* Info Grid */}
-        <div className="content-card" style={{ padding: '24px', marginBottom: '24px' }}>
+        <Card style={{ marginBottom: '24px' }}>
           <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 600, color: '#1F2839' }}>
             Warehouse Profile
           </h3>
@@ -293,9 +256,7 @@ export const Warehouses = () => {
               <span style={{ display: 'block', fontSize: '12px', color: '#B5B8BF', textTransform: 'uppercase' }}>
                 Status
               </span>
-              <span className={`badge-status ${viewingWarehouse.isActive ? 'active' : 'inactive'}`}>
-                {viewingWarehouse.isActive ? 'Active' : 'Inactive'}
-              </span>
+              <StatusBadge status={viewingWarehouse.isActive} />
             </div>
           </div>
           {viewingWarehouse.description && (
@@ -308,10 +269,10 @@ export const Warehouses = () => {
               </p>
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Stock Detail section */}
-        <div className="content-card" style={{ padding: 0 }}>
+        <Card style={{ padding: 0 }}>
           <div style={{ padding: '20px 24px', borderBottom: '1px solid #F0F1F2' }}>
             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#1F2839' }}>
               Warehouse Stock Ledger
@@ -322,57 +283,43 @@ export const Warehouses = () => {
             fetchUrl={`/warehouses/${viewingWarehouse.id}/stocks`}
             searchPlaceholder="Search stock by item name or Brand..."
           />
-        </div>
+        </Card>
       </div>
     );
   }
 
   return (
     <div className="page-container" style={{ padding: '24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 600, color: '#1F2839' }}>Warehouses</h2>
-          <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#B5B8BF' }}>
-            Manage warehouse hubs, regional settings, locations, and inventory levels.
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            style={{
-              padding: '8px 12px',
-              border: '1px solid #E5E7EB',
-              borderRadius: '6px',
-              backgroundColor: '#FFFFFF',
-              fontSize: '14px',
-              color: '#1F2839',
-              cursor: 'pointer',
-            }}
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active Only</option>
-            <option value="inactive">Inactive Only</option>
-          </select>
-          <button
-            onClick={() => openModal()}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#2250A1',
-              color: '#FFFFFF',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '14px',
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}
-          >
-            Add Warehouse
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Warehouses"
+        description="Manage warehouse hubs, regional settings, locations, and inventory levels."
+        actions={
+          <>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              style={{
+                padding: '8px 12px',
+                border: '1px solid #E5E7EB',
+                borderRadius: '6px',
+                backgroundColor: '#FFFFFF',
+                fontSize: '14px',
+                color: '#1F2839',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="all">All Status</option>
+              <option value="active">Active Only</option>
+              <option value="inactive">Inactive Only</option>
+            </select>
+            <Button variant="primary" onClick={() => openModal()}>
+              Add Warehouse
+            </Button>
+          </>
+        }
+      />
 
-      <div className="content-card" style={{ padding: 0 }}>
+      <Card style={{ padding: 0 }}>
         <PaginatedTable<Warehouse>
           columns={listColumns}
           fetchUrl="/warehouses"
@@ -382,228 +329,66 @@ export const Warehouses = () => {
             status: statusFilter,
           }}
         />
-      </div>
+      </Card>
 
       {/* Add / Edit Modal */}
-      {isModalOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.4)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 1000,
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderRadius: '8px',
-              width: '450px',
-              padding: '24px',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            }}
-          >
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 600, color: '#1F2839' }}>
-              {editingWarehouse ? 'Edit Warehouse' : 'Add Warehouse'}
-            </h3>
-            {errorMsg && (
-              <div
-                style={{
-                  backgroundColor: '#FEE2E2',
-                  border: '1px solid #FCA5A5',
-                  color: '#B91C1C',
-                  padding: '10px',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  marginBottom: '16px',
-                }}
-              >
-                {errorMsg}
-              </div>
-            )}
-            <form onSubmit={handleSubmit}>
-              <div style={{ marginBottom: '16px' }}>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    color: '#4B5563',
-                    marginBottom: '6px',
-                  }}
-                >
-                  Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: '1px solid #D1D5DB',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: '14px',
-                      fontWeight: 500,
-                      color: '#4B5563',
-                      marginBottom: '6px',
-                    }}
-                  >
-                    City *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      border: '1px solid #D1D5DB',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: '14px',
-                      fontWeight: 500,
-                      color: '#4B5563',
-                      marginBottom: '6px',
-                    }}
-                  >
-                    City Code
-                  </label>
-                  <input
-                    type="text"
-                    disabled
-                    value={editingWarehouse ? formData.cityCode : 'Generated automatically'}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      border: '1px solid #D1D5DB',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      boxSizing: 'border-box',
-                      backgroundColor: '#F3F4F6',
-                      color: '#9CA3AF',
-                      cursor: 'not-allowed',
-                    }}
-                  />
-                </div>
-              </div>
-              <div style={{ marginBottom: '16px' }}>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    color: '#4B5563',
-                    marginBottom: '6px',
-                  }}
-                >
-                  Location Address *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: '1px solid #D1D5DB',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
-              <div style={{ marginBottom: '24px' }}>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    color: '#4B5563',
-                    marginBottom: '6px',
-                  }}
-                >
-                  Description
-                </label>
-                <input
-                  type="text"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: '1px solid #D1D5DB',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: '#F3F4F6',
-                    color: '#374151',
-                    border: '1px solid #E5E7EB',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: '#2250A1',
-                    color: '#FFFFFF',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    opacity: isSaving ? 0.7 : 1,
-                  }}
-                >
-                  {isSaving ? 'Saving...' : 'Save'}
-                </button>
-              </div>
-            </form>
+      <Modal isOpen={isModalOpen} onClose={closeModal} title={editingWarehouse ? 'Edit Warehouse' : 'Add Warehouse'} width="450px">
+        {errorMsg && (
+          <div style={{ backgroundColor: '#FEE2E2', border: '1px solid #FCA5A5', color: '#B91C1C', padding: '10px', borderRadius: '6px', fontSize: '14px', marginBottom: '16px' }}>
+            {errorMsg}
           </div>
-        </div>
-      )}
+        )}
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <FormField label="Name" required>
+            <Input
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
+            />
+          </FormField>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <FormField label="City" required>
+              <Input
+                value={formData.city}
+                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                required
+              />
+            </FormField>
+            
+            <FormField label="City Code">
+              <Input
+                disabled
+                value={editingWarehouse ? formData.cityCode : 'Generated automatically'}
+              />
+            </FormField>
+          </div>
+          
+          <FormField label="Location Address" required>
+            <Input
+              value={formData.location}
+              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              required
+            />
+          </FormField>
+          
+          <FormField label="Description">
+            <Input
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            />
+          </FormField>
+          
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px' }}>
+            <Button type="button" variant="ghost" onClick={closeModal}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" disabled={isSaving}>
+              {isSaving ? 'Saving...' : 'Save'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

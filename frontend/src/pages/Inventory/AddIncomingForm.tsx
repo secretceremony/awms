@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client.js';
+import { PageHeader, FormField, Input, Select, Textarea, Button, Card } from '../../components/ui/index.js';
 
 export const AddIncomingForm = () => {
   const navigate = useNavigate();
@@ -80,86 +81,112 @@ export const AddIncomingForm = () => {
 
   return (
     <div className="page-container">
-      <h2>Add Incoming Stock</h2>
-      <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '600px'}}>
+      <PageHeader title="Add Incoming Stock" />
+      <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '600px'}}>
         
-        <label>
-          Reference No:
-          <input 
-            value={formData.referenceNumber} 
-            onChange={e => setFormData({...formData, referenceNumber: e.target.value})} 
-          />
-        </label>
+        <Card>
+          <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+            <FormField label="Reference No">
+              <Input 
+                value={formData.referenceNumber} 
+                onChange={e => setFormData({...formData, referenceNumber: e.target.value})} 
+              />
+            </FormField>
+            
+            <FormField label="Destination Warehouse">
+              <Select 
+                value={formData.destinationWarehouseId} 
+                onChange={e => setFormData({...formData, destinationWarehouseId: e.target.value})} 
+                required
+                options={[
+                  { value: '', label: 'Select Warehouse' },
+                  ...warehouses.map(w => ({ value: w.id.toString(), label: w.name }))
+                ]}
+              />
+            </FormField>
+            
+            <FormField label="Notes">
+              <Textarea 
+                value={formData.notes} 
+                onChange={e => setFormData({...formData, notes: e.target.value})} 
+                rows={3}
+              />
+            </FormField>
+          </div>
+        </Card>
         
-        <label>
-          Destination Warehouse:
-          <select value={formData.destinationWarehouseId} onChange={e => setFormData({...formData, destinationWarehouseId: e.target.value})} required>
-            <option value="">Select Warehouse</option>
-            {warehouses.map(w => (
-              <option key={w.id} value={w.id}>{w.name}</option>
-            ))}
-          </select>
-        </label>
-        
-        <label>
-          Notes:
-          <textarea 
-            value={formData.notes} 
-            onChange={e => setFormData({...formData, notes: e.target.value})} 
-            rows={3}
-          />
-        </label>
-        
-        <div style={{ marginTop: '1rem', padding: '1rem', border: '1px solid #ddd', borderRadius: '4px' }}>
+        <Card>
           <h4>Items</h4>
-          {movementItems.map((item, index) => {
-            const selectedItem = items.find(i => i.id.toString() === item.itemId);
-            const isSerialized = selectedItem?.trackingType === 'SERIALIZED';
-            return (
-              <div key={index} style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', alignItems: 'flex-start', borderBottom: '1px solid #eee', paddingBottom: '1rem' }}>
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <label>
-                    Item:
-                    <select value={item.itemId} onChange={e => handleItemChange(index, 'itemId', e.target.value)} required>
-                      <option value="">Select Item</option>
-                      {items.map(i => (
-                        <option key={i.id} value={i.id}>{i.name}</option>
-                      ))}
-                    </select>
-                  </label>
-                  
-                  {!isSerialized && (
-                    <label>
-                      Quantity:
-                      <input type="number" min="1" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', e.target.value)} required />
-                    </label>
-                  )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+            {movementItems.map((item, index) => {
+              const selectedItem = items.find(i => i.id.toString() === item.itemId);
+              const isSerialized = selectedItem?.trackingType === 'SERIALIZED';
+              return (
+                <div key={index} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', borderBottom: '1px solid #eee', paddingBottom: '1rem' }}>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <FormField label="Item">
+                      <Select 
+                        value={item.itemId} 
+                        onChange={e => handleItemChange(index, 'itemId', e.target.value)} 
+                        required
+                        options={[
+                          { value: '', label: 'Select Item' },
+                          ...items.map(i => ({ value: i.id.toString(), label: i.name }))
+                        ]}
+                      />
+                    </FormField>
+                    
+                    {!isSerialized && (
+                      <FormField label="Quantity">
+                        <Input 
+                          type="number" 
+                          min="1" 
+                          value={item.quantity} 
+                          onChange={e => handleItemChange(index, 'quantity', e.target.value)} 
+                          required 
+                        />
+                      </FormField>
+                    )}
 
-                  {isSerialized && (
-                    <>
-                      <label>
-                        Serial Number:
-                        <input value={item.serialNumber} onChange={e => handleItemChange(index, 'serialNumber', e.target.value)} required />
-                      </label>
-                      <label>
-                        Condition Label (Optional):
-                        <input value={item.conditionLabel} onChange={e => handleItemChange(index, 'conditionLabel', e.target.value)} />
-                      </label>
-                    </>
+                    {isSerialized && (
+                      <>
+                        <FormField label="Serial Number">
+                          <Input 
+                            value={item.serialNumber} 
+                            onChange={e => handleItemChange(index, 'serialNumber', e.target.value)} 
+                            required 
+                          />
+                        </FormField>
+                        <FormField label="Condition Label (Optional)">
+                          <Input 
+                            value={item.conditionLabel} 
+                            onChange={e => handleItemChange(index, 'conditionLabel', e.target.value)} 
+                          />
+                        </FormField>
+                      </>
+                    )}
+                  </div>
+                  {movementItems.length > 1 && (
+                    <div style={{ paddingTop: '1.75rem' }}>
+                      <Button type="button" onClick={() => removeItemRow(index)} variant="danger">
+                        Remove
+                      </Button>
+                    </div>
                   )}
                 </div>
-                {movementItems.length > 1 && (
-                  <button type="button" onClick={() => removeItemRow(index)} className="btn-secondary btn-sm" style={{ marginTop: '1.5rem' }}>
-                    Remove
-                  </button>
-                )}
-              </div>
-            );
-          })}
-          <button type="button" onClick={addItemRow} className="btn-secondary btn-sm">Add Item</button>
-        </div>
+              );
+            })}
+            <div>
+              <Button type="button" onClick={addItemRow} variant="secondary">Add Item</Button>
+            </div>
+          </div>
+        </Card>
 
-        <button type="submit" className="btn-primary" disabled={!formData.destinationWarehouseId || movementItems.some(i => !i.itemId)}>Submit</button>
+        <div>
+          <Button type="submit" variant="primary" disabled={!formData.destinationWarehouseId || movementItems.some(i => !i.itemId)}>
+            Submit
+          </Button>
+        </div>
       </form>
     </div>
   );

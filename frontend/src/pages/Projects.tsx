@@ -11,6 +11,7 @@ import {
   Boxes,
   Truck,
 } from 'lucide-react';
+import { Button, Input, Select, FormField, Modal, StatusBadge, PageHeader, Card } from '../components/ui/index.js';
 
 interface CustomerOption {
   id: number;
@@ -232,44 +233,8 @@ export const Projects = () => {
     }
   };
 
-  const renderStatusBadge = (status: string) => {
-    if (status === 'ACTIVE') {
-      return <span className="badge-status active">Active</span>;
-    }
-    if (status === 'COMPLETED') {
-      return (
-        <span
-          style={{
-            fontSize: '11px',
-            fontWeight: 600,
-            textTransform: 'uppercase',
-            backgroundColor: 'rgba(34, 80, 161, 0.1)',
-            color: '#2250A1',
-            padding: '2px 8px',
-            borderRadius: '4px',
-            border: '1px solid rgba(34, 80, 161, 0.2)',
-          }}
-        >
-          Completed
-        </span>
-      );
-    }
-    return (
-      <span
-        style={{
-          fontSize: '11px',
-          fontWeight: 600,
-          textTransform: 'uppercase',
-          backgroundColor: 'rgba(107, 114, 128, 0.1)',
-          color: '#6B7280',
-          padding: '2px 8px',
-          borderRadius: '4px',
-          border: '1px solid rgba(107, 114, 128, 0.2)',
-        }}
-      >
-        Archived
-      </span>
-    );
+    const renderStatusBadge = (status: string) => {
+    return <StatusBadge status={status} />;
   };
 
   const listColumns: Column<Project>[] = [
@@ -301,76 +266,16 @@ export const Projects = () => {
       key: 'actions',
       render: (item) => (
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-          <button
-            onClick={() => handleViewProject(item.id)}
-            title="View Details"
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '4px',
-              color: '#2250A1',
-            }}
-          >
-            <Eye size={16} />
-          </button>
-          <button
-            onClick={() => openModal(item)}
-            title="Edit Project"
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '4px',
-              color: '#4B5563',
-            }}
-          >
-            <Edit2 size={16} />
-          </button>
+          <Button variant="icon" onClick={() => handleViewProject(item.id)} title="View Details" style={{ color: "#2250A1" }}><Eye size={16} /></Button>
+          <Button variant="icon" onClick={() => openModal(item)} title="Edit Project"><Edit2 size={16} /></Button>
           {item.status === 'ACTIVE' && (
             <>
-              <button
-                onClick={() => handleStatusChange(item, 'COMPLETED')}
-                title="Mark Completed"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: '4px',
-                  color: '#10B981',
-                }}
-              >
-                <CheckCircle2 size={16} />
-              </button>
-              <button
-                onClick={() => handleStatusChange(item, 'ARCHIVED')}
-                title="Archive Project"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: '4px',
-                  color: '#6B7280',
-                }}
-              >
-                <Archive size={16} />
-              </button>
+              <Button variant="icon" onClick={() => handleStatusChange(item, "COMPLETED")} title="Mark Completed" style={{ color: "#10B981" }}><CheckCircle2 size={16} /></Button>
+              <Button variant="icon" onClick={() => handleStatusChange(item, "ARCHIVED")} title="Archive Project" style={{ color: "#6B7280" }}><Archive size={16} /></Button>
             </>
           )}
           {(item.status === 'COMPLETED' || item.status === 'ARCHIVED') && (
-            <button
-              onClick={() => handleStatusChange(item, 'ACTIVE')}
-              title="Reactivate Project"
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '4px',
-                color: '#2250A1',
-              }}
-            >
-              <RotateCcw size={16} />
-            </button>
+            <Button variant="icon" onClick={() => handleStatusChange(item, "ACTIVE")} title="Reactivate Project" style={{ color: "#2250A1" }}><RotateCcw size={16} /></Button>
           )}
         </div>
       ),
@@ -381,142 +286,48 @@ export const Projects = () => {
     return (
       <div className="page-container" style={{ padding: '24px' }}>
         {/* Detail Header */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '24px',
-            flexWrap: 'wrap',
-            gap: '16px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button
-              onClick={handleBackToList}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: '#FFFFFF',
-                border: '1px solid #E5E7EB',
-                borderRadius: '6px',
-                padding: '8px',
-                cursor: 'pointer',
-                color: '#374151',
-              }}
-            >
-              <ArrowLeft size={16} />
-            </button>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 600, color: '#1F2839' }}>
-                  {viewingProject?.name || 'Loading project...'}
-                </h2>
-                {viewingProject && renderStatusBadge(viewingProject.status)}
-              </div>
-              <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#B5B8BF' }}>
-                Project specifications, location, inventory, and delivery tracking.
-              </p>
-            </div>
-          </div>
-
-          {viewingProject && (
+        <PageHeader
+          title={viewingProject?.name || 'Loading project...'}
+          description="Project specifications, location, inventory, and delivery tracking."
+          actions={
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                onClick={() => openModal(viewingProject)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 14px',
-                  backgroundColor: '#FFFFFF',
-                  color: '#374151',
-                  border: '1px solid #E5E7EB',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                }}
-              >
-                <Edit2 size={14} />
-                Edit
-              </button>
-              {viewingProject.status === 'ACTIVE' && (
+              <Button variant="ghost" onClick={handleBackToList}>
+                <ArrowLeft size={16} /> Back
+              </Button>
+              {viewingProject && (
                 <>
-                  <button
-                    onClick={() => handleStatusChange(viewingProject, 'COMPLETED')}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '8px 14px',
-                      backgroundColor: '#10B981',
-                      color: '#FFFFFF',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontSize: '13px',
-                      fontWeight: 500,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <CheckCircle2 size={14} />
-                    Mark Completed
-                  </button>
-                  <button
-                    onClick={() => handleStatusChange(viewingProject, 'ARCHIVED')}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '8px 14px',
-                      backgroundColor: '#6B7280',
-                      color: '#FFFFFF',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontSize: '13px',
-                      fontWeight: 500,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Archive size={14} />
-                    Archive
-                  </button>
+                  <Button variant="secondary" onClick={() => openModal(viewingProject)}>
+                    <Edit2 size={14} /> Edit
+                  </Button>
+                  {viewingProject.status === 'ACTIVE' && (
+                    <>
+                      <Button variant="secondary" onClick={() => handleStatusChange(viewingProject, 'COMPLETED')} style={{ color: '#10B981', borderColor: '#10B981' }}>
+                        <CheckCircle2 size={14} /> Mark Completed
+                      </Button>
+                      <Button variant="secondary" onClick={() => handleStatusChange(viewingProject, 'ARCHIVED')} style={{ color: '#6B7280', borderColor: '#6B7280' }}>
+                        <Archive size={14} /> Archive
+                      </Button>
+                    </>
+                  )}
+                  {(viewingProject.status === 'COMPLETED' || viewingProject.status === 'ARCHIVED') && (
+                    <Button variant="secondary" onClick={() => handleStatusChange(viewingProject, 'ACTIVE')} style={{ color: '#2250A1', borderColor: '#2250A1' }}>
+                      <RotateCcw size={14} /> Reactivate
+                    </Button>
+                  )}
                 </>
               )}
-              {(viewingProject.status === 'COMPLETED' || viewingProject.status === 'ARCHIVED') && (
-                <button
-                  onClick={() => handleStatusChange(viewingProject, 'ACTIVE')}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '8px 14px',
-                    backgroundColor: '#2250A1',
-                    color: '#FFFFFF',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <RotateCcw size={14} />
-                  Reactivate
-                </button>
-              )}
             </div>
-          )}
-        </div>
+          }
+        />
 
         {isLoadingDetail ? (
-          <div className="content-card" style={{ padding: '32px', textAlign: 'center', color: '#6B7280' }}>
+          <Card style={{ padding: "32px", textAlign: "center", color: "#6B7280" }}>
             Loading project details...
-          </div>
+          </Card>
         ) : viewingProject ? (
           <>
             {/* Project Overview Card */}
-            <div className="content-card" style={{ padding: '24px', marginBottom: '24px' }}>
+            <Card style={{ marginBottom: "24px" }}>
               <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 600, color: '#1F2839' }}>
                 Project Overview
               </h3>
@@ -592,10 +403,10 @@ export const Projects = () => {
                   </span>
                 </div>
               </div>
-            </div>
+            </Card>
 
             {/* Inventory at Project Section */}
-            <div className="content-card" style={{ padding: '24px', marginBottom: '24px' }}>
+            <Card style={{ marginBottom: "24px" }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
                 <Boxes size={18} color="#2250A1" />
                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#1F2839' }}>
@@ -653,10 +464,10 @@ export const Projects = () => {
                   No inventory items currently assigned to this project.
                 </div>
               )}
-            </div>
+            </Card>
 
             {/* Delivery Orders Section */}
-            <div className="content-card" style={{ padding: '24px' }}>
+            <Card>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
                 <Truck size={18} color="#2250A1" />
                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#1F2839' }}>
@@ -704,7 +515,7 @@ export const Projects = () => {
                   No delivery orders linked to this project.
                 </div>
               )}
-            </div>
+            </Card>
           </>
         ) : null}
       </div>
@@ -713,60 +524,37 @@ export const Projects = () => {
 
   return (
     <div className="page-container" style={{ padding: '24px' }}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '24px',
-          flexWrap: 'wrap',
-          gap: '12px',
-        }}
-      >
-        <div>
-          <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 600, color: '#1F2839' }}>Projects</h2>
-          <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#B5B8BF' }}>
-            Manage client and internal project assignments, locations, and inventory.
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            style={{
-              padding: '8px 12px',
-              border: '1px solid #E5E7EB',
-              borderRadius: '6px',
-              backgroundColor: '#FFFFFF',
-              fontSize: '14px',
-              color: '#1F2839',
-              cursor: 'pointer',
-            }}
-          >
-            <option value="all">All Status</option>
-            <option value="ACTIVE">Active Only</option>
-            <option value="COMPLETED">Completed Only</option>
-            <option value="ARCHIVED">Archived Only</option>
-          </select>
-          <button
-            onClick={() => openModal()}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#2250A1',
-              color: '#FFFFFF',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '14px',
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}
-          >
-            Add Project
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Projects"
+        description="Manage client and internal project assignments, locations, and inventory."
+        actions={
+          <>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              style={{
+                padding: '8px 12px',
+                border: '1px solid #E5E7EB',
+                borderRadius: '6px',
+                backgroundColor: '#FFFFFF',
+                fontSize: '14px',
+                color: '#1F2839',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="all">All Status</option>
+              <option value="ACTIVE">Active Only</option>
+              <option value="COMPLETED">Completed Only</option>
+              <option value="ARCHIVED">Archived Only</option>
+            </select>
+            <Button variant="primary" onClick={() => openModal()}>
+              Add Project
+            </Button>
+          </>
+        }
+      />
 
-      <div className="content-card" style={{ padding: 0 }}>
+      <Card style={{ padding: 0 }}>
         <PaginatedTable<Project>
           columns={listColumns}
           fetchUrl="/projects"
@@ -776,355 +564,108 @@ export const Projects = () => {
             status: statusFilter === 'all' ? undefined : statusFilter,
           }}
         />
-      </div>
+      </Card>
 
       {/* Add / Edit Modal */}
-      {isModalOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.4)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 1000,
-            padding: '16px',
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderRadius: '8px',
-              width: '100%',
-              maxWidth: '520px',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              padding: '24px',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            }}
-          >
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 600, color: '#1F2839' }}>
-              {editingProject ? 'Edit Project' : 'Add Project'}
-            </h3>
-            {errorMsg && (
-              <div
-                style={{
-                  backgroundColor: '#FEE2E2',
-                  border: '1px solid #FCA5A5',
-                  color: '#B91C1C',
-                  padding: '10px',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  marginBottom: '16px',
-                }}
-              >
-                {errorMsg}
-              </div>
-            )}
-            <form onSubmit={handleSubmit}>
-              <div style={{ marginBottom: '14px' }}>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '13px',
-                    fontWeight: 500,
-                    color: '#4B5563',
-                    marginBottom: '4px',
-                  }}
-                >
-                  Project Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Project BTS Fiber Phase 1"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: '1px solid #D1D5DB',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: '14px' }}>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '13px',
-                    fontWeight: 500,
-                    color: '#4B5563',
-                    marginBottom: '4px',
-                  }}
-                >
-                  Customer / Mitra
-                </label>
-                <select
-                  value={formData.customerId}
-                  onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: '1px solid #D1D5DB',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    boxSizing: 'border-box',
-                    backgroundColor: '#FFFFFF',
-                  }}
-                >
-                  <option value="">No Customer (Internal Project)</option>
-                  {customerOptions.map((cust) => (
-                    <option key={cust.id} value={cust.id}>
-                      {cust.name} {cust.code ? `(${cust.code})` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: '13px',
-                      fontWeight: 500,
-                      color: '#4B5563',
-                      marginBottom: '4px',
-                    }}
-                  >
-                    Job No.
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. JOB-2026-001"
-                    value={formData.jobNo}
-                    onChange={(e) => setFormData({ ...formData, jobNo: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      border: '1px solid #D1D5DB',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: '13px',
-                      fontWeight: 500,
-                      color: '#4B5563',
-                      marginBottom: '4px',
-                    }}
-                  >
-                    Location *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Cikarang Site B"
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      border: '1px solid #D1D5DB',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: '13px',
-                      fontWeight: 500,
-                      color: '#4B5563',
-                      marginBottom: '4px',
-                    }}
-                  >
-                    Attn / PIC
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Budi Santoso"
-                    value={formData.attnName}
-                    onChange={(e) => setFormData({ ...formData, attnName: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      border: '1px solid #D1D5DB',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: '13px',
-                      fontWeight: 500,
-                      color: '#4B5563',
-                      marginBottom: '4px',
-                    }}
-                  >
-                    Project Leader
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Andi Wijaya"
-                    value={formData.leaderName}
-                    onChange={(e) => setFormData({ ...formData, leaderName: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      border: '1px solid #D1D5DB',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '14px' }}>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '13px',
-                    fontWeight: 500,
-                    color: '#4B5563',
-                    marginBottom: '4px',
-                  }}
-                >
-                  Activity
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Installation & Testing"
-                  value={formData.activity}
-                  onChange={(e) => setFormData({ ...formData, activity: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: '1px solid #D1D5DB',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: '13px',
-                      fontWeight: 500,
-                      color: '#4B5563',
-                      marginBottom: '4px',
-                    }}
-                  >
-                    Start Date
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.startedAt}
-                    onChange={(e) => setFormData({ ...formData, startedAt: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      border: '1px solid #D1D5DB',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: '13px',
-                      fontWeight: 500,
-                      color: '#4B5563',
-                      marginBottom: '4px',
-                    }}
-                  >
-                    End Date
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.endedAt}
-                    onChange={(e) => setFormData({ ...formData, endedAt: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      border: '1px solid #D1D5DB',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: '#F3F4F6',
-                    color: '#374151',
-                    border: '1px solid #E5E7EB',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: '#2250A1',
-                    color: '#FFFFFF',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    opacity: isSaving ? 0.7 : 1,
-                  }}
-                >
-                  {isSaving ? 'Saving...' : 'Save'}
-                </button>
-              </div>
-            </form>
+      <Modal isOpen={isModalOpen} onClose={closeModal} title={editingProject ? 'Edit Project' : 'Add Project'} width="600px">
+        {errorMsg && (
+          <div style={{ backgroundColor: '#FEE2E2', border: '1px solid #FCA5A5', color: '#B91C1C', padding: '10px', borderRadius: '6px', fontSize: '14px', marginBottom: '16px' }}>
+            {errorMsg}
           </div>
-        </div>
-      )}
+        )}
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <FormField label="Project Name" required>
+              <Input
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+              />
+            </FormField>
+            
+            <FormField label="Job Number">
+              <Input
+                value={formData.jobNo}
+                onChange={(e) => setFormData({ ...formData, jobNo: e.target.value })}
+              />
+            </FormField>
+          </div>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <FormField label="Customer / Mitra">
+              <Select
+                value={formData.customerId}
+                onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
+              >
+                <option value="">Internal Project (No Customer)</option>
+                {customerOptions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} {c.code ? `(${c.code})` : ''}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+            
+            <FormField label="Activity">
+              <Input
+                value={formData.activity}
+                onChange={(e) => setFormData({ ...formData, activity: e.target.value })}
+              />
+            </FormField>
+          </div>
+          
+          <FormField label="Location Address" required>
+            <Input
+              value={formData.location}
+              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              required
+            />
+          </FormField>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <FormField label="Attn / PIC">
+              <Input
+                value={formData.attnName}
+                onChange={(e) => setFormData({ ...formData, attnName: e.target.value })}
+              />
+            </FormField>
+            
+            <FormField label="Project Leader">
+              <Input
+                value={formData.leaderName}
+                onChange={(e) => setFormData({ ...formData, leaderName: e.target.value })}
+              />
+            </FormField>
+          </div>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <FormField label="Start Date">
+              <Input
+                type="date"
+                value={formData.startedAt}
+                onChange={(e) => setFormData({ ...formData, startedAt: e.target.value })}
+              />
+            </FormField>
+            
+            <FormField label="End Date">
+              <Input
+                type="date"
+                value={formData.endedAt}
+                onChange={(e) => setFormData({ ...formData, endedAt: e.target.value })}
+              />
+            </FormField>
+          </div>
+          
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px' }}>
+            <Button type="button" variant="ghost" onClick={closeModal}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" disabled={isSaving}>
+              {isSaving ? 'Saving...' : 'Save'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

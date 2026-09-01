@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client.js';
+import { PageHeader, FormField, Select, Input, Button } from '../../components/ui/index.js';
 
 export const InitialStock = () => {
   const navigate = useNavigate();
@@ -59,48 +60,65 @@ export const InitialStock = () => {
 
   return (
     <div className="page-container">
-      <h2>Add Initial Stock</h2>
+      <PageHeader title="Add Initial Stock" />
       <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '400px'}}>
-        <label>
-          Item:
-          <select value={formData.itemId} onChange={e => setFormData({...formData, itemId: e.target.value})} required>
-            <option value="">Select Item</option>
-            {items.map(i => (
-              <option key={i.id} value={i.id}>{i.name}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Destination Warehouse:
-          <select value={formData.warehouseId} onChange={e => setFormData({...formData, warehouseId: e.target.value})} required>
-            <option value="">Select Warehouse</option>
-            {warehouses.map(w => (
-              <option key={w.id} value={w.id}>{w.name}</option>
-            ))}
-          </select>
-        </label>
+        <FormField label="Item">
+          <Select 
+            value={formData.itemId} 
+            onChange={e => setFormData({...formData, itemId: e.target.value})} 
+            required
+            options={[
+              { value: '', label: 'Select Item' },
+              ...items.map(i => ({ value: i.id.toString(), label: i.name }))
+            ]}
+          />
+        </FormField>
+        
+        <FormField label="Destination Warehouse">
+          <Select 
+            value={formData.warehouseId} 
+            onChange={e => setFormData({...formData, warehouseId: e.target.value})} 
+            required
+            options={[
+              { value: '', label: 'Select Warehouse' },
+              ...warehouses.map(w => ({ value: w.id.toString(), label: w.name }))
+            ]}
+          />
+        </FormField>
         
         {!isSerialized && (
-          <label>
-            Quantity:
-            <input type="number" min="1" value={formData.quantity} onChange={e => setFormData({...formData, quantity: parseInt(e.target.value)})} required />
-          </label>
+          <FormField label="Quantity">
+            <Input 
+              type="number" 
+              min="1" 
+              value={formData.quantity} 
+              onChange={e => setFormData({...formData, quantity: parseInt(e.target.value)})} 
+              required 
+            />
+          </FormField>
         )}
 
         {isSerialized && (
           <>
-            <label>
-              Serial Number:
-              <input value={formData.serialNumber} onChange={e => setFormData({...formData, serialNumber: e.target.value})} required />
-            </label>
-            <label>
-              Condition Label (Optional):
-              <input value={formData.conditionLabel} onChange={e => setFormData({...formData, conditionLabel: e.target.value})} />
-            </label>
+            <FormField label="Serial Number">
+              <Input 
+                value={formData.serialNumber} 
+                onChange={e => setFormData({...formData, serialNumber: e.target.value})} 
+                required 
+              />
+            </FormField>
+            <FormField label="Condition Label (Optional)">
+              <Input 
+                value={formData.conditionLabel} 
+                onChange={e => setFormData({...formData, conditionLabel: e.target.value})} 
+              />
+            </FormField>
           </>
         )}
 
-        <button type="submit" disabled={!formData.itemId || !formData.warehouseId}>Submit</button>
+        <Button type="submit" variant="primary" disabled={!formData.itemId || !formData.warehouseId}>
+          Submit
+        </Button>
       </form>
     </div>
   );

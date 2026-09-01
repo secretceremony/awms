@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { apiClient } from '../../api/client.js';
 import { PaginatedTable } from '../../components/PaginatedTable.js';
+import { PageHeader, Button, Card, StatusBadge } from '../../components/ui/index.js';
 
 interface Item {
   id: number;
@@ -28,20 +29,32 @@ export const ItemDetail = () => {
     fetchItem();
   }, [id]);
 
-  if (!item) return <div>Loading...</div>;
+  if (!item) return <div className="page-container">Loading...</div>;
 
   return (
     <div className="page-container">
-      <h2>Item Details: {item.name}</h2>
-      <div>
-        <p>Brand: {item.brand}</p>
-        <p>Tracking: {item.trackingType}</p>
-        <p>Unit: {item.unit?.name}</p>
-        <p>Status: {item.isActive ? 'Active' : 'Inactive'}</p>
-      </div>
-      <div style={{marginTop: '1rem'}}>
-        <Link to={`/inventory/edit/${id}`}><button>Edit</button></Link>
-      </div>
+      <PageHeader 
+        title={`Item Details: ${item.name}`}
+        actions={
+          <Link to={`/inventory/edit/${id}`}>
+            <Button variant="primary">Edit</Button>
+          </Link>
+        }
+      />
+      <Card>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <p><strong>Brand:</strong> {item.brand}</p>
+          <p><strong>Tracking:</strong> {item.trackingType}</p>
+          <p><strong>Unit:</strong> {item.unit?.name}</p>
+          <p>
+            <strong>Status:</strong>{' '}
+            <StatusBadge 
+              status={item.isActive ? 'active' : 'inactive'} 
+              label={item.isActive ? 'Active' : 'Inactive'} 
+            />
+          </p>
+        </div>
+      </Card>
 
       {item.trackingType === 'SERIALIZED' && (
         <div style={{marginTop: '2rem'}}>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client.js';
+import { PageHeader, Button, Card } from '../../components/ui/index.js';
 
 export const IncomingDetail = () => {
   const { id } = useParams();
@@ -27,14 +28,16 @@ export const IncomingDetail = () => {
 
   return (
     <div className="page-container">
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-        <h2>Incoming Detail</h2>
-        <button className="btn-secondary" onClick={() => navigate('/inventory/incoming')}>
-          Back to List
-        </button>
-      </div>
+      <PageHeader 
+        title="Incoming Detail"
+        actions={
+          <Button variant="secondary" onClick={() => navigate('/inventory/incoming')}>
+            Back to List
+          </Button>
+        }
+      />
 
-      <div style={{ background: '#fff', padding: '1.5rem', borderRadius: '8px', border: '1px solid #ddd' }}>
+      <Card>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
           <div>
             <strong>Movement No:</strong> {movement.movementNumber}
@@ -84,7 +87,7 @@ export const IncomingDetail = () => {
             ))}
           </tbody>
         </table>
-      </div>
+      </Card>
     </div>
   );
 };

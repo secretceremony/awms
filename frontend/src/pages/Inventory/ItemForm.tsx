@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { apiClient } from '../../api/client.js';
+import { Button, Input, Select, FormField, PageHeader, Card } from '../../components/ui/index.js';
 
 export const ItemForm = () => {
   const { id } = useParams();
@@ -65,34 +66,38 @@ export const ItemForm = () => {
 
   return (
     <div className="page-container">
-      <h2>{id ? 'Edit Item' : 'Create Item'}</h2>
-      <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '400px'}}>
-        <label>
-          Name:
-          <input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
-        </label>
-        <label>
-          Brand:
-          <input value={formData.brand} onChange={e => setFormData({...formData, brand: e.target.value})} />
-        </label>
-        <label>
-          Unit:
-          <select value={formData.unitId} onChange={e => setFormData({...formData, unitId: e.target.value})} required>
-            <option value="">Select Unit</option>
-            {units.map(u => (
-              <option key={u.id} value={u.id}>{u.name}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Tracking Type:
-          <select value={formData.trackingType} onChange={e => setFormData({...formData, trackingType: e.target.value})} disabled={!!id}>
-            <option value="BULK">Bulk</option>
-            <option value="SERIALIZED">Serialized</option>
-          </select>
-        </label>
-        <button type="submit">Save</button>
-      </form>
+      <PageHeader title={id ? "Edit Item" : "Create Item"} />
+      <Card>
+        <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
+          <FormField label="Name" required>
+            <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
+          </FormField>
+          
+          <FormField label="Brand">
+            <Input value={formData.brand} onChange={e => setFormData({...formData, brand: e.target.value})} />
+          </FormField>
+          
+          <FormField label="Unit" required>
+            <Select value={formData.unitId} onChange={e => setFormData({...formData, unitId: e.target.value})} required>
+              <option value="">Select Unit</option>
+              {units.map(u => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </Select>
+          </FormField>
+          
+          <FormField label="Tracking Type">
+            <Select value={formData.trackingType} onChange={e => setFormData({...formData, trackingType: e.target.value})} disabled={!!id}>
+              <option value="BULK">Bulk</option>
+              <option value="SERIALIZED">Serialized</option>
+            </Select>
+          </FormField>
+          
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+            <Button type="submit" variant="primary">Save</Button>
+          </div>
+        </form>
+      </Card>
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Button, PageHeader, StatusBadge } from '../../components/ui/index.js';
 import { PaginatedTable, type Column } from '../../components/PaginatedTable.js';
 
 interface Item {
@@ -28,22 +29,22 @@ export const StockList = () => {
       header: 'Tracking Type', 
       key: 'trackingType',
       render: (item) => (
-        <span className={`badge-tracking type-${item.trackingType?.toLowerCase()}`}>
-          {item.trackingType}
-        </span>
+        <StatusBadge status={item.trackingType} />
       )
     },
   ];
 
   return (
     <div className="page-container">
-      <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '1rem'}}>
-        <h2>Inventory Items</h2>
-        <div>
-          <Link to="/inventory/new"><button style={{marginRight: '1rem'}}>Add Item</button></Link>
-          <Link to="/inventory/initial-stock"><button>Add Initial Stock</button></Link>
-        </div>
-      </div>
+      <PageHeader
+        title="Inventory Items"
+        actions={
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <Link to="/inventory/new"><Button variant="primary">Add Item</Button></Link>
+            <Link to="/inventory/initial-stock"><Button variant="secondary">Add Initial Stock</Button></Link>
+          </div>
+        }
+      />
       <PaginatedTable<Item>
         columns={columns}
         fetchUrl="/items"

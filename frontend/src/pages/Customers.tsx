@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { PaginatedTable, type Column } from '../components/PaginatedTable.js';
 import { apiClient } from '../api/client.js';
 import { Eye, Edit2, PowerOff, ArrowLeft } from 'lucide-react';
+import { Button, Input, Textarea, FormField, Modal, StatusBadge, PageHeader, Card } from '../components/ui/index.js';
 
 interface Customer {
   id: number;
@@ -122,9 +123,7 @@ export const Customers = () => {
       header: 'Status',
       key: 'isActive',
       render: (item) => (
-        <span className={`badge-status ${item.isActive ? 'active' : 'inactive'}`}>
-          {item.isActive ? 'Active' : 'Inactive'}
-        </span>
+        <StatusBadge status={item ? item.isActive : (viewingCustomer ? viewingCustomer.isActive : false)} />
       ),
     },
     {
@@ -132,46 +131,10 @@ export const Customers = () => {
       key: 'actions',
       render: (item) => (
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            onClick={() => setViewingCustomer(item)}
-            title="View Details"
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '4px',
-              color: '#2250A1',
-            }}
-          >
-            <Eye size={16} />
-          </button>
-          <button
-            onClick={() => openModal(item)}
-            title="Edit Customer"
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '4px',
-              color: '#4B5563',
-            }}
-          >
-            <Edit2 size={16} />
-          </button>
+          <Button variant="icon" onClick={() => setViewingCustomer(item)} title="View Details" style={{ color: "#2250A1" }}><Eye size={16} /></Button>
+          <Button variant="icon" onClick={() => openModal(item)} title="Edit Customer"><Edit2 size={16} /></Button>
           {item.isActive && (
-            <button
-              onClick={() => handleDeactivate(item)}
-              title="Deactivate Customer"
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '4px',
-                color: '#EF4444',
-              }}
-            >
-              <PowerOff size={16} />
-            </button>
+            <Button variant="icon" onClick={() => handleDeactivate(item)} title="Deactivate Customer" style={{ color: "#EF4444" }}><PowerOff size={16} /></Button>
           )}
         </div>
       ),
@@ -210,7 +173,7 @@ export const Customers = () => {
         </div>
 
         {/* Profile Card */}
-        <div className="content-card" style={{ padding: '24px' }}>
+        <Card>
           <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 600, color: '#1F2839' }}>
             Customer Profile
           </h3>
@@ -249,9 +212,7 @@ export const Customers = () => {
               <span style={{ display: 'block', fontSize: '12px', color: '#B5B8BF', textTransform: 'uppercase' }}>
                 Status
               </span>
-              <span className={`badge-status ${viewingCustomer.isActive ? 'active' : 'inactive'}`}>
-                {viewingCustomer.isActive ? 'Active' : 'Inactive'}
-              </span>
+              <StatusBadge status={viewingCustomer.isActive} />
             </div>
           </div>
           {viewingCustomer.address && (
@@ -264,57 +225,43 @@ export const Customers = () => {
               </p>
             </div>
           )}
-        </div>
+        </Card>
       </div>
     );
   }
 
   return (
     <div className="page-container" style={{ padding: '24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 600, color: '#1F2839' }}>Customers</h2>
-          <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#B5B8BF' }}>
-            Manage client profiles, partner codes, contacts, and delivery locations.
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            style={{
-              padding: '8px 12px',
-              border: '1px solid #E5E7EB',
-              borderRadius: '6px',
-              backgroundColor: '#FFFFFF',
-              fontSize: '14px',
-              color: '#1F2839',
-              cursor: 'pointer',
-            }}
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active Only</option>
-            <option value="inactive">Inactive Only</option>
-          </select>
-          <button
-            onClick={() => openModal()}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#2250A1',
-              color: '#FFFFFF',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '14px',
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}
-          >
-            Add Customer
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Customers"
+        description="Manage client profiles, partner codes, contacts, and delivery locations."
+        actions={
+          <>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              style={{
+                padding: '8px 12px',
+                border: '1px solid #E5E7EB',
+                borderRadius: '6px',
+                backgroundColor: '#FFFFFF',
+                fontSize: '14px',
+                color: '#1F2839',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="all">All Status</option>
+              <option value="active">Active Only</option>
+              <option value="inactive">Inactive Only</option>
+            </select>
+            <Button variant="primary" onClick={() => openModal()}>
+              Add Customer
+            </Button>
+          </>
+        }
+      />
 
-      <div className="content-card" style={{ padding: 0 }}>
+      <Card style={{ padding: 0 }}>
         <PaginatedTable<Customer>
           columns={listColumns}
           fetchUrl="/customers"
@@ -324,225 +271,66 @@ export const Customers = () => {
             status: statusFilter,
           }}
         />
-      </div>
+      </Card>
 
       {/* Add / Edit Modal */}
-      {isModalOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.4)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 1000,
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderRadius: '8px',
-              width: '450px',
-              padding: '24px',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            }}
-          >
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 600, color: '#1F2839' }}>
-              {editingCustomer ? 'Edit Customer' : 'Add Customer'}
-            </h3>
-            {errorMsg && (
-              <div
-                style={{
-                  backgroundColor: '#FEE2E2',
-                  border: '1px solid #FCA5A5',
-                  color: '#B91C1C',
-                  padding: '10px',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  marginBottom: '16px',
-                }}
-              >
-                {errorMsg}
-              </div>
-            )}
-            <form onSubmit={handleSubmit}>
-              <div style={{ marginBottom: '16px' }}>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    color: '#4B5563',
-                    marginBottom: '6px',
-                  }}
-                >
-                  Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: '1px solid #D1D5DB',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
-              <div style={{ marginBottom: '16px' }}>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    color: '#4B5563',
-                    marginBottom: '6px',
-                  }}
-                >
-                  Code
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. TELKOM (will be converted to uppercase)"
-                  value={formData.code}
-                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: '1px solid #D1D5DB',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: '14px',
-                      fontWeight: 500,
-                      color: '#4B5563',
-                      marginBottom: '6px',
-                    }}
-                  >
-                    Attn / PIC
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.attnName}
-                    onChange={(e) => setFormData({ ...formData, attnName: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      border: '1px solid #D1D5DB',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: '14px',
-                      fontWeight: 500,
-                      color: '#4B5563',
-                      marginBottom: '6px',
-                    }}
-                  >
-                    Phone
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      border: '1px solid #D1D5DB',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-              </div>
-              <div style={{ marginBottom: '24px' }}>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    color: '#4B5563',
-                    marginBottom: '6px',
-                  }}
-                >
-                  Address
-                </label>
-                <textarea
-                  rows={3}
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: '1px solid #D1D5DB',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    boxSizing: 'border-box',
-                    fontFamily: 'inherit',
-                  }}
-                />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: '#F3F4F6',
-                    color: '#374151',
-                    border: '1px solid #E5E7EB',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: '#2250A1',
-                    color: '#FFFFFF',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    opacity: isSaving ? 0.7 : 1,
-                  }}
-                >
-                  {isSaving ? 'Saving...' : 'Save'}
-                </button>
-              </div>
-            </form>
+      <Modal isOpen={isModalOpen} onClose={closeModal} title={editingCustomer ? 'Edit Customer' : 'Add Customer'} width="450px">
+        {errorMsg && (
+          <div style={{ backgroundColor: '#FEE2E2', border: '1px solid #FCA5A5', color: '#B91C1C', padding: '10px', borderRadius: '6px', fontSize: '14px', marginBottom: '16px' }}>
+            {errorMsg}
           </div>
-        </div>
-      )}
+        )}
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <FormField label="Name" required>
+            <Input
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
+            />
+          </FormField>
+          
+          <FormField label="Code">
+            <Input
+              placeholder="e.g. TELKOM (will be converted to uppercase)"
+              value={formData.code}
+              onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+            />
+          </FormField>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <FormField label="Attn / PIC">
+              <Input
+                value={formData.attnName}
+                onChange={(e) => setFormData({ ...formData, attnName: e.target.value })}
+              />
+            </FormField>
+            
+            <FormField label="Phone">
+              <Input
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              />
+            </FormField>
+          </div>
+          
+          <FormField label="Address">
+            <Textarea
+              rows={3}
+              value={formData.address}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+            />
+          </FormField>
+          
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px' }}>
+            <Button type="button" variant="ghost" onClick={closeModal}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" disabled={isSaving}>
+              {isSaving ? 'Saving...' : 'Save'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };
