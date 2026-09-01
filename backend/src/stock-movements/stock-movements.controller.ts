@@ -24,6 +24,17 @@ export class StockMovementsController {
     return this.stockMovementsService.createMovement(user.id, createDto);
   }
 
+  @Get()
+  findAll(
+    @Query() paginationDto: PaginationDto,
+    @Query('type') type?: string,
+  ) {
+    return this.stockMovementsService.findAll({
+      ...paginationDto,
+      type,
+    });
+  }
+
   @Post('incoming')
   createIncoming(
     @Body() createDto: CreateStockMovementDto,

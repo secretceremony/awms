@@ -21,6 +21,54 @@ import { PaginationDto } from '../common/dto/pagination.dto.js';
 export class StockMovementsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async findAll(
+    paginationDto: PaginationDto & { type?: string },
+  ): Promise<PaginatedResult<any>> {
+    const page = paginationDto.page ?? 1;
+    const limit = paginationDto.limit ?? 10;
+    const { skip, take } = getSkipAndTake(page, limit);
+
+    const where: any = {};
+
+    if (paginationDto.type) {
+      where.movementType = paginationDto.type as MovementType;
+    }
+
+    if (paginationDto.search) {
+      where.OR = [
+        { movementNumber: { contains: paginationDto.search, mode: 'insensitive' } },
+        { referenceNumber: { contains: paginationDto.search, mode: 'insensitive' } },
+        { items: { some: { item: { name: { contains: paginationDto.search, mode: 'insensitive' } } } } },
+      ];
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.stockMovement.findMany({
+        where,
+        skip,
+        take,
+        include: {
+          sourceWarehouse: { select: { id: true, name: true, cityCode: true } },
+          destinationWarehouse: { select: { id: true, name: true, cityCode: true } },
+          project: { select: { id: true, name: true, jobNo: true } },
+          createdBy: { select: { id: true, name: true } },
+          items: {
+            include: {
+              item: { select: { id: true, name: true, brand: true, modelNumber: true, trackingType: true } },
+              movementSerials: {
+                include: { itemSerial: { select: { serialNumber: true } } },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.stockMovement.count({ where }),
+    ]);
+
+    return createPaginationResult(data, total, page, limit);
+  }
+
   async findAllIncoming(
     paginationDto: PaginationDto,
   ): Promise<PaginatedResult<any>> {
