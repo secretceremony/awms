@@ -33,6 +33,56 @@ export const IncomingDetail = () => {
     );
   }
 
+  // Expand items for display
+  const detailRows: Array<{
+    id: string;
+    itemName: string;
+    brand: string | null;
+    modelNumber: string | null;
+    serialNumber: string;
+    quantity: number;
+    unit: string;
+    condition: string;
+    notes: string;
+  }> = [];
+
+  if (movement.items) {
+    for (const entry of movement.items) {
+      const item = entry.item || {};
+      const unitStr = item.unit?.symbol || item.unit?.name || '-';
+      const serials = entry.movementSerials || [];
+
+      if (item.trackingType === 'SERIALIZED' && serials.length > 0) {
+        for (const ms of serials) {
+          const s = ms.itemSerial || {};
+          detailRows.push({
+            id: `ser-${ms.id || s.id}`,
+            itemName: item.name || 'N/A',
+            brand: item.brand || '-',
+            modelNumber: item.modelNumber || '-',
+            serialNumber: s.serialNumber || '-',
+            quantity: 1,
+            unit: unitStr,
+            condition: s.conditionLabel || s.state || 'Standby Good',
+            notes: s.notes || '-',
+          });
+        }
+      } else {
+        detailRows.push({
+          id: `bulk-${entry.id}`,
+          itemName: item.name || 'N/A',
+          brand: item.brand || '-',
+          modelNumber: item.modelNumber || '-',
+          serialNumber: '-',
+          quantity: entry.quantity,
+          unit: unitStr,
+          condition: '-',
+          notes: movement.notes || '-',
+        });
+      }
+    }
+  }
+
   return (
     <div className="page-container">
       <div style={{ marginBottom: '16px' }}>
@@ -42,88 +92,97 @@ export const IncomingDetail = () => {
       </div>
 
       <PageHeader
-        title={`Incoming Movement: ${movement.movementNumber}`}
-        description={`Recorded on ${new Date(movement.createdAt).toLocaleString()}`}
+        title={`Incoming Receipt: ${movement.movementNumber}`}
+        description={`Movement Date: ${new Date(movement.movementDate || movement.createdAt).toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'short',
+          year: '2-digit',
+        })}`}
         actions={
           <StatusBadge type="status" status="in_stock" label="Received" />
         }
       />
 
-      <Card title="Movement Details">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
+      <Card title="Receipt Information">
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gap: '1.25rem',
+            marginBottom: '1.5rem',
+          }}
+        >
           <div>
             <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Destination Warehouse</span>
-            <p style={{ fontWeight: 600 }}>{movement.destinationWarehouse?.name || '-'}</p>
+            <p style={{ fontWeight: 600, margin: '4px 0 0' }}>{movement.destinationWarehouse?.name || '-'}</p>
           </div>
           <div>
             <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Reference / PO Number</span>
-            <p style={{ fontWeight: 600 }}>{movement.referenceNumber || '-'}</p>
+            <p style={{ fontWeight: 600, margin: '4px 0 0' }}>{movement.referenceNumber || '-'}</p>
           </div>
           <div>
             <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Recorded By</span>
-            <p style={{ fontWeight: 600 }}>{movement.createdBy?.name || '-'}</p>
+            <p style={{ fontWeight: 600, margin: '4px 0 0' }}>{movement.createdBy?.name || '-'}</p>
           </div>
           <div>
-            <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Movement Type</span>
-            <p style={{ fontWeight: 600 }}>{movement.movementType}</p>
+            <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Notes</span>
+            <p style={{ fontWeight: 600, margin: '4px 0 0' }}>{movement.notes || '-'}</p>
           </div>
         </div>
 
         <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#1F2839', marginBottom: '12px' }}>
-          Received Items
+          Received Items &amp; Serials
         </h3>
+
         <div className="table-container">
           <table>
             <thead>
               <tr>
-                <th>Item Name</th>
-                <th>Tracking</th>
-                <th>Quantity</th>
-                <th>Serial Numbers / Condition</th>
+                <th>Item</th>
+                <th>Brand</th>
+                <th>MN</th>
+                <th>SN</th>
+                <th>Qty</th>
+                <th>Unit</th>
+                <th>Condition</th>
+                <th>Note</th>
               </tr>
             </thead>
             <tbody>
-              {movement.items?.map((item: any) => {
-                const serials = item.movementSerials || item.serials || [];
-                return (
-                  <tr key={item.id}>
-                    <td style={{ fontWeight: 500 }}>{item.item?.name}</td>
-                    <td>
-                      <StatusBadge type="tracking" status={item.item?.trackingType || 'BULK'} />
-                    </td>
-                    <td>
-                      {item.quantity} {item.item?.unit?.name || ''}
-                    </td>
-                    <td>
-                      {serials.length > 0 ? (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                          {serials.map((s: any, idx: number) => {
-                            const sn = s.itemSerial?.serialNumber || s.serialNumber;
-                            const state = s.itemSerial?.state || s.state || 'Standby Good';
-                            const cond = s.itemSerial?.conditionLabel || s.conditionLabel;
-                            return (
-                              <span
-                                key={idx}
-                                style={{
-                                  fontSize: '12px',
-                                  backgroundColor: '#F3F4F6',
-                                  padding: '2px 8px',
-                                  borderRadius: '4px',
-                                  border: '1px solid #E5E7EB',
-                                }}
-                              >
-                                <code>{sn}</code> {cond ? `(${cond})` : `[${state}]`}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        '-'
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+              {detailRows.map((row) => (
+                <tr key={row.id}>
+                  <td style={{ fontWeight: 600, color: '#1F2839' }}>{row.itemName}</td>
+                  <td>{row.brand}</td>
+                  <td>{row.modelNumber !== '-' ? <code>{row.modelNumber}</code> : '-'}</td>
+                  <td>
+                    {row.serialNumber !== '-' ? (
+                      <code
+                        style={{
+                          backgroundColor: '#F3F4F6',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          border: '1px solid #E5E7EB',
+                          fontSize: '12px',
+                        }}
+                      >
+                        {row.serialNumber}
+                      </code>
+                    ) : (
+                      '-'
+                    )}
+                  </td>
+                  <td style={{ fontWeight: 600 }}>{row.quantity}</td>
+                  <td>{row.unit}</td>
+                  <td>
+                    {row.condition !== '-' ? (
+                      <StatusBadge type="condition" status={row.condition} />
+                    ) : (
+                      '-'
+                    )}
+                  </td>
+                  <td style={{ fontSize: '12px', color: '#6B7280' }}>{row.notes}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

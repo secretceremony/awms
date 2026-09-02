@@ -46,8 +46,18 @@ export class StockMovementsController {
   }
 
   @Get('incoming')
-  findIncomingMovements(@Query() paginationDto: PaginationDto) {
-    return this.stockMovementsService.findAllIncoming(paginationDto);
+  findIncomingMovements(
+    @Query() paginationDto: PaginationDto,
+    @Query('warehouseId') warehouseId?: number,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.stockMovementsService.findAllIncoming({
+      ...paginationDto,
+      warehouseId,
+      startDate,
+      endDate,
+    });
   }
 
   @Get('incoming/:id')

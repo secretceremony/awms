@@ -70,7 +70,7 @@ export class StockMovementsService {
   }
 
   async findAllIncoming(
-    paginationDto: PaginationDto,
+    paginationDto: PaginationDto & { warehouseId?: number; startDate?: string; endDate?: string },
   ): Promise<PaginatedResult<any>> {
     const page = paginationDto.page ?? 1;
     const limit = paginationDto.limit ?? 10;
@@ -78,12 +78,26 @@ export class StockMovementsService {
 
     const where: any = {
       movementType: MovementType.INCOMING,
+      ...(paginationDto.warehouseId && { destinationWarehouseId: Number(paginationDto.warehouseId) }),
+      ...(paginationDto.startDate && paginationDto.endDate && {
+        movementDate: {
+          gte: new Date(paginationDto.startDate),
+          lte: new Date(paginationDto.endDate),
+        },
+      }),
     };
 
     if (paginationDto.search) {
+      const s = paginationDto.search.trim();
       where.OR = [
-        { referenceNumber: { contains: paginationDto.search, mode: 'insensitive' } },
-        { items: { some: { item: { name: { contains: paginationDto.search, mode: 'insensitive' } } } } },
+        { movementNumber: { contains: s, mode: 'insensitive' } },
+        { referenceNumber: { contains: s, mode: 'insensitive' } },
+        { notes: { contains: s, mode: 'insensitive' } },
+        { destinationWarehouse: { name: { contains: s, mode: 'insensitive' } } },
+        { items: { some: { item: { name: { contains: s, mode: 'insensitive' } } } } },
+        { items: { some: { item: { brand: { contains: s, mode: 'insensitive' } } } } },
+        { items: { some: { item: { modelNumber: { contains: s, mode: 'insensitive' } } } } },
+        { items: { some: { movementSerials: { some: { itemSerial: { serialNumber: { contains: s, mode: 'insensitive' } } } } } } },
       ];
     }
 
@@ -93,18 +107,18 @@ export class StockMovementsService {
         skip,
         take,
         include: {
-          destinationWarehouse: { select: { name: true } },
-          createdBy: { select: { name: true } },
+          destinationWarehouse: { select: { id: true, name: true, cityCode: true, location: true } },
+          createdBy: { select: { id: true, name: true, email: true } },
           items: {
             include: {
-              item: { select: { name: true, trackingType: true } },
+              item: { select: { id: true, name: true, brand: true, modelNumber: true, trackingType: true, unit: { select: { id: true, name: true, symbol: true } } } },
               movementSerials: {
-                include: { itemSerial: { select: { serialNumber: true } } },
+                include: { itemSerial: { select: { id: true, serialNumber: true, state: true, conditionLabel: true, notes: true } } },
               },
             },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { movementDate: 'desc' },
       }),
       this.prisma.stockMovement.count({ where }),
     ]);
@@ -116,14 +130,31 @@ export class StockMovementsService {
     const movement = await this.prisma.stockMovement.findUnique({
       where: { id, movementType: MovementType.INCOMING },
       include: {
-        destinationWarehouse: { select: { name: true } },
-        createdBy: { select: { name: true } },
+        destinationWarehouse: { select: { id: true, name: true, cityCode: true, location: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
         items: {
           include: {
-            item: { select: { name: true, trackingType: true, unit: { select: { name: true } } } },
+            item: {
+              select: {
+                id: true,
+                name: true,
+                brand: true,
+                modelNumber: true,
+                trackingType: true,
+                unit: { select: { id: true, name: true, symbol: true } },
+              },
+            },
             movementSerials: {
               include: {
-                itemSerial: { select: { serialNumber: true, state: true, conditionLabel: true } },
+                itemSerial: {
+                  select: {
+                    id: true,
+                    serialNumber: true,
+                    state: true,
+                    conditionLabel: true,
+                    notes: true,
+                  },
+                },
               },
             },
           },
@@ -141,7 +172,9 @@ export class StockMovementsService {
   async createMovement(userId: number, dto: CreateStockMovementDto) {
     const {
       movementType,
+      movementDate,
       referenceNumber,
+      notes,
       sourceWarehouseId,
       destinationWarehouseId,
       projectId,
@@ -194,7 +227,9 @@ export class StockMovementsService {
         data: {
           movementNumber,
           movementType,
-          referenceNumber,
+          movementDate: movementDate ? new Date(movementDate) : new Date(),
+          referenceNumber: referenceNumber?.trim() || null,
+          notes: notes?.trim() || null,
           sourceWarehouseId,
           destinationWarehouseId,
           projectId,

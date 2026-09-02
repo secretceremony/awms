@@ -24,6 +24,10 @@ export class SerialDetailDto {
   @IsOptional()
   @IsString()
   state?: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }
 
 export class StockMovementItemDto {
@@ -53,7 +57,15 @@ export class CreateStockMovementDto {
 
   @IsOptional()
   @IsString()
+  movementDate?: string;
+
+  @IsOptional()
+  @IsString()
   referenceNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
 
   @IsOptional()
   @IsInt()
