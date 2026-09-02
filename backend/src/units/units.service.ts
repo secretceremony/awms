@@ -24,28 +24,34 @@ export class UnitsService {
 
   async create(createUnitDto: CreateUnitDto, userId: number) {
     const name = createUnitDto.name.trim();
-    const symbol = createUnitDto.symbol?.trim();
-    const description = createUnitDto.description?.trim();
+    const symbol = createUnitDto.symbol.trim().toLowerCase();
 
-    // Unique check
-    const existing = await this.prisma.unit.findUnique({
-      where: { name },
+    // Case-insensitive name check (Rule 24)
+    const existingName = await this.prisma.unit.findFirst({
+      where: { name: { equals: name, mode: 'insensitive' } },
     });
-    if (existing) {
-      throw new BadRequestException('Unit name already exists');
+    if (existingName) {
+      throw new BadRequestException(`Unit with name "${name}" already exists`);
+    }
+
+    // Case-insensitive symbol check (Rule 24)
+    const existingSymbol = await this.prisma.unit.findFirst({
+      where: { symbol: { equals: symbol, mode: 'insensitive' } },
+    });
+    if (existingSymbol) {
+      throw new BadRequestException(`Unit with symbol "${symbol}" already exists`);
     }
 
     const unit = await this.prisma.unit.create({
       data: {
         name,
         symbol,
-        description,
         isActive: true,
       },
     });
 
     await this.auditLogs.logAction(userId, 'CREATE', 'units', unit.id, {
-      newValues: { name, symbol, description, isActive: true },
+      newValues: { name, symbol, isActive: true },
     });
 
     return unit;
@@ -62,14 +68,12 @@ export class UnitsService {
 
     const whereClause: Prisma.UnitWhereInput = {};
 
-    // Filter by status
     if (status === 'active') {
       whereClause.isActive = true;
     } else if (status === 'inactive') {
       whereClause.isActive = false;
     }
 
-    // Filter by search query
     if (search) {
       whereClause.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -106,16 +110,25 @@ export class UnitsService {
     const unit = await this.findOne(id);
 
     const name = updateUnitDto.name?.trim();
-    const symbol = updateUnitDto.symbol?.trim();
-    const description = updateUnitDto.description?.trim();
+    const symbol = updateUnitDto.symbol ? updateUnitDto.symbol.trim().toLowerCase() : undefined;
 
     // Check unique name if updated
-    if (name && name !== unit.name) {
-      const existing = await this.prisma.unit.findUnique({
-        where: { name },
+    if (name && name.toLowerCase() !== unit.name.toLowerCase()) {
+      const existingName = await this.prisma.unit.findFirst({
+        where: { name: { equals: name, mode: 'insensitive' }, id: { not: id } },
       });
-      if (existing) {
-        throw new BadRequestException('Unit name already exists');
+      if (existingName) {
+        throw new BadRequestException(`Unit with name "${name}" already exists`);
+      }
+    }
+
+    // Check unique symbol if updated
+    if (symbol && symbol !== unit.symbol) {
+      const existingSymbol = await this.prisma.unit.findFirst({
+        where: { symbol: { equals: symbol, mode: 'insensitive' }, id: { not: id } },
+      });
+      if (existingSymbol) {
+        throw new BadRequestException(`Unit with symbol "${symbol}" already exists`);
       }
     }
 
@@ -124,7 +137,6 @@ export class UnitsService {
       data: {
         ...(name && { name }),
         ...(symbol !== undefined && { symbol }),
-        ...(description !== undefined && { description }),
       },
     });
 
@@ -132,12 +144,10 @@ export class UnitsService {
       oldValues: {
         name: unit.name,
         symbol: unit.symbol,
-        description: unit.description,
       },
       newValues: {
         name: updatedUnit.name,
         symbol: updatedUnit.symbol,
-        description: updatedUnit.description,
       },
     });
 
@@ -148,7 +158,7 @@ export class UnitsService {
     const unit = await this.findOne(id);
 
     if (!unit.isActive) {
-      throw new BadRequestException(`Unit ${unit.name} is already inactive`);
+      throw new BadRequestException(`Unit "${unit.name}" is already inactive`);
     }
 
     const updatedUnit = await this.prisma.unit.update({
@@ -162,5 +172,47 @@ export class UnitsService {
     });
 
     return updatedUnit;
+  }
+
+  async reactivate(id: number, userId: number) {
+    const unit = await this.findOne(id);
+
+    const updatedUnit = await this.prisma.unit.update({
+      where: { id },
+      data: { isActive: true },
+    });
+
+    await this.auditLogs.logAction(userId, 'REACTIVATE', 'units', id, {
+      oldValues: { name: unit.name, isActive: false },
+      newValues: { name: unit.name, isActive: true },
+    });
+
+    return updatedUnit;
+  }
+
+  async delete(id: number, userId: number) {
+    const unit = await this.findOne(id);
+
+    // Rule 25: Delete only if no Item references it
+    const itemCount = await this.prisma.item.count({
+      where: { unitId: id },
+    });
+
+    if (itemCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete unit "${unit.name}" because it is currently assigned to ${itemCount} item(s). You may deactivate it instead.`,
+      );
+    }
+
+    await this.prisma.unit.delete({ where: { id } });
+
+    await this.auditLogs.logAction(userId, 'DELETE', 'units', id, {
+      oldValues: {
+        name: unit.name,
+        symbol: unit.symbol,
+      },
+    });
+
+    return { message: `Unit "${unit.name}" deleted successfully.` };
   }
 }

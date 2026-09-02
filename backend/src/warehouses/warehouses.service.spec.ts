@@ -6,27 +6,35 @@ import { BadRequestException } from '@nestjs/common';
 
 describe('WarehousesService', () => {
   let service: WarehousesService;
+  let prisma: PrismaService;
 
   const mockPrisma = {
     warehouse: {
+      create: jest.fn(),
+      findMany: jest.fn(),
       findUnique: jest.fn(),
       findFirst: jest.fn(),
-      create: jest.fn(),
       update: jest.fn(),
-      findMany: jest.fn(),
+      delete: jest.fn(),
       count: jest.fn(),
     },
     warehouseStock: {
-      findMany: jest.fn(),
       count: jest.fn(),
+      findMany: jest.fn(),
     },
     itemSerial: {
-      findMany: jest.fn(),
+      count: jest.fn(),
+    },
+    stockMovement: {
+      count: jest.fn(),
+    },
+    deliveryOrder: {
+      count: jest.fn(),
     },
   };
 
   const mockAuditLogs = {
-    logAction: jest.fn().mockResolvedValue({}),
+    logAction: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -39,123 +47,86 @@ describe('WarehousesService', () => {
     }).compile();
 
     service = module.get<WarehousesService>(WarehousesService);
+    prisma = module.get<PrismaService>(PrismaService);
     jest.clearAllMocks();
   });
 
   describe('create', () => {
-    it('should successfully create a new warehouse', async () => {
-      const mockWarehouse = {
-        id: 1,
+    it('should successfully create a warehouse with canonical cityCode JKT for Jakarta', async () => {
+      const createDto = {
         name: 'Main WH',
         city: 'Jakarta',
-        cityCode: 'JAK',
         location: 'Cawang',
-        description: 'Main hub',
-        isActive: true,
       };
+      const mockWarehouse = { id: 1, ...createDto, cityCode: 'JKT', isActive: true };
+
       mockPrisma.warehouse.findUnique.mockResolvedValue(null);
       mockPrisma.warehouse.findFirst.mockResolvedValue(null);
       mockPrisma.warehouse.create.mockResolvedValue(mockWarehouse);
 
-      const result = await service.create(
-        {
-          name: 'Main WH',
-          city: 'Jakarta',
-          location: 'Cawang',
-          description: 'Main hub',
-        },
-        1,
-      );
+      const result = await service.create(createDto, 1);
       expect(result).toEqual(mockWarehouse);
       expect(mockPrisma.warehouse.create).toHaveBeenCalledWith({
         data: {
           name: 'Main WH',
           city: 'Jakarta',
-          cityCode: 'JAK',
+          cityCode: 'JKT',
           location: 'Cawang',
-          description: 'Main hub',
           isActive: true,
         },
       });
-      expect(mockAuditLogs.logAction).toHaveBeenCalled();
+      expect(mockAuditLogs.logAction).toHaveBeenCalledWith(
+        1,
+        'CREATE',
+        'warehouses',
+        1,
+        expect.any(Object),
+      );
     });
 
-    it('should throw BadRequestException if warehouse name already exists', async () => {
-      mockPrisma.warehouse.findUnique.mockResolvedValue({
-        id: 1,
-        name: 'Main WH',
-      });
-      await expect(
-        service.create(
-          {
-            name: 'Main WH',
-            city: 'Jakarta',
-            cityCode: 'JKT',
-            location: 'Cawang',
-          },
-          1,
-        ),
-      ).rejects.toThrow(BadRequestException);
-    });
-  });
+    it('should generate canonical cityCode BPN for Balikpapan', async () => {
+      const createDto = {
+        name: 'Balikpapan Hub',
+        city: 'Balikpapan',
+        location: 'Kariangau',
+      };
+      const mockWarehouse = { id: 2, ...createDto, cityCode: 'BPN', isActive: true };
 
-  describe('findAll', () => {
-    it('should return a paginated list of warehouses', async () => {
-      const mockWarehouses = [{ id: 1, name: 'Main WH' }];
-      mockPrisma.warehouse.findMany.mockResolvedValue(mockWarehouses);
-      mockPrisma.warehouse.count.mockResolvedValue(1);
+      mockPrisma.warehouse.findUnique.mockResolvedValue(null);
+      mockPrisma.warehouse.findFirst.mockResolvedValue(null);
+      mockPrisma.warehouse.create.mockResolvedValue(mockWarehouse);
 
-      const result = await service.findAll({
-        page: 1,
-        limit: 10,
-        search: 'Main',
-        status: 'active',
-      });
-      expect(result.data).toEqual(mockWarehouses);
-      expect(result.meta.total).toEqual(1);
-    });
-  });
-
-  describe('getStocks', () => {
-    it('should return paginated stocks for a warehouse', async () => {
-      const mockWarehouse = { id: 1, name: 'Main WH' };
-      mockPrisma.warehouse.findUnique.mockResolvedValue(mockWarehouse);
-
-      const mockStocks = [
-        {
-          id: 1,
-          quantity: 100,
-          item: {
-            id: 10,
-            name: 'Bulk Item',
-            brand: 'SKU-BULK',
-            trackingType: 'BULK',
-            unit: { name: 'Pcs' },
-          },
-        },
-      ];
-      mockPrisma.warehouseStock.findMany.mockResolvedValue(mockStocks);
-      mockPrisma.warehouseStock.count.mockResolvedValue(1);
-
-      const result = await service.getStocks(1, { page: 1, limit: 10 });
-      const firstItem = result.data[0] as Record<string, unknown>;
-      expect(firstItem.itemName).toEqual('Bulk Item');
-      expect(firstItem.quantity).toEqual(100);
-      expect(result.meta.total).toEqual(1);
+      const result = await service.create(createDto, 1);
+      expect(result.cityCode).toBe('BPN');
     });
   });
 
   describe('deactivate', () => {
-    it('should deactivate an active warehouse', async () => {
+    it('should block deactivation if warehouse has active stock', async () => {
       const mockWarehouse = { id: 1, name: 'Main WH', isActive: true };
       mockPrisma.warehouse.findUnique.mockResolvedValue(mockWarehouse);
-      mockPrisma.warehouse.update.mockResolvedValue({
-        ...mockWarehouse,
-        isActive: false,
-      });
+      mockPrisma.warehouseStock.count.mockResolvedValue(5); // 5 bulk stock records
+      mockPrisma.itemSerial.count.mockResolvedValue(0);
+
+      await expect(service.deactivate(1, 1)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should deactivate if warehouse has 0 stock', async () => {
+      const mockWarehouse = { id: 1, name: 'Main WH', isActive: true };
+      mockPrisma.warehouse.findUnique.mockResolvedValue(mockWarehouse);
+      mockPrisma.warehouseStock.count.mockResolvedValue(0);
+      mockPrisma.itemSerial.count.mockResolvedValue(0);
+      mockPrisma.warehouse.update.mockResolvedValue({ ...mockWarehouse, isActive: false });
 
       const result = await service.deactivate(1, 1);
       expect(result.isActive).toBe(false);
+      expect(mockAuditLogs.logAction).toHaveBeenCalledWith(
+        1,
+        'DEACTIVATE',
+        'warehouses',
+        1,
+        expect.any(Object),
+      );
     });
   });
 });

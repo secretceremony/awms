@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, MaxLength } from 'class-validator';
+import { IsString, IsNotEmpty, MaxLength } from 'class-validator';
 
 export class CreateWarehouseDto {
   @IsString()
@@ -12,12 +12,7 @@ export class CreateWarehouseDto {
   city!: string;
 
   @IsString()
-  @IsNotEmpty({ message: 'Location is required' })
+  @IsNotEmpty({ message: 'Location address is required' })
   @MaxLength(255)
   location!: string;
-
-  @IsString()
-  @IsOptional()
-  @MaxLength(255)
-  description?: string;
 }

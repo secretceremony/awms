@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, FormField, Input, Textarea, Button } from '../ui/index.js';
+import { Modal, FormField, Input, Button } from '../ui/index.js';
 import { apiClient } from '../../api/client.js';
 
 export interface Warehouse {
@@ -8,7 +8,6 @@ export interface Warehouse {
   city: string;
   cityCode: string;
   location: string;
-  description: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -32,7 +31,6 @@ export const WarehouseFormModal: React.FC<WarehouseFormModalProps> = ({
     city: '',
     cityCode: '',
     location: '',
-    description: '',
   });
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -44,7 +42,6 @@ export const WarehouseFormModal: React.FC<WarehouseFormModalProps> = ({
         city: warehouse.city,
         cityCode: warehouse.cityCode,
         location: warehouse.location,
-        description: warehouse.description || '',
       });
     } else {
       setFormData({
@@ -52,7 +49,6 @@ export const WarehouseFormModal: React.FC<WarehouseFormModalProps> = ({
         city: '',
         cityCode: '',
         location: '',
-        description: '',
       });
     }
     setErrorMsg(null);
@@ -68,7 +64,6 @@ export const WarehouseFormModal: React.FC<WarehouseFormModalProps> = ({
         name: formData.name.trim(),
         city: formData.city.trim(),
         location: formData.location.trim(),
-        description: formData.description.trim() || undefined,
       };
 
       if (warehouse) {
@@ -105,7 +100,7 @@ export const WarehouseFormModal: React.FC<WarehouseFormModalProps> = ({
             <Input
               type="text"
               required
-              placeholder="e.g. Main Central Hub"
+              placeholder="e.g. Main Balikpapan Hub"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             />
@@ -116,7 +111,7 @@ export const WarehouseFormModal: React.FC<WarehouseFormModalProps> = ({
               <Input
                 type="text"
                 required
-                placeholder="e.g. Jakarta"
+                placeholder="e.g. Balikpapan / Jakarta"
                 value={formData.city}
                 onChange={(e) => setFormData({ ...formData, city: e.target.value })}
               />
@@ -126,26 +121,18 @@ export const WarehouseFormModal: React.FC<WarehouseFormModalProps> = ({
               <Input
                 type="text"
                 disabled
-                value={warehouse ? formData.cityCode : 'Generated automatically'}
+                value={warehouse ? formData.cityCode : 'Auto-generated (e.g. BPN, JKT)'}
               />
             </FormField>
           </div>
 
-          <FormField label="Location Address" required>
+          <FormField label="Location Address (Full Physical Street Address)" required>
             <Input
               type="text"
               required
-              placeholder="e.g. Jl. Industri No. 12"
+              placeholder="e.g. Jl. Mulawarman No. 88, Balikpapan"
               value={formData.location}
               onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-            />
-          </FormField>
-
-          <FormField label="Description">
-            <Textarea
-              placeholder="Optional notes or operational details"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
           </FormField>
         </div>

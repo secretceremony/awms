@@ -54,7 +54,7 @@ export class DashboardService {
 
       // 6. Active projects count
       this.prisma.project.count({
-        where: { isActive: true },
+        where: { status: 'ACTIVE' },
       }),
 
       // 7. Delivery orders count

@@ -43,7 +43,7 @@ export const DashboardLayout = () => {
     { type: 'header', label: 'Master Data' },
     { to: '/warehouses', label: 'Warehouses', icon: Warehouse },
     { to: '/projects', label: 'Projects', icon: Briefcase },
-    { to: '/customers', label: 'Users', icon: Users },
+    { to: '/clients', label: 'Clients', icon: Users },
     { to: '/units', label: 'Units', icon: Ruler },
     { type: 'header', label: 'Deliveries' },
     { to: '/delivery-orders', label: 'Delivery Orders', icon: Truck },
@@ -91,29 +91,15 @@ export const DashboardLayout = () => {
           })}
         </nav>
 
-        {/* User Profile Footer */}
+        {/* Single Logout Button in Sidebar */}
         <div className="sidebar-footer">
-          <div className="user-profile">
-            <div className="avatar">
-              <User size={16} />
-            </div>
-            <div className="user-info">
-              <span className="user-name">{user?.name || user?.email || 'User'}</span>
-              <span className="user-role">
-                {user?.role === 'ADMIN_LOGISTICS'
-                  ? 'Logistics Admin'
-                  : user?.role || 'Staff'}
-              </span>
-            </div>
-          </div>
-          <button
-            type="button"
-            className="btn-logout"
+          <Button
+            variant="danger"
+            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
             onClick={handleLogout}
-            title="Log Out"
           >
-            <LogOut size={16} />
-          </button>
+            <LogOut size={16} /> Logout
+          </Button>
         </div>
       </aside>
 
@@ -121,20 +107,16 @@ export const DashboardLayout = () => {
       <main className="main-content-layout">
         <header className="content-header">
           <div className="header-title-area">
-            <div className="breadcrumb" style={{ fontSize: '0.8rem', color: '#6B7280' }}>
+            <div className="breadcrumb">
               AWMS &nbsp;/&nbsp; {currentNav?.label || 'Overview'}
             </div>
-            <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#1F2839' }}>
+            <h1 className="header-page-title">
               {currentNav?.label || 'Dashboard'}
             </h1>
           </div>
-          <div className="header-user-section" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span style={{ fontSize: '14px', fontWeight: 600, color: '#1F2839' }}>
-              {user?.name || user?.email || 'User'}
-            </span>
-            <Button variant="danger" size="sm" onClick={handleLogout}>
-              <LogOut size={14} /> Logout
-            </Button>
+          <div className="header-user-section">
+            <User size={16} />
+            <span>{user?.name || user?.email || 'User'}</span>
           </div>
         </header>
         <div className="content-body">

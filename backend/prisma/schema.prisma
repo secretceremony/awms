@@ -39,10 +39,14 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum ClientType {
+  PHM
+  OTHER
+}
+
 enum ProjectStatus {
   ACTIVE
   COMPLETED
-  ARCHIVED
 }
 
 model User {
@@ -63,13 +67,12 @@ model User {
 }
 
 model Unit {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique
-  symbol      String?
-  description String?
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  symbol    String   @unique
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   items Item[]
 
@@ -77,15 +80,14 @@ model Unit {
 }
 
 model Warehouse {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique
-  city        String
-  cityCode    String   @map("city_code")
-  location    String
-  description String?
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  city      String
+  cityCode  String   @map("city_code")
+  location  String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   warehouseStocks           WarehouseStock[]
   sourceStockMovements      StockMovement[]  @relation("sourceWarehouseRelation")
@@ -96,46 +98,64 @@ model Warehouse {
   @@map("warehouses")
 }
 
-model Customer {
-  id        Int      @id @default(autoincrement())
-  name      String
-  code      String?  @unique
-  attnName  String?  @map("attn_name")
-  email     String?
-  phone     String?
-  address   String?
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+model Client {
+  id         Int        @id @default(autoincrement())
+  name       String     // Company Name
+  clientType ClientType @default(OTHER) @map("client_type")
+  phone      String?
+  email      String?
+  address    String?
+  isActive   Boolean    @default(true) @map("is_active")
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
 
+  contacts       ClientContact[]
   projects       Project[]
   deliveryOrders DeliveryOrder[]
 
   @@map("customers")
 }
 
+model ClientContact {
+  id        Int      @id @default(autoincrement())
+  clientId  Int      @map("client_id")
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name      String
+  phone     String?
+  email     String?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  projects Project[]
+
+  @@index([clientId])
+  @@map("client_contacts")
+}
+
 model Project {
-  id              Int           @id @default(autoincrement())
+  id              Int            @id @default(autoincrement())
   name            String
-  referenceNumber String?       @map("reference_number")
+  referenceNumber String?        @map("reference_number")
   location        String
-  attnName        String?       @map("attn_name")
-  leaderName      String?       @map("leader_name")
-  status          ProjectStatus @default(ACTIVE)
-  startedAt       DateTime?     @map("started_at")
-  endedAt         DateTime?     @map("ended_at")
-  customerId      Int?          @map("customer_id")
-  customer        Customer?     @relation(fields: [customerId], references: [id])
-  isActive        Boolean       @default(true) @map("is_active")
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
+  siteCode        String?        @map("site_code")
+  status          ProjectStatus  @default(ACTIVE)
+  startedAt       DateTime?      @map("started_at")
+  endedAt         DateTime?      @map("ended_at")
+  clientId        Int            @map("customer_id")
+  client          Client         @relation(fields: [clientId], references: [id])
+  clientContactId Int?           @map("client_contact_id")
+  clientContact   ClientContact? @relation(fields: [clientContactId], references: [id])
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
 
   projectStocks  ProjectStock[]
   stockMovements StockMovement[]
   deliveryOrders DeliveryOrder[]
   itemSerials    ItemSerial[] @relation("ItemSerialCurrentProject")
 
-  @@index([customerId])
+  @@index([clientId])
+  @@index([clientContactId])
   @@map("projects")
 }
 
@@ -275,8 +295,8 @@ model DeliveryOrder {
   id                Int         @id @default(autoincrement())
   doNumber          String      @unique @map("do_number")
   date              DateTime
-  customerId        Int         @map("customer_id")
-  customer          Customer    @relation(fields: [customerId], references: [id])
+  clientId          Int         @map("customer_id")
+  client            Client      @relation(fields: [clientId], references: [id])
   projectId         Int?        @map("project_id")
   project           Project?    @relation(fields: [projectId], references: [id])
   sourceWarehouseId Int         @map("source_warehouse_id")
@@ -290,7 +310,7 @@ model DeliveryOrder {
   items         DeliveryOrderItem[]
   shippingLabel ShippingLabel?
 
-  @@index([customerId])
+  @@index([clientId])
   @@index([projectId])
   @@index([sourceWarehouseId])
   @@index([createdById])

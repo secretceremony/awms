@@ -15,9 +15,4 @@ export class UpdateWarehouseDto {
   @IsOptional()
   @MaxLength(255)
   location?: string;
-
-  @IsString()
-  @IsOptional()
-  @MaxLength(255)
-  description?: string;
 }

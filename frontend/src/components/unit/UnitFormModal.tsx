@@ -5,9 +5,10 @@ import { apiClient } from '../../api/client.js';
 export interface Unit {
   id: number;
   name: string;
-  symbol: string | null;
-  description: string | null;
+  symbol: string;
   isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface UnitFormModalProps {
@@ -26,7 +27,6 @@ export const UnitFormModal: React.FC<UnitFormModalProps> = ({
   const [formData, setFormData] = useState({
     name: '',
     symbol: '',
-    description: '',
   });
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -36,13 +36,11 @@ export const UnitFormModal: React.FC<UnitFormModalProps> = ({
       setFormData({
         name: unit.name,
         symbol: unit.symbol || '',
-        description: unit.description || '',
       });
     } else {
       setFormData({
         name: '',
         symbol: '',
-        description: '',
       });
     }
     setErrorMsg(null);
@@ -56,8 +54,7 @@ export const UnitFormModal: React.FC<UnitFormModalProps> = ({
     try {
       const payload = {
         name: formData.name.trim(),
-        symbol: formData.symbol.trim() || undefined,
-        description: formData.description.trim() || undefined,
+        symbol: formData.symbol.trim().toLowerCase(),
       };
 
       if (unit) {
@@ -94,27 +91,19 @@ export const UnitFormModal: React.FC<UnitFormModalProps> = ({
             <Input
               type="text"
               required
-              placeholder="e.g. Kilogram, Meter, Pieces"
+              placeholder="e.g. Meter, Pieces, Set"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             />
           </FormField>
 
-          <FormField label="Symbol">
+          <FormField label="Symbol (Normalized lowercase)" required>
             <Input
               type="text"
-              placeholder="e.g. kg, m, pcs"
+              required
+              placeholder="e.g. m, pcs, set, roll"
               value={formData.symbol}
-              onChange={(e) => setFormData({ ...formData, symbol: e.target.value })}
-            />
-          </FormField>
-
-          <FormField label="Description">
-            <Input
-              type="text"
-              placeholder="Optional description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, symbol: e.target.value.toLowerCase() })}
             />
           </FormField>
         </div>

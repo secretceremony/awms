@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, MaxLength } from 'class-validator';
+import { IsString, IsNotEmpty, MaxLength } from 'class-validator';
 
 export class CreateUnitDto {
   @IsString()
@@ -7,12 +7,7 @@ export class CreateUnitDto {
   name!: string;
 
   @IsString()
-  @IsOptional()
+  @IsNotEmpty({ message: 'Symbol is required' })
   @MaxLength(20)
-  symbol?: string;
-
-  @IsString()
-  @IsOptional()
-  @MaxLength(255)
-  description?: string;
+  symbol!: string;
 }

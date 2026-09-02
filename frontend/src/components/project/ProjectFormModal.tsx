@@ -4,17 +4,17 @@ import { apiClient } from '../../api/client.js';
 
 export interface Project {
   id: number;
-  customerId: number;
-  customer?: { id: number; name: string };
+  clientId: number;
+  client?: { id: number; name: string };
+  clientContactId: number | null;
+  clientContact?: { id: number; name: string; email?: string | null; phone?: string | null };
   referenceNumber: string | null;
   name: string;
   location: string;
-  attnName: string | null;
-  leaderName: string | null;
-  status: string;
+  siteCode: string | null;
+  status: 'ACTIVE' | 'COMPLETED';
   startedAt: string | null;
   endedAt: string | null;
-  isActive: boolean;
 }
 
 export interface ProjectFormModalProps {
@@ -30,57 +30,78 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
   project,
   onSuccess,
 }) => {
-  const [customers, setCustomers] = useState<{ id: number; name: string }[]>([]);
+  const [clients, setClients] = useState<{ id: number; name: string }[]>([]);
+  const [contacts, setContacts] = useState<{ id: number; name: string; email?: string | null; phone?: string | null }[]>([]);
   const [formData, setFormData] = useState({
-    customerId: '',
+    clientId: '',
+    clientContactId: '',
     name: '',
     referenceNumber: '',
     location: '',
-    attnName: '',
-    leaderName: '',
-    status: 'ACTIVE',
+    siteCode: '',
     startedAt: '',
     endedAt: '',
   });
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Fetch active clients on open
   useEffect(() => {
-    const fetchCustomers = async () => {
+    const fetchClients = async () => {
       try {
-        const res: any = await apiClient.get('/customers', { params: { limit: 100, status: 'active' } });
-        setCustomers(Array.isArray(res) ? res : res?.data || []);
+        const res: any = await apiClient.get('/clients', { params: { limit: 100, status: 'active' } });
+        setClients(Array.isArray(res) ? res : res?.data || []);
       } catch (err) {
-        console.error('Failed to load active users:', err);
+        console.error('Failed to load active clients:', err);
       }
     };
     if (isOpen) {
-      fetchCustomers();
+      fetchClients();
     }
   }, [isOpen]);
+
+  // Fetch contacts whenever selected clientId changes
+  useEffect(() => {
+    const fetchContacts = async () => {
+      if (!formData.clientId) {
+        setContacts([]);
+        return;
+      }
+      try {
+        const res: any = await apiClient.get(`/clients/${formData.clientId}/contacts`, {
+          params: { status: 'active' },
+        });
+        setContacts(Array.isArray(res) ? res : res?.data || []);
+      } catch (err) {
+        console.error('Failed to load client contacts:', err);
+        setContacts([]);
+      }
+    };
+    if (isOpen && formData.clientId) {
+      fetchContacts();
+    }
+  }, [formData.clientId, isOpen]);
 
   useEffect(() => {
     if (project) {
       setFormData({
-        customerId: String(project.customerId || ''),
+        clientId: String(project.clientId || ''),
+        clientContactId: project.clientContactId ? String(project.clientContactId) : '',
         name: project.name || '',
         referenceNumber: project.referenceNumber || '',
         location: project.location || '',
-        attnName: project.attnName || '',
-        leaderName: project.leaderName || '',
-        status: project.status || 'ACTIVE',
+        siteCode: project.siteCode || '',
         startedAt: project.startedAt ? project.startedAt.split('T')[0] : '',
         endedAt: project.endedAt ? project.endedAt.split('T')[0] : '',
       });
     } else {
       setFormData({
-        customerId: '',
+        clientId: '',
+        clientContactId: '',
         name: '',
         referenceNumber: '',
         location: '',
-        attnName: '',
-        leaderName: '',
-        status: 'ACTIVE',
+        siteCode: '',
         startedAt: '',
         endedAt: '',
       });
@@ -92,8 +113,8 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
     e.preventDefault();
     setErrorMsg(null);
 
-    if (!formData.customerId) {
-      setErrorMsg('User / Company is required');
+    if (!formData.clientId) {
+      setErrorMsg('Client is required');
       return;
     }
     if (!formData.name.trim()) {
@@ -109,13 +130,12 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
 
     try {
       const payload = {
-        customerId: parseInt(formData.customerId, 10),
+        clientId: parseInt(formData.clientId, 10),
+        clientContactId: formData.clientContactId ? parseInt(formData.clientContactId, 10) : undefined,
         name: formData.name.trim(),
         referenceNumber: formData.referenceNumber.trim() || undefined,
         location: formData.location.trim(),
-        attnName: formData.attnName.trim() || undefined,
-        leaderName: formData.leaderName.trim() || undefined,
-        status: formData.status,
+        siteCode: formData.siteCode.trim() || undefined,
         startedAt: formData.startedAt || undefined,
         endedAt: formData.endedAt || undefined,
       };
@@ -144,45 +164,59 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={project ? 'Edit Project' : 'Add New Project'}
-      maxWidth="560px"
+      maxWidth="600px"
     >
       <form onSubmit={handleSubmit}>
         <div className="modal-body">
           {errorMsg && <div className="alert-error">{errorMsg}</div>}
 
-          <div className="form-grid" style={{ marginBottom: '1rem' }}>
-            <FormField label="User / Company" required style={{ marginBottom: 0 }}>
-              <Select
-                required
-                value={formData.customerId}
-                onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
-              >
-                <option value="">-- Select User / Company --</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </Select>
-            </FormField>
+          <FormField label="Client (Company)" required>
+            <Select
+              required
+              value={formData.clientId}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  clientId: e.target.value,
+                  clientContactId: '', // reset contact if client changes
+                })
+              }
+            >
+              <option value="">Select a Client...</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          </FormField>
 
-            <FormField label="Project Status" style={{ marginBottom: 0 }}>
-              <Select
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              >
-                <option value="ACTIVE">Active</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="ARCHIVED">Archived</option>
-              </Select>
-            </FormField>
-          </div>
+          <FormField label="Attn / Client Contact (Optional)">
+            <Select
+              value={formData.clientContactId}
+              onChange={(e) => setFormData({ ...formData, clientContactId: e.target.value })}
+              disabled={!formData.clientId || contacts.length === 0}
+            >
+              <option value="">
+                {!formData.clientId
+                  ? 'Select Client first'
+                  : contacts.length === 0
+                  ? 'No contacts registered for this client'
+                  : 'Select Contact Person (Attn)...'}
+              </option>
+              {contacts.map((ct) => (
+                <option key={ct.id} value={ct.id}>
+                  {ct.name} {ct.email ? `(${ct.email})` : ''}
+                </option>
+              ))}
+            </Select>
+          </FormField>
 
           <FormField label="Project Name" required>
             <Input
               type="text"
               required
-              placeholder="e.g. Site Expansion Phase 1"
+              placeholder="e.g. Balikpapan Port Expansion 2026"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             />
@@ -192,45 +226,34 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
             <FormField label="Reference Number (PO / Contract No.)" style={{ marginBottom: 0 }}>
               <Input
                 type="text"
-                placeholder="e.g. PO-2026-001 or CTR-998"
+                placeholder="e.g. PO-2026-001 or CTR-089"
                 value={formData.referenceNumber}
                 onChange={(e) => setFormData({ ...formData, referenceNumber: e.target.value })}
               />
             </FormField>
 
-            <FormField label="Location / Site" required style={{ marginBottom: 0 }}>
+            <FormField label="Site Code (Optional)" style={{ marginBottom: 0 }}>
               <Input
                 type="text"
-                required
-                placeholder="e.g. Balikpapan Site 1"
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                placeholder="e.g. CPA, MTGU, EAST MANDU"
+                value={formData.siteCode}
+                onChange={(e) => setFormData({ ...formData, siteCode: e.target.value.toUpperCase() })}
               />
             </FormField>
           </div>
+
+          <FormField label="Location (Deployment Site / Address)" required>
+            <Input
+              type="text"
+              required
+              placeholder="e.g. Central Processing Area, Handil II"
+              value={formData.location}
+              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+            />
+          </FormField>
 
           <div className="form-grid" style={{ marginBottom: '1rem' }}>
-            <FormField label="Attn / PIC" style={{ marginBottom: 0 }}>
-              <Input
-                type="text"
-                placeholder="e.g. Budi Santoso"
-                value={formData.attnName}
-                onChange={(e) => setFormData({ ...formData, attnName: e.target.value })}
-              />
-            </FormField>
-
-            <FormField label="Project Leader" style={{ marginBottom: 0 }}>
-              <Input
-                type="text"
-                placeholder="e.g. Andi Wijaya"
-                value={formData.leaderName}
-                onChange={(e) => setFormData({ ...formData, leaderName: e.target.value })}
-              />
-            </FormField>
-          </div>
-
-          <div className="form-grid">
-            <FormField label="Start Date">
+            <FormField label="Start Date" style={{ marginBottom: 0 }}>
               <Input
                 type="date"
                 value={formData.startedAt}
@@ -238,7 +261,7 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
               />
             </FormField>
 
-            <FormField label="End Date">
+            <FormField label="End Date" style={{ marginBottom: 0 }}>
               <Input
                 type="date"
                 value={formData.endedAt}

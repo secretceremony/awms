@@ -49,12 +49,36 @@ export class UnitsController {
     return this.unitsService.update(id, updateUnitDto, user.id);
   }
 
-  @Delete(':id/deactivate')
-  @HttpCode(HttpStatus.OK)
+  @Patch(':id/deactivate')
   deactivate(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.unitsService.deactivate(id, user.id);
+  }
+
+  @Delete(':id/deactivate')
+  @HttpCode(HttpStatus.OK)
+  deactivateLegacy(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.unitsService.deactivate(id, user.id);
+  }
+
+  @Patch(':id/reactivate')
+  reactivate(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.unitsService.reactivate(id, user.id);
+  }
+
+  @Delete(':id')
+  delete(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.unitsService.delete(id, user.id);
   }
 }

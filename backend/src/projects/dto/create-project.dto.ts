@@ -17,8 +17,19 @@ export class CreateProjectDto {
 
   @Type(() => Number)
   @IsInt()
-  @IsPositive({ message: 'User / Company is required' })
-  customerId!: number;
+  @IsPositive({ message: 'Client / Company is required' })
+  clientId?: number;
+
+  // Backward compatibility alias for customerId
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  customerId?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  clientContactId?: number | null;
 
   @IsString()
   @IsNotEmpty({ message: 'Location is required' })
@@ -27,18 +38,13 @@ export class CreateProjectDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(50)
+  siteCode?: string;
+
+  @IsString()
+  @IsOptional()
   @MaxLength(100)
   referenceNumber?: string;
-
-  @IsString()
-  @IsOptional()
-  @MaxLength(100)
-  attnName?: string;
-
-  @IsString()
-  @IsOptional()
-  @MaxLength(100)
-  leaderName?: string;
 
   @IsOptional()
   @IsDateString()

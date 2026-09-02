@@ -2,23 +2,40 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CustomersService } from './customers.service.js';
 import { PrismaService } from '../prisma.service.js';
 import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { ClientType } from '../../generated/prisma/client.js';
 
-describe('CustomersService', () => {
+describe('CustomersService (Clients)', () => {
   let service: CustomersService;
+  let prisma: PrismaService;
 
   const mockPrisma = {
-    customer: {
-      findUnique: jest.fn(),
+    client: {
       create: jest.fn(),
-      update: jest.fn(),
       findMany: jest.fn(),
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      count: jest.fn(),
+    },
+    clientContact: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    project: {
+      count: jest.fn(),
+    },
+    deliveryOrder: {
       count: jest.fn(),
     },
   };
 
   const mockAuditLogs = {
-    logAction: jest.fn().mockResolvedValue({}),
+    logAction: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -31,77 +48,90 @@ describe('CustomersService', () => {
     }).compile();
 
     service = module.get<CustomersService>(CustomersService);
+    prisma = module.get<PrismaService>(PrismaService);
     jest.clearAllMocks();
   });
 
   describe('create', () => {
-    it('should successfully create a customer', async () => {
-      const mockCustomer = {
-        id: 1,
-        name: 'Telkom Indonesia',
-        code: 'TELKOM',
-        attnName: 'Pak Budi',
-        email: 'budi@telkom.co.id',
-        phone: '0812345678',
-        address: 'Gatot Subroto',
-        isActive: true,
+    it('should successfully create a client', async () => {
+      const createDto = {
+        name: 'Company A',
+        clientType: ClientType.PHM,
+        email: 'user@comp-a.com',
+        phone: '+62812345678',
+        address: 'Jl. Sudirman No. 1',
       };
-      mockPrisma.customer.findUnique.mockResolvedValue(null);
-      mockPrisma.customer.create.mockResolvedValue(mockCustomer);
+      const mockClient = { id: 1, ...createDto, isActive: true };
 
-      const result = await service.create(
-        {
-          name: 'Telkom Indonesia',
-          code: 'TELKOM',
-          attnName: 'Pak Budi',
-          email: 'budi@telkom.co.id',
-          phone: '0812345678',
-          address: 'Gatot Subroto',
-        },
-        1,
-      );
+      mockPrisma.client.create.mockResolvedValue(mockClient);
 
-      expect(result).toEqual(mockCustomer);
-      expect(mockPrisma.customer.create).toHaveBeenCalledWith({
+      const result = await service.create(createDto, 1);
+      expect(result).toEqual(mockClient);
+      expect(mockPrisma.client.create).toHaveBeenCalledWith({
         data: {
-          name: 'Telkom Indonesia',
-          code: 'TELKOM',
-          attnName: 'Pak Budi',
-          email: 'budi@telkom.co.id',
-          phone: '0812345678',
-          address: 'Gatot Subroto',
+          name: 'Company A',
+          clientType: ClientType.PHM,
+          email: 'user@comp-a.com',
+          phone: '+62812345678',
+          address: 'Jl. Sudirman No. 1',
           isActive: true,
         },
       });
+      expect(mockAuditLogs.logAction).toHaveBeenCalledWith(
+        1,
+        'CREATE',
+        'clients',
+        1,
+        expect.any(Object),
+      );
     });
 
-    it('should allow customer without code or email', async () => {
-      const mockCustomer = {
+    it('should allow client without optional email or phone', async () => {
+      const createDto = {
+        name: 'Company B',
+        clientType: ClientType.OTHER,
+      };
+      const mockClient = {
         id: 2,
-        name: 'No Code Customer',
-        code: null,
-        attnName: null,
+        name: 'Company B',
+        clientType: ClientType.OTHER,
         email: null,
         phone: null,
         address: null,
         isActive: true,
       };
-      mockPrisma.customer.create.mockResolvedValue(mockCustomer);
 
-      const result = await service.create({ name: 'No Code Customer' }, 1);
-      expect(result.code).toBeNull();
-      expect(result.email).toBeNull();
+      mockPrisma.client.create.mockResolvedValue(mockClient);
+
+      const result = await service.create(createDto, 1);
+      expect(result).toEqual(mockClient);
+    });
+  });
+
+  describe('deactivate', () => {
+    it('should block deactivation if client has active projects', async () => {
+      const mockClient = { id: 1, name: 'Company A', isActive: true };
+      mockPrisma.client.findUnique.mockResolvedValue(mockClient);
+      mockPrisma.project.count.mockResolvedValue(2); // 2 active projects
+
+      await expect(service.deactivate(1, 1)).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw BadRequestException if duplicate code provided', async () => {
-      mockPrisma.customer.findUnique.mockResolvedValue({
-        id: 1,
-        code: 'TELKOM',
-      });
+    it('should deactivate if no active projects', async () => {
+      const mockClient = { id: 1, name: 'Company A', isActive: true };
+      mockPrisma.client.findUnique.mockResolvedValue(mockClient);
+      mockPrisma.project.count.mockResolvedValue(0);
+      mockPrisma.client.update.mockResolvedValue({ ...mockClient, isActive: false });
 
-      await expect(
-        service.create({ name: 'Telkom New', code: 'TELKOM' }, 1),
-      ).rejects.toThrow(BadRequestException);
+      const result = await service.deactivate(1, 1);
+      expect(result.isActive).toBe(false);
+      expect(mockAuditLogs.logAction).toHaveBeenCalledWith(
+        1,
+        'DEACTIVATE',
+        'clients',
+        1,
+        expect.any(Object),
+      );
     });
   });
 });

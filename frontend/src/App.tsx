@@ -12,7 +12,7 @@ import { MovementHistory } from './pages/Inventory/MovementHistory.js';
 import { Outgoing } from './pages/Inventory/Outgoing.js';
 import { Warehouses } from './pages/Warehouses.js';
 import { Projects } from './pages/Projects.js';
-import { Customers } from './pages/Customers.js';
+import { Clients } from './pages/Clients.js';
 import { Units } from './pages/Units.js';
 import { Orders } from './pages/Delivery/Orders.js';
 import { Labels } from './pages/Delivery/Labels.js';
@@ -40,7 +40,8 @@ function App() {
               <Route path="/inventory/outgoing" element={<Outgoing />} />
               <Route path="/warehouses" element={<Warehouses />} />
               <Route path="/projects" element={<Projects />} />
-              <Route path="/customers" element={<Customers />} />
+              <Route path="/clients" element={<Clients />} />
+              <Route path="/customers" element={<Clients />} />
               <Route path="/units" element={<Units />} />
               <Route path="/delivery-orders" element={<Orders />} />
               <Route path="/shipping-labels" element={<Labels />} />

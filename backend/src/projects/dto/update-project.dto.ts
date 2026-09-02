@@ -18,25 +18,30 @@ export class UpdateProjectDto {
   @MaxLength(255)
   location?: string;
 
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  siteCode?: string | null;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  clientId?: number;
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   customerId?: number;
 
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  clientContactId?: number | null;
+
   @IsString()
   @IsOptional()
   @MaxLength(100)
   referenceNumber?: string | null;
-
-  @IsString()
-  @IsOptional()
-  @MaxLength(100)
-  attnName?: string | null;
-
-  @IsString()
-  @IsOptional()
-  @MaxLength(100)
-  leaderName?: string | null;
 
   @IsOptional()
   @IsDateString()

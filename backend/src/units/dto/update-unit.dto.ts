@@ -10,9 +10,4 @@ export class UpdateUnitDto {
   @IsOptional()
   @MaxLength(20)
   symbol?: string;
-
-  @IsString()
-  @IsOptional()
-  @MaxLength(255)
-  description?: string;
 }

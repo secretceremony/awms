@@ -821,11 +821,38 @@ tr:hover td {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.25rem 2rem;
-  border-bottom: 1px solid var(--card-border);
-  background-color: #FFFFFF;
+  padding: 1.15rem 2rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  background-color: var(--accent-blue);
   box-shadow: var(--shadow-sm);
   flex-shrink: 0;
+}
+
+.content-header .breadcrumb {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.75);
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.content-header .header-page-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+  color: #FFFFFF;
+}
+
+.header-user-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #FFFFFF;
+  font-size: 0.875rem;
+  font-weight: 600;
+  background-color: rgba(255, 255, 255, 0.12);
+  padding: 6px 14px;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .content-body {

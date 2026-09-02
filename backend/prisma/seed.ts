@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { PrismaClient, ProjectStatus } from '../generated/prisma/client';
+import { PrismaClient, ProjectStatus, ClientType } from '../generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
 import bcrypt from 'bcryptjs';
@@ -15,7 +15,7 @@ async function main() {
   const prisma = new PrismaClient({ adapter });
 
   try {
-    console.log('--- Starting Idempotent Development Database Seeding ---');
+    console.log('--- Starting Final Idempotent Master Data Seeding ---');
 
     // 1. Seed Admin Logistics
     const adminEmail = 'admin.logistics@alssa.com';
@@ -37,7 +37,7 @@ async function main() {
     });
     console.log('✓ Seeded Admin Logistics:', admin.email);
 
-    // 2. Seed Default Units
+    // 2. Seed Default Units (Normalized lowercase symbols)
     const defaultUnits = [
       { name: 'Set', symbol: 'set' },
       { name: 'Roll', symbol: 'roll' },
@@ -49,7 +49,7 @@ async function main() {
     for (const u of defaultUnits) {
       await prisma.unit.upsert({
         where: { name: u.name },
-        update: {},
+        update: { symbol: u.symbol },
         create: {
           name: u.name,
           symbol: u.symbol,
@@ -57,163 +57,205 @@ async function main() {
         },
       });
     }
-    console.log('✓ Seeded Units');
+    console.log('✓ Seeded Units (Set, Roll, Pcs, Unit, Meter)');
 
-    // 3. Seed Warehouses
+    // 3. Seed Warehouses (Balikpapan: BPN, Jakarta: JKT)
     const warehousesData = [
       {
         name: 'Warehouse Balikpapan',
         city: 'Balikpapan',
-        cityCode: 'BAL',
+        cityCode: 'BPN',
         location: 'Jl. Mulawarman No. 88, Balikpapan',
-        description: 'Main logistics hub East Kalimantan',
       },
       {
         name: 'Warehouse Jakarta',
         city: 'Jakarta',
-        cityCode: 'JAK',
+        cityCode: 'JKT',
         location: 'Kawasan Pergudangan Marunda Blok A-12, Jakarta Utara',
-        description: 'Central distribution hub',
       },
     ];
 
-    const warehouses: Record<string, any> = {};
     for (const w of warehousesData) {
-      const seededWarehouse = await prisma.warehouse.upsert({
+      await prisma.warehouse.upsert({
         where: { name: w.name },
         update: {
           city: w.city,
           cityCode: w.cityCode,
           location: w.location,
-          description: w.description,
         },
         create: {
           name: w.name,
           city: w.city,
           cityCode: w.cityCode,
           location: w.location,
-          description: w.description,
           isActive: true,
         },
       });
-      warehouses[w.name] = seededWarehouse;
     }
-    console.log('✓ Seeded Warehouses (Balikpapan & Jakarta)');
+    console.log('✓ Seeded Warehouses (Balikpapan -> BPN, Jakarta -> JKT)');
 
-    // 4. Seed Business Users (Companies)
-    const businessUsersData = [
+    // 4. Seed Clients & Client Contacts
+    const clientsData = [
       {
         name: 'Company A',
-        code: 'USR-A',
-        attnName: 'John Doe',
+        clientType: ClientType.PHM,
         email: 'contact@comp-a.com',
         phone: '+62812345678',
         address: 'Kawasan Industri Kariangau',
+        contacts: [
+          { name: 'John Doe', email: 'john@comp-a.com', phone: '+62811111' },
+          { name: 'Budi Santoso', email: 'budi@comp-a.com', phone: '+62811112' },
+        ],
       },
       {
         name: 'Company B',
-        code: 'USR-B',
-        attnName: 'Jane Smith',
+        clientType: ClientType.OTHER,
         email: 'info@comp-b.com',
         phone: null,
         address: null,
+        contacts: [
+          { name: 'Jane Smith', email: 'jane@comp-b.com', phone: '+62822222' },
+        ],
       },
       {
         name: 'Company C',
-        code: 'USR-C',
-        attnName: null,
+        clientType: ClientType.OTHER,
         email: null,
         phone: null,
         address: 'Jl. Sudirman Kav 52-53, Jakarta',
+        contacts: [
+          { name: 'Siti Rahma', email: 'siti@comp-c.com', phone: '+62833333' },
+        ],
       },
     ];
 
-    const seededCustomers: Record<string, any> = {};
-    for (const u of businessUsersData) {
-      const customer = await prisma.customer.upsert({
-        where: { code: u.code },
-        update: {
-          name: u.name,
-          attnName: u.attnName,
-          email: u.email,
-          phone: u.phone,
-          address: u.address,
-        },
-        create: {
-          name: u.name,
-          code: u.code,
-          attnName: u.attnName,
-          email: u.email,
-          phone: u.phone,
-          address: u.address,
-          isActive: true,
-        },
-      });
-      seededCustomers[u.name] = customer;
-    }
-    console.log('✓ Seeded Business Users / Companies (Company A, B, C)');
+    const seededClients: Record<string, any> = {};
+    const seededContacts: Record<string, any> = {};
 
-    // 5. Seed Projects (3 Active, 1 Completed, 1 Archived)
+    for (const c of clientsData) {
+      let client = await prisma.client.findFirst({
+        where: { name: c.name },
+      });
+
+      if (client) {
+        client = await prisma.client.update({
+          where: { id: client.id },
+          data: {
+            clientType: c.clientType,
+            email: c.email,
+            phone: c.phone,
+            address: c.address,
+            isActive: true,
+          },
+        });
+      } else {
+        client = await prisma.client.create({
+          data: {
+            name: c.name,
+            clientType: c.clientType,
+            email: c.email,
+            phone: c.phone,
+            address: c.address,
+            isActive: true,
+          },
+        });
+      }
+
+      seededClients[c.name] = client;
+
+      for (const ct of c.contacts) {
+        let contact = await prisma.clientContact.findFirst({
+          where: { clientId: client.id, name: ct.name },
+        });
+
+        if (contact) {
+          contact = await prisma.clientContact.update({
+            where: { id: contact.id },
+            data: {
+              email: ct.email,
+              phone: ct.phone,
+              isActive: true,
+            },
+          });
+        } else {
+          contact = await prisma.clientContact.create({
+            data: {
+              clientId: client.id,
+              name: ct.name,
+              email: ct.email,
+              phone: ct.phone,
+              isActive: true,
+            },
+          });
+        }
+        seededContacts[`${c.name}:${ct.name}`] = contact;
+      }
+    }
+    console.log('✓ Seeded Clients (Company A [PHM], Company B [OTHER], Company C [OTHER]) & Contacts');
+
+    // 5. Seed Projects (3 Active, 2 Completed)
     const projectsData = [
       {
         name: 'Project Alpha',
-        customerName: 'Company A',
+        clientName: 'Company A',
+        contactName: 'John Doe',
         referenceNumber: 'PO-2026-001',
-        location: 'Balikpapan Site 1',
-        leaderName: 'Andi Wijaya',
-        attnName: 'John Doe',
+        location: 'Central Processing Area',
+        siteCode: 'CPA',
         status: ProjectStatus.ACTIVE,
         startedAt: new Date('2026-01-01'),
         endedAt: new Date('2026-12-31'),
       },
       {
         name: 'Project Beta',
-        customerName: 'Company B',
+        clientName: 'Company B',
+        contactName: 'Jane Smith',
         referenceNumber: 'CTR-2026-002',
         location: 'Jakarta Data Center',
-        leaderName: 'Budi Santoso',
-        attnName: 'Jane Smith',
+        siteCode: 'JKT-DC',
         status: ProjectStatus.ACTIVE,
         startedAt: new Date('2026-02-01'),
         endedAt: new Date('2026-11-30'),
       },
       {
         name: 'Project Gamma',
-        customerName: 'Company C',
-        referenceNumber: null, // Intentionally null to test DO block rule
+        clientName: 'Company C',
+        contactName: 'Siti Rahma',
+        referenceNumber: null, // Intentionally null for DO test rule
         location: 'Balikpapan Port Facility',
-        leaderName: 'Hendra',
-        attnName: null,
+        siteCode: 'BPN-PORT',
         status: ProjectStatus.ACTIVE,
         startedAt: new Date('2026-03-01'),
         endedAt: null,
       },
       {
         name: 'Project Delta',
-        customerName: 'Company A',
+        clientName: 'Company A',
+        contactName: 'Budi Santoso',
         referenceNumber: 'REF-2026-003',
         location: 'Surabaya Storage Hub',
-        leaderName: 'Citra',
-        attnName: 'John Doe',
+        siteCode: 'SBY-01',
         status: ProjectStatus.COMPLETED,
         startedAt: new Date('2025-06-01'),
         endedAt: new Date('2025-12-31'),
       },
       {
         name: 'Project Echo',
-        customerName: 'Company B',
+        clientName: 'Company B',
+        contactName: 'Jane Smith',
         referenceNumber: 'PO-2025-099',
         location: 'Medan Branch Site',
-        leaderName: 'Dani',
-        attnName: 'Jane Smith',
-        status: ProjectStatus.ARCHIVED,
+        siteCode: 'MDN-01',
+        status: ProjectStatus.COMPLETED,
         startedAt: new Date('2025-01-01'),
         endedAt: new Date('2025-05-31'),
       },
     ];
 
     for (const p of projectsData) {
-      const customer = seededCustomers[p.customerName];
+      const client = seededClients[p.clientName];
+      const contact = seededContacts[`${p.clientName}:${p.contactName}`];
+
       const existingProject = await prisma.project.findFirst({
         where: { name: p.name },
       });
@@ -222,11 +264,11 @@ async function main() {
         await prisma.project.update({
           where: { id: existingProject.id },
           data: {
-            customerId: customer?.id || null,
+            clientId: client.id,
+            clientContactId: contact?.id || null,
             referenceNumber: p.referenceNumber,
             location: p.location,
-            leaderName: p.leaderName,
-            attnName: p.attnName,
+            siteCode: p.siteCode,
             status: p.status,
             startedAt: p.startedAt,
             endedAt: p.endedAt,
@@ -236,22 +278,21 @@ async function main() {
         await prisma.project.create({
           data: {
             name: p.name,
-            customerId: customer?.id || null,
+            clientId: client.id,
+            clientContactId: contact?.id || null,
             referenceNumber: p.referenceNumber,
             location: p.location,
-            leaderName: p.leaderName,
-            attnName: p.attnName,
+            siteCode: p.siteCode,
             status: p.status,
             startedAt: p.startedAt,
             endedAt: p.endedAt,
-            isActive: true,
           },
         });
       }
     }
-    console.log('✓ Seeded Projects (Alpha, Beta, Gamma, Delta, Echo)');
+    console.log('✓ Seeded Projects (3 Active, 2 Completed)');
 
-    console.log('--- Database Seeding Completed Successfully ---');
+    console.log('--- Master Data Seeding Completed Successfully ---');
   } finally {
     await pool.end();
   }

@@ -1,8 +1,14 @@
-import { PaginationDto } from '../../common/dto/pagination.dto.js';
 import { IsOptional, IsString } from 'class-validator';
+import { PaginationDto } from '../../common/dto/pagination.dto.js';
 
-export class CustomersPaginationDto extends PaginationDto {
-  @IsString()
+export class ClientsPaginationDto extends PaginationDto {
   @IsOptional()
-  status?: string;
+  @IsString()
+  status?: string; // 'active' | 'inactive' | 'all'
+
+  @IsOptional()
+  @IsString()
+  clientType?: string; // 'PHM' | 'OTHER' | 'all'
 }
+
+export { ClientsPaginationDto as CustomersPaginationDto };

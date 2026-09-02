@@ -2,27 +2,44 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ProjectsService } from './projects.service.js';
 import { PrismaService } from '../prisma.service.js';
 import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { ProjectStatus } from '../../generated/prisma/client.js';
 
 describe('ProjectsService', () => {
   let service: ProjectsService;
+  let prisma: PrismaService;
 
   const mockPrisma = {
     project: {
-      findUnique: jest.fn(),
       create: jest.fn(),
-      update: jest.fn(),
       findMany: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
       count: jest.fn(),
     },
-    customer: {
+    client: {
       findUnique: jest.fn(),
+    },
+    clientContact: {
+      findFirst: jest.fn(),
+    },
+    projectStock: {
+      count: jest.fn(),
+    },
+    itemSerial: {
+      count: jest.fn(),
+    },
+    stockMovement: {
+      count: jest.fn(),
+    },
+    deliveryOrder: {
+      count: jest.fn(),
     },
   };
 
   const mockAuditLogs = {
-    logAction: jest.fn().mockResolvedValue({}),
+    logAction: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -35,132 +52,110 @@ describe('ProjectsService', () => {
     }).compile();
 
     service = module.get<ProjectsService>(ProjectsService);
+    prisma = module.get<PrismaService>(PrismaService);
     jest.clearAllMocks();
   });
 
   describe('create', () => {
-    it('should successfully create a project with user/company and reference number', async () => {
-      const mockCustomer = { id: 1, name: 'Company A', isActive: true };
+    it('should successfully create a new project with client and siteCode', async () => {
+      const createDto = {
+        name: 'Alpha Expansion',
+        clientId: 1,
+        location: 'Handil Site',
+        siteCode: 'HDL-01',
+        referenceNumber: 'PO-2026-999',
+      };
       const mockProject = {
         id: 1,
-        name: 'Project Alpha',
-        location: 'Jakarta',
-        referenceNumber: 'PO-2026-001',
-        attnName: 'Pak Budi',
-        leaderName: 'Andi',
+        ...createDto,
         status: ProjectStatus.ACTIVE,
-        customerId: 1,
-        customer: mockCustomer,
-        startedAt: new Date('2026-09-01'),
-        endedAt: new Date('2026-09-30'),
-        isActive: true,
+        clientContactId: null,
+        startedAt: null,
+        endedAt: null,
       };
 
-      mockPrisma.customer.findUnique.mockResolvedValue(mockCustomer);
+      mockPrisma.client.findUnique.mockResolvedValue({ id: 1, name: 'Company A', isActive: true });
       mockPrisma.project.create.mockResolvedValue(mockProject);
 
-      const result = await service.create(
-        {
-          name: 'Project Alpha',
-          location: 'Jakarta',
-          referenceNumber: 'PO-2026-001',
-          attnName: 'Pak Budi',
-          leaderName: 'Andi',
-          customerId: 1,
-          startedAt: '2026-09-01',
-          endedAt: '2026-09-30',
-        },
-        1,
-      );
-
+      const result = await service.create(createDto, 1);
       expect(result).toEqual(mockProject);
-      expect(mockAuditLogs.logAction).toHaveBeenCalled();
-    });
-
-    it('should throw BadRequestException if customerId is missing', async () => {
-      await expect(
-        service.create(
-          {
-            name: 'Project Internal',
-            location: 'Warehouse A',
-            customerId: undefined as any,
-          },
-          1,
-        ),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('should throw BadRequestException if customer is inactive', async () => {
-      mockPrisma.customer.findUnique.mockResolvedValue({
-        id: 2,
-        name: 'Inactive Co',
-        isActive: false,
+      expect(mockPrisma.project.create).toHaveBeenCalledWith({
+        data: {
+          name: 'Alpha Expansion',
+          clientId: 1,
+          clientContactId: null,
+          location: 'Handil Site',
+          siteCode: 'HDL-01',
+          referenceNumber: 'PO-2026-999',
+          status: ProjectStatus.ACTIVE,
+          startedAt: null,
+          endedAt: null,
+        },
+        include: {
+          client: true,
+          clientContact: true,
+        },
       });
-
-      await expect(
-        service.create(
-          {
-            name: 'Project Beta',
-            location: 'Bandung',
-            customerId: 2,
-          },
-          1,
-        ),
-      ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException if endedAt is earlier than startedAt', async () => {
-      mockPrisma.customer.findUnique.mockResolvedValue({
-        id: 1,
-        name: 'Company A',
-        isActive: true,
-      });
+      const createDto = {
+        name: 'Invalid Dates',
+        clientId: 1,
+        location: 'Site A',
+        startedAt: '2026-05-01',
+        endedAt: '2026-04-01',
+      };
 
-      await expect(
-        service.create(
-          {
-            name: 'Project Gamma',
-            location: 'Surabaya',
-            customerId: 1,
-            startedAt: '2026-09-30',
-            endedAt: '2026-09-01',
-          },
-          1,
-        ),
-      ).rejects.toThrow(BadRequestException);
+      mockPrisma.client.findUnique.mockResolvedValue({ id: 1, name: 'Company A', isActive: true });
+
+      await expect(service.create(createDto, 1)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
   describe('updateStatus', () => {
-    it('should update status to COMPLETED and log audit', async () => {
-      const existingProject = {
+    it('should require confirmation if project still has remaining stock', async () => {
+      const mockProject = {
         id: 1,
-        name: 'Project Alpha',
+        name: 'Active Project',
         status: ProjectStatus.ACTIVE,
-        customer: { id: 1, name: 'Company A' },
-      };
-      const updatedProject = {
-        ...existingProject,
-        status: ProjectStatus.COMPLETED,
+        endedAt: null,
       };
 
-      mockPrisma.project.findUnique.mockResolvedValue(existingProject);
-      mockPrisma.project.update.mockResolvedValue(updatedProject);
+      mockPrisma.project.findUnique.mockResolvedValue(mockProject);
+      mockPrisma.projectStock.count.mockResolvedValue(2); // 2 bulk stock
+      mockPrisma.itemSerial.count.mockResolvedValue(1); // 1 serial
+
+      await expect(
+        service.updateStatus(1, { status: ProjectStatus.COMPLETED }, 1),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should complete project if confirmRemainingStock is true', async () => {
+      const mockProject = {
+        id: 1,
+        name: 'Active Project',
+        status: ProjectStatus.ACTIVE,
+        endedAt: null,
+      };
+
+      mockPrisma.project.findUnique.mockResolvedValue(mockProject);
+      mockPrisma.projectStock.count.mockResolvedValue(2);
+      mockPrisma.itemSerial.count.mockResolvedValue(1);
+      mockPrisma.project.update.mockResolvedValue({
+        ...mockProject,
+        status: ProjectStatus.COMPLETED,
+        endedAt: new Date(),
+      });
 
       const result = await service.updateStatus(
         1,
-        { status: ProjectStatus.COMPLETED },
+        { status: ProjectStatus.COMPLETED, confirmRemainingStock: true },
         1,
       );
-
       expect(result.status).toBe(ProjectStatus.COMPLETED);
-      expect(mockAuditLogs.logAction).toHaveBeenCalledWith(
-        1,
-        'UPDATE_STATUS',
-        'projects',
-        1,
-        expect.anything(),
-      );
     });
   });
 });

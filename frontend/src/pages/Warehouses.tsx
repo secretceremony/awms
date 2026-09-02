@@ -1,255 +1,274 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
+import {
+  PageHeader,
+  Button,
+  Select,
+  StatusBadge,
+  ConfirmModal,
+} from '../components/ui/index.js';
 import { PaginatedTable, type Column } from '../components/PaginatedTable.js';
-import { apiClient } from '../api/client.js';
-import { Eye, Edit2, PowerOff, ArrowLeft } from 'lucide-react';
-import { Button, StatusBadge, PageHeader, Select, ConfirmModal } from '../components/ui/index.js';
 import { WarehouseFormModal, type Warehouse } from '../components/warehouse/WarehouseFormModal.js';
+import { apiClient } from '../api/client.js';
+import { Plus, Edit2, Ban, CheckCircle, Trash2, MapPin } from 'lucide-react';
 
-interface WarehouseStock {
-  itemId: number;
-  itemName: string;
-  brand: string;
-  trackingType: 'BULK' | 'SERIALIZED';
-  quantity: number;
-  unit: string | null;
-  symbol: string | null;
-  serialNumbers?: string[];
-}
+export const Warehouses: React.FC = () => {
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-export const Warehouses = () => {
-  const [statusFilter, setStatusFilter] = useState<'active' | 'inactive' | 'all'>('all');
-  const [refreshKey, setRefreshKey] = useState(0);
+  // Form modal state
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [selectedWarehouse, setSelectedWarehouse] = useState<Warehouse | null>(null);
 
-  // Detail View State
-  const [viewingWarehouse, setViewingWarehouse] = useState<Warehouse | null>(null);
+  // Confirm modal state
+  const [confirmConfig, setConfirmConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText: string;
+    variant: 'danger' | 'primary';
+    onConfirm: () => Promise<void>;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Confirm',
+    variant: 'danger',
+    onConfirm: async () => {},
+  });
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingWarehouse, setEditingWarehouse] = useState<Warehouse | null>(null);
-
-  // Confirm Deactivate State
-  const [deactivatingWarehouse, setDeactivatingWarehouse] = useState<Warehouse | null>(null);
-  const [isDeactivating, setIsDeactivating] = useState(false);
-
-  const openCreateModal = () => {
-    setEditingWarehouse(null);
-    setIsModalOpen(true);
+  const handleCreate = () => {
+    setSelectedWarehouse(null);
+    setIsFormModalOpen(true);
   };
 
-  const openEditModal = (wh: Warehouse) => {
-    setEditingWarehouse(wh);
-    setIsModalOpen(true);
+  const handleEdit = (warehouse: Warehouse) => {
+    setSelectedWarehouse(warehouse);
+    setIsFormModalOpen(true);
   };
 
-  const handleDeactivate = async () => {
-    if (!deactivatingWarehouse) return;
-    setIsDeactivating(true);
-    try {
-      await apiClient.delete(`/warehouses/${deactivatingWarehouse.id}/deactivate`);
-      setRefreshKey((k) => k + 1);
-      if (viewingWarehouse?.id === deactivatingWarehouse.id) {
-        setViewingWarehouse((prev) => (prev ? { ...prev, isActive: false } : null));
-      }
-      setDeactivatingWarehouse(null);
-    } catch (err: any) {
-      console.error(err);
-      alert(err.message || 'Failed to deactivate warehouse');
-    } finally {
-      setIsDeactivating(false);
-    }
+  const handleDeactivate = (warehouse: Warehouse) => {
+    setActionError(null);
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Deactivate Warehouse',
+      message: `Are you sure you want to deactivate "${warehouse.name}"? Deactivation is allowed only if this warehouse has zero active stock.`,
+      confirmText: 'Deactivate',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          setIsProcessing(true);
+          await apiClient.request(`/warehouses/${warehouse.id}/deactivate`, { method: 'PATCH' });
+          setRefreshTrigger((prev) => prev + 1);
+          setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
+        } catch (err: any) {
+          setActionError(err.message || 'Failed to deactivate warehouse');
+        } finally {
+          setIsProcessing(false);
+        }
+      },
+    });
   };
 
-  const listColumns: Column<Warehouse>[] = [
-    { header: 'Name', key: 'name' },
-    { header: 'City', key: 'city' },
-    { header: 'City Code', key: 'cityCode' },
-    { header: 'Location', key: 'location' },
+  const handleReactivate = (warehouse: Warehouse) => {
+    setActionError(null);
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Reactivate Warehouse',
+      message: `Reactivate "${warehouse.name}" for stock storage and logistics operations?`,
+      confirmText: 'Reactivate',
+      variant: 'primary',
+      onConfirm: async () => {
+        try {
+          setIsProcessing(true);
+          await apiClient.request(`/warehouses/${warehouse.id}/reactivate`, { method: 'PATCH' });
+          setRefreshTrigger((prev) => prev + 1);
+          setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
+        } catch (err: any) {
+          setActionError(err.message || 'Failed to reactivate warehouse');
+        } finally {
+          setIsProcessing(false);
+        }
+      },
+    });
+  };
+
+  const handleDelete = (warehouse: Warehouse) => {
+    setActionError(null);
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Delete Warehouse',
+      message: `Are you sure you want to permanently delete "${warehouse.name}"? This action is only permitted if this warehouse has NEVER been referenced in any movements or stock records.`,
+      confirmText: 'Delete Permanently',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          setIsProcessing(true);
+          await apiClient.delete(`/warehouses/${warehouse.id}`);
+          setRefreshTrigger((prev) => prev + 1);
+          setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
+        } catch (err: any) {
+          setActionError(err.message || 'Failed to delete warehouse');
+        } finally {
+          setIsProcessing(false);
+        }
+      },
+    });
+  };
+
+  const columns: Column<Warehouse>[] = [
     {
-      header: 'Status',
-      key: 'isActive',
-      render: (item) => <StatusBadge status={item.isActive} />,
-    },
-    {
-      header: 'Actions',
-      key: 'actions',
-      render: (item) => (
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            className="btn-icon"
-            onClick={() => setViewingWarehouse(item)}
-            title="View Details & Stock"
-          >
-            <Eye size={16} />
-          </button>
-          <button
-            className="btn-icon"
-            onClick={() => openEditModal(item)}
-            title="Edit Warehouse"
-          >
-            <Edit2 size={16} />
-          </button>
-          {item.isActive && (
-            <button
-              className="btn-icon btn-icon-danger"
-              onClick={() => setDeactivatingWarehouse(item)}
-              title="Deactivate Warehouse"
-            >
-              <PowerOff size={16} />
-            </button>
-          )}
+      key: 'name',
+      header: 'Warehouse Name',
+      render: (w: Warehouse) => (
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={{ fontWeight: 600, color: '#1F2839' }}>{w.name}</span>
+          <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>ID: #{w.id}</span>
         </div>
       ),
     },
-  ];
-
-  const stockColumns: Column<WarehouseStock>[] = [
-    { header: 'Item Name', key: 'itemName' },
-    { header: 'Brand', key: 'brand', render: (item) => item.brand || '-' },
     {
-      header: 'Tracking Type',
-      key: 'trackingType',
-      render: (item) => (
-        <StatusBadge type="tracking" status={item.trackingType} />
+      key: 'cityCode',
+      header: 'City Code',
+      render: (w: Warehouse) => (
+        <span
+          style={{
+            display: 'inline-block',
+            padding: '2px 8px',
+            borderRadius: '4px',
+            fontWeight: 700,
+            fontSize: '0.75rem',
+            letterSpacing: '0.05em',
+            backgroundColor: 'rgba(34, 80, 161, 0.08)',
+            color: '#2250A1',
+            border: '1px solid rgba(34, 80, 161, 0.2)',
+          }}
+        >
+          {w.cityCode}
+        </span>
       ),
     },
     {
-      header: 'Quantity',
-      key: 'quantity',
-      render: (item) => `${item.quantity} ${item.symbol || item.unit || ''}`,
+      key: 'city',
+      header: 'City',
+      render: (w: Warehouse) => <span style={{ fontWeight: 500 }}>{w.city}</span>,
     },
     {
-      header: 'Serial Numbers',
-      key: 'serialNumbers',
-      render: (item) => {
-        if (item.trackingType !== 'SERIALIZED' || !item.serialNumbers?.length) {
-          return '-';
-        }
-        return (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxWidth: '300px' }}>
-            {item.serialNumbers.map((sn, idx) => (
-              <span
-                key={idx}
-                style={{
-                  fontSize: '11px',
-                  backgroundColor: '#F3F4F6',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  border: '1px solid #E5E7EB',
-                }}
-              >
-                {sn}
-              </span>
-            ))}
-          </div>
-        );
-      },
+      key: 'location',
+      header: 'Location Address',
+      render: (w: Warehouse) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#4B5563' }}>
+          <MapPin size={14} style={{ color: '#9CA3AF', flexShrink: 0 }} />
+          <span>{w.location}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'isActive',
+      header: 'Status',
+      render: (w: Warehouse) => <StatusBadge status={w.isActive ? 'ACTIVE' : 'INACTIVE'} />,
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (w: Warehouse) => (
+        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+          <Button variant="ghost" size="sm" onClick={() => handleEdit(w)} title="Edit Warehouse">
+            <Edit2 size={14} />
+          </Button>
+          {w.isActive ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleDeactivate(w)}
+              title="Deactivate Warehouse"
+              style={{ color: '#EF4444' }}
+            >
+              <Ban size={14} />
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleReactivate(w)}
+              title="Reactivate Warehouse"
+              style={{ color: '#10B981' }}
+            >
+              <CheckCircle size={14} />
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleDelete(w)}
+            title="Delete Warehouse"
+            style={{ color: '#6B7280' }}
+          >
+            <Trash2 size={14} />
+          </Button>
+        </div>
+      ),
     },
   ];
 
   return (
     <div className="page-container">
-      {viewingWarehouse ? (
-        <div>
-          <div style={{ marginBottom: '16px' }}>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setViewingWarehouse(null)}
-            >
-              <ArrowLeft size={16} /> Back to Warehouses List
-            </Button>
-          </div>
+      <PageHeader
+        title="Warehouses"
+        description="Manage warehouse hubs, physical storage facilities, and canonical city locations"
+        actions={
+          <Button variant="primary" onClick={handleCreate}>
+            <Plus size={16} /> Add Warehouse
+          </Button>
+        }
+      />
 
-          <PageHeader
-            title={viewingWarehouse.name}
-            description={`Warehouse Code: ${viewingWarehouse.cityCode} • Location: ${viewingWarehouse.location}`}
-            actions={
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                <StatusBadge status={viewingWarehouse.isActive} />
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => openEditModal(viewingWarehouse)}
-                >
-                  <Edit2 size={14} /> Edit
-                </Button>
-                {viewingWarehouse.isActive && (
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => setDeactivatingWarehouse(viewingWarehouse)}
-                  >
-                    <PowerOff size={14} /> Deactivate
-                  </Button>
-                )}
-              </div>
-            }
-          />
-
-          <div style={{ marginTop: '24px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#1F2839', marginBottom: '16px' }}>
-              Current Warehouse Stock
-            </h3>
-            <PaginatedTable<WarehouseStock>
-              key={`warehouse-stocks-${viewingWarehouse.id}`}
-              fetchUrl={`/warehouses/${viewingWarehouse.id}/stocks`}
-              searchPlaceholder="Search stock items by name or brand..."
-              columns={stockColumns}
-            />
-          </div>
-        </div>
-      ) : (
-        <div>
-          <PageHeader
-            title="Warehouses"
-            description="Manage warehouse locations and view real-time stocks."
-            actions={
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                <Select
-                  style={{ width: '130px' }}
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as any)}
-                >
-                  <option value="all">All Status</option>
-                  <option value="active">Active Only</option>
-                  <option value="inactive">Inactive Only</option>
-                </Select>
-
-                <Button variant="primary" onClick={openCreateModal}>
-                  Add Warehouse
-                </Button>
-              </div>
-            }
-          />
-
-          <PaginatedTable<Warehouse>
-            key={`warehouses-${statusFilter}-${refreshKey}`}
-            fetchUrl="/warehouses"
-            searchPlaceholder="Search warehouses by name, city, or location..."
-            extraParams={{ status: statusFilter }}
-            columns={listColumns}
-          />
+      {actionError && (
+        <div className="alert-error" style={{ marginBottom: '1rem' }}>
+          {actionError}
         </div>
       )}
 
-      {/* Form Modal */}
-      <WarehouseFormModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        warehouse={editingWarehouse}
-        onSuccess={() => setRefreshKey((k) => k + 1)}
+      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+        <div style={{ width: '180px' }}>
+          <Select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="all">All Status</option>
+            <option value="active">Active Only</option>
+            <option value="inactive">Inactive Only</option>
+          </Select>
+        </div>
+      </div>
+
+      <PaginatedTable<Warehouse>
+        fetchUrl="/warehouses"
+        searchPlaceholder="Search warehouse name, city, city code, or address..."
+        columns={columns}
+        extraParams={{
+          status: statusFilter,
+          _refresh: refreshTrigger,
+        }}
       />
 
-      {/* Confirm Deactivate Modal */}
+      <WarehouseFormModal
+        isOpen={isFormModalOpen}
+        onClose={() => setIsFormModalOpen(false)}
+        warehouse={selectedWarehouse}
+        onSuccess={() => setRefreshTrigger((prev) => prev + 1)}
+      />
+
       <ConfirmModal
-        isOpen={!!deactivatingWarehouse}
-        onClose={() => setDeactivatingWarehouse(null)}
-        onConfirm={handleDeactivate}
-        title="Deactivate Warehouse"
-        message={`Are you sure you want to deactivate warehouse "${deactivatingWarehouse?.name}"? It will no longer receive new incoming movements.`}
-        confirmText="Deactivate"
-        isDestructive
-        isLoading={isDeactivating}
+        isOpen={confirmConfig.isOpen}
+        onClose={() => setConfirmConfig((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmConfig.onConfirm}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        confirmText={confirmConfig.confirmText}
+        variant={confirmConfig.variant}
+        isLoading={isProcessing}
       />
     </div>
   );

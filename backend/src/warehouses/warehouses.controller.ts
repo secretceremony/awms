@@ -58,12 +58,36 @@ export class WarehousesController {
     return this.warehousesService.update(id, updateWarehouseDto, user.id);
   }
 
-  @Delete(':id/deactivate')
-  @HttpCode(HttpStatus.OK)
+  @Patch(':id/deactivate')
   deactivate(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.warehousesService.deactivate(id, user.id);
+  }
+
+  @Delete(':id/deactivate')
+  @HttpCode(HttpStatus.OK)
+  deactivateLegacy(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.warehousesService.deactivate(id, user.id);
+  }
+
+  @Patch(':id/reactivate')
+  reactivate(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.warehousesService.reactivate(id, user.id);
+  }
+
+  @Delete(':id')
+  delete(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.warehousesService.delete(id, user.id);
   }
 }

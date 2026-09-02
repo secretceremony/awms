@@ -1,20 +1,15 @@
-import { IsString, IsOptional, MaxLength, IsEmail } from 'class-validator';
+import { IsString, IsOptional, MaxLength, IsEmail, IsEnum } from 'class-validator';
+import { ClientType } from '../../../generated/prisma/client.js';
 
-export class UpdateCustomerDto {
+export class UpdateClientDto {
   @IsString()
   @IsOptional()
   @MaxLength(100)
   name?: string;
 
-  @IsString()
+  @IsEnum(ClientType, { message: 'Client type must be PHM or OTHER' })
   @IsOptional()
-  @MaxLength(50)
-  code?: string | null;
-
-  @IsString()
-  @IsOptional()
-  @MaxLength(100)
-  attnName?: string | null;
+  clientType?: ClientType;
 
   @IsOptional()
   @IsEmail({}, { message: 'Invalid email format' })
@@ -30,3 +25,5 @@ export class UpdateCustomerDto {
   @MaxLength(255)
   address?: string | null;
 }
+
+export { UpdateClientDto as UpdateCustomerDto };
