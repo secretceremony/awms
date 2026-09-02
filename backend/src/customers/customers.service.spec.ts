@@ -32,6 +32,7 @@ describe('CustomersService (Clients)', () => {
     deliveryOrder: {
       count: jest.fn(),
     },
+    $transaction: jest.fn((cb) => cb(mockPrisma)),
   };
 
   const mockAuditLogs = {

@@ -4,13 +4,21 @@ import {
   FormField,
   Input,
   Select,
+  Textarea,
   Button,
+  ConfirmModal,
 } from '../ui/index.js';
 import { apiClient } from '../../api/client.js';
 import {
   Warehouse as WarehouseIcon,
   Trash2,
+  AlertCircle,
+  ArrowRight,
+  ArrowLeft,
+  Users,
 } from 'lucide-react';
+import { ProjectSnapshotCard } from '../common/ProjectSnapshotCard.js';
+import { InventoryPicker, type InventoryItemOption } from '../common/InventoryPicker.js';
 
 export interface ProjectOption {
   id: number;
@@ -32,24 +40,6 @@ export interface ProjectOption {
   };
 }
 
-export interface AvailableInventoryItem {
-  id: string;
-  trackingType: 'BULK' | 'SERIALIZED';
-  itemId: number;
-  itemName: string;
-  brand: string | null;
-  modelNumber: string | null;
-  warehouseId: number;
-  warehouseName: string;
-  cityCode: string;
-  availableQty: number;
-  unit: string;
-  unitSymbol: string;
-  itemSerialId?: number;
-  serialNumber?: string;
-  condition?: string;
-}
-
 export interface SelectedDoItem {
   itemId: number;
   itemName: string;
@@ -66,7 +56,6 @@ export interface SelectedDoItem {
   pic?: string;
   remarks?: string;
   serialNumbers?: string[];
-  selectedSerials?: Array<{ id: number; serialNumber: string; condition?: string }>;
 }
 
 export interface DeliveryOrderFormModalProps {
@@ -82,28 +71,22 @@ export const DeliveryOrderFormModal: React.FC<DeliveryOrderFormModalProps> = ({
   deliveryOrderId,
   onSuccess,
 }) => {
+  const [step, setStep] = useState<1 | 2>(1);
+
+  // Step 1: Delivery Information
   const [projects, setProjects] = useState<ProjectOption[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
-  const [doDate, setDoDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [activity, setActivity] = useState<string>('');
-  const [notes, setNotes] = useState<string>('');
+  const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [doDate, setDoDate] = useState(new Date().toISOString().split('T')[0]);
+  const [activity, setActivity] = useState('');
+  const [notes, setNotes] = useState('');
 
-  const [establishedWarehouseId, setEstablishedWarehouseId] = useState<number | null>(null);
+  // Step 2: Inventory & Items
   const [selectedItems, setSelectedItems] = useState<SelectedDoItem[]>([]);
+  const [establishedWarehouseId, setEstablishedWarehouseId] = useState<number | null>(null);
+  const [sharedPic, setSharedPic] = useState('');
 
-  // Inventory Search State
-  const [inventorySearch, setInventorySearch] = useState('');
-  const [inventoryResults, setInventoryResults] = useState<AvailableInventoryItem[]>([]);
-  const [isSearchingInventory, setIsSearchingInventory] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
-  // Serial picker modal / sub-selection state
-  const [pickerItem, setPickerItem] = useState<AvailableInventoryItem | null>(null);
-  const [bulkQtyInput, setBulkQtyInput] = useState<number>(1);
-  const [itemPicInput, setItemPicInput] = useState<string>('');
-  const [itemRemarksInput, setItemRemarksInput] = useState<string>('');
-  const [selectedSnMap, setSelectedSnMap] = useState<Record<string, boolean>>({});
-
-  const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -111,889 +94,725 @@ export const DeliveryOrderFormModal: React.FC<DeliveryOrderFormModalProps> = ({
   useEffect(() => {
     const fetchProjects = async () => {
       try {
-        const res: any = await apiClient.get('/projects', {
-          params: { status: 'ACTIVE', limit: 100 },
-        });
-        const list: ProjectOption[] = Array.isArray(res) ? res : res?.data || [];
-        setProjects(list);
+        const res: any = await apiClient.get('/projects', { params: { limit: 100, status: 'ACTIVE' } });
+        setProjects(Array.isArray(res) ? res : res?.data || []);
       } catch (err) {
-        console.error('Failed to load projects:', err);
+        console.error('Failed to load active projects:', err);
       }
     };
 
     if (isOpen) {
       fetchProjects();
-    }
-  }, [isOpen]);
-
-  // Load existing draft if editing
-  useEffect(() => {
-    const loadDraft = async () => {
-      if (!deliveryOrderId || !isOpen) {
-        if (!deliveryOrderId) {
-          setSelectedProjectId('');
-          setDoDate(new Date().toISOString().split('T')[0]);
-          setActivity('');
-          setNotes('');
-          setEstablishedWarehouseId(null);
-          setSelectedItems([]);
-          setErrorMsg(null);
-        }
-        return;
-      }
-
-      setIsLoading(true);
+      setStep(1);
       setErrorMsg(null);
-      try {
-        const data: any = await apiClient.get(`/delivery-orders/${deliveryOrderId}`);
-        setSelectedProjectId(String(data.projectId));
-        setDoDate(new Date(data.date).toISOString().split('T')[0]);
-        setActivity(data.activity || '');
-        setNotes(data.notes || '');
-        setEstablishedWarehouseId(data.sourceWarehouseId || null);
 
-        const itemsMapped: SelectedDoItem[] = (data.items || []).map((i: any) => ({
-          itemId: i.itemId,
-          itemName: i.itemName || i.item?.name,
-          brand: i.brand || i.item?.brand,
-          modelNumber: i.modelNumber || i.item?.modelNumber,
-          trackingType: i.trackingType || i.item?.trackingType,
-          unit: i.unitName || i.item?.unit?.name || 'pcs',
-          unitSymbol: i.unitSymbol || i.item?.unit?.symbol || 'pcs',
-          warehouseId: data.sourceWarehouseId,
-          warehouseName: data.sourceWarehouse?.name || '',
-          cityCode: data.sourceWarehouse?.cityCode || '',
-          quantity: i.quantity,
-          maxAvailable: i.quantity + 100, // baseline for draft
-          pic: i.pic || '',
-          remarks: i.remarks || '',
-          serialNumbers: (i.itemSerials || []).map((s: any) => s.serialNumber || s.itemSerial?.serialNumber),
-          selectedSerials: (i.itemSerials || []).map((s: any) => ({
-            id: s.itemSerialId,
-            serialNumber: s.serialNumber || s.itemSerial?.serialNumber,
-            condition: s.conditionLabel || s.itemSerial?.conditionLabel,
-          })),
-        }));
+      if (deliveryOrderId) {
+        // Load existing DO for edit
+        const loadDo = async () => {
+          try {
+            const data: any = await apiClient.get(`/delivery-orders/${deliveryOrderId}`);
+            setSelectedProjectId(String(data.projectId));
+            setDoDate(data.doDate ? data.doDate.split('T')[0] : new Date().toISOString().split('T')[0]);
+            setActivity(data.activity || '');
+            setNotes(data.notes || '');
 
-        setSelectedItems(itemsMapped);
-      } catch (err: any) {
-        console.error(err);
-        setErrorMsg(err.message || 'Failed to load draft details');
-      } finally {
-        setIsLoading(false);
+            const mappedItems: SelectedDoItem[] = (data.items || []).map((it: any) => ({
+              itemId: it.itemId,
+              itemName: it.item?.name || 'Item',
+              brand: it.item?.brand || null,
+              modelNumber: it.item?.modelNumber || null,
+              trackingType: it.item?.trackingType || 'BULK',
+              unit: it.item?.unit?.name || 'pcs',
+              unitSymbol: it.item?.unit?.symbol || 'pcs',
+              warehouseId: data.warehouseId || 1,
+              warehouseName: data.warehouse?.name || 'Warehouse',
+              cityCode: data.warehouse?.cityCode || 'BPN',
+              quantity: it.quantity,
+              maxAvailable: it.quantity + 50,
+              pic: it.pic || '',
+              remarks: it.remarks || '',
+              serialNumbers: (it.deliveryOrderSerials || []).map((s: any) => s.itemSerial?.serialNumber).filter(Boolean),
+            }));
+
+            setSelectedItems(mappedItems);
+            if (data.warehouseId) {
+              setEstablishedWarehouseId(data.warehouseId);
+            }
+          } catch (err: any) {
+            console.error('Failed to load DO details:', err);
+            setErrorMsg(err.message || 'Failed to load DO');
+          }
+        };
+        loadDo();
+      } else {
+        setSelectedProjectId('');
+        setDoDate(new Date().toISOString().split('T')[0]);
+        setActivity('');
+        setNotes('');
+        setSelectedItems([]);
+        setEstablishedWarehouseId(null);
+        setSharedPic('');
       }
-    };
-
-    loadDraft();
-  }, [deliveryOrderId, isOpen]);
-
-  // Search available inventory
-  useEffect(() => {
-    const searchInventory = async () => {
-      if (!isOpen) return;
-      setIsSearchingInventory(true);
-      try {
-        const params: Record<string, any> = {};
-        if (establishedWarehouseId) {
-          params.warehouseId = establishedWarehouseId;
-        }
-        if (inventorySearch.trim()) {
-          params.search = inventorySearch.trim();
-        }
-
-        const res: any = await apiClient.get('/stock-movements/available-inventory', { params });
-        setInventoryResults(Array.isArray(res) ? res : res?.data || []);
-      } catch (err) {
-        console.error('Failed to search available inventory:', err);
-      } finally {
-        setIsSearchingInventory(false);
-      }
-    };
-
-    const timer = setTimeout(searchInventory, 250);
-    return () => clearTimeout(timer);
-  }, [isOpen, establishedWarehouseId, inventorySearch]);
+    }
+  }, [isOpen, deliveryOrderId]);
 
   const selectedProject = projects.find((p) => String(p.id) === selectedProjectId);
+  const isMissingReference = selectedProject && !selectedProject.referenceNumber;
 
-  // Handle Project Selection
-  const handleProjectSelect = (projId: string) => {
-    setSelectedProjectId(projId);
-    setErrorMsg(null);
+  const isDirty =
+    Boolean(selectedProjectId) ||
+    Boolean(activity) ||
+    Boolean(notes) ||
+    selectedItems.length > 0;
 
-    const matched = projects.find((p) => String(p.id) === projId);
-    if (matched && (!matched.referenceNumber || !matched.referenceNumber.trim())) {
-      setErrorMsg(
-        'This project requires a Reference Number before a Delivery Order can be created.',
-      );
-    }
-  };
-
-  // Open item selection drawer/picker
-  const handleSelectItemForAdd = (item: AvailableInventoryItem) => {
-    if (establishedWarehouseId && establishedWarehouseId !== item.warehouseId) {
-      setErrorMsg(
-        `All items in this DO must come from the established warehouse [${item.cityCode}]. Mixed warehouses are rejected.`,
-      );
-      return;
-    }
-
-    setPickerItem(item);
-    setBulkQtyInput(1);
-    setItemPicInput('');
-    setItemRemarksInput('');
-    setSelectedSnMap({});
-    setErrorMsg(null);
-  };
-
-  // Add Bulk Item to Selected
-  const handleConfirmAddBulk = () => {
-    if (!pickerItem) return;
-    if (bulkQtyInput <= 0) {
-      setErrorMsg('Quantity must be greater than 0');
-      return;
-    }
-    if (bulkQtyInput > pickerItem.availableQty) {
-      setErrorMsg(
-        `Quantity cannot exceed available warehouse stock (${pickerItem.availableQty} ${pickerItem.unitSymbol})`,
-      );
-      return;
-    }
-
-    // Set established warehouse
-    if (!establishedWarehouseId) {
-      setEstablishedWarehouseId(pickerItem.warehouseId);
-    }
-
-    const existingIndex = selectedItems.findIndex((i) => i.itemId === pickerItem.itemId);
-    if (existingIndex >= 0) {
-      const updated = [...selectedItems];
-      updated[existingIndex].quantity = bulkQtyInput;
-      updated[existingIndex].pic = itemPicInput.trim() || undefined;
-      updated[existingIndex].remarks = itemRemarksInput.trim() || undefined;
-      setSelectedItems(updated);
+  const handleRequestClose = () => {
+    if (isDirty) {
+      setShowDiscardConfirm(true);
     } else {
-      setSelectedItems([
-        ...selectedItems,
-        {
-          itemId: pickerItem.itemId,
-          itemName: pickerItem.itemName,
-          brand: pickerItem.brand,
-          modelNumber: pickerItem.modelNumber,
-          trackingType: 'BULK',
-          unit: pickerItem.unit,
-          unitSymbol: pickerItem.unitSymbol,
-          warehouseId: pickerItem.warehouseId,
-          warehouseName: pickerItem.warehouseName,
-          cityCode: pickerItem.cityCode,
-          quantity: bulkQtyInput,
-          maxAvailable: pickerItem.availableQty,
-          pic: itemPicInput.trim() || undefined,
-          remarks: itemRemarksInput.trim() || undefined,
-        },
-      ]);
+      onClose();
     }
-
-    setPickerItem(null);
   };
 
-  // Add Serialized Item to Selected
-  const handleConfirmAddSerialized = (groupedSerials: AvailableInventoryItem[]) => {
-    if (!pickerItem) return;
+  const handleStep1Continue = () => {
+    if (!selectedProjectId) {
+      setErrorMsg('Please select a Project');
+      return;
+    }
+    if (isMissingReference) {
+      setErrorMsg(
+        'This project requires a Reference Number before a Delivery Order can be created. Please update the project master first.',
+      );
+      return;
+    }
+    if (!activity.trim()) {
+      setErrorMsg('Activity is mandatory');
+      return;
+    }
+    setErrorMsg(null);
+    setStep(2);
+  };
 
-    const chosenSnKeys = Object.keys(selectedSnMap).filter((sn) => selectedSnMap[sn]);
-    if (chosenSnKeys.length === 0) {
-      setErrorMsg('Please select at least one serial number');
+  const handleAddInventoryItem = (item: InventoryItemOption) => {
+    // Single warehouse rule
+    if (establishedWarehouseId === null) {
+      setEstablishedWarehouseId(item.warehouseId);
+    } else if (establishedWarehouseId !== item.warehouseId) {
+      setErrorMsg(
+        `All items in a Delivery Order must originate from the same warehouse. Currently locked to Hub #${establishedWarehouseId}.`,
+      );
       return;
     }
 
-    if (!establishedWarehouseId) {
-      setEstablishedWarehouseId(pickerItem.warehouseId);
-    }
-
-    const chosenSerials = groupedSerials
-      .filter((s) => chosenSnKeys.includes(s.serialNumber || ''))
-      .map((s) => ({
-        id: s.itemSerialId!,
-        serialNumber: s.serialNumber!,
-        condition: s.condition,
-      }));
-
-    const existingIndex = selectedItems.findIndex((i) => i.itemId === pickerItem.itemId);
-    if (existingIndex >= 0) {
-      const updated = [...selectedItems];
-      updated[existingIndex].quantity = chosenSerials.length;
-      updated[existingIndex].serialNumbers = chosenSerials.map((s) => s.serialNumber);
-      updated[existingIndex].selectedSerials = chosenSerials;
-      updated[existingIndex].pic = itemPicInput.trim() || undefined;
-      updated[existingIndex].remarks = itemRemarksInput.trim() || undefined;
-      setSelectedItems(updated);
+    if (item.trackingType === 'BULK') {
+      const existingIdx = selectedItems.findIndex(
+        (si) => si.itemId === item.itemId && si.warehouseId === item.warehouseId,
+      );
+      if (existingIdx >= 0) {
+        const current = selectedItems[existingIdx];
+        if (current.quantity < current.maxAvailable) {
+          const updated = [...selectedItems];
+          updated[existingIdx] = { ...current, quantity: current.quantity + 1 };
+          setSelectedItems(updated);
+        }
+      } else {
+        setSelectedItems((prev) => [
+          ...prev,
+          {
+            itemId: item.itemId,
+            itemName: item.itemName,
+            brand: item.brand,
+            modelNumber: item.modelNumber,
+            trackingType: 'BULK',
+            unit: item.unit,
+            unitSymbol: item.unitSymbol,
+            warehouseId: item.warehouseId,
+            warehouseName: item.warehouseName,
+            cityCode: item.cityCode,
+            quantity: 1,
+            maxAvailable: item.availableQty,
+            pic: sharedPic || '',
+            remarks: '',
+          },
+        ]);
+      }
     } else {
-      setSelectedItems([
-        ...selectedItems,
-        {
-          itemId: pickerItem.itemId,
-          itemName: pickerItem.itemName,
-          brand: pickerItem.brand,
-          modelNumber: pickerItem.modelNumber,
-          trackingType: 'SERIALIZED',
-          unit: pickerItem.unit,
-          unitSymbol: pickerItem.unitSymbol,
-          warehouseId: pickerItem.warehouseId,
-          warehouseName: pickerItem.warehouseName,
-          cityCode: pickerItem.cityCode,
-          quantity: chosenSerials.length,
-          maxAvailable: groupedSerials.length,
-          pic: itemPicInput.trim() || undefined,
-          remarks: itemRemarksInput.trim() || undefined,
-          serialNumbers: chosenSerials.map((s) => s.serialNumber),
-          selectedSerials: chosenSerials,
-        },
-      ]);
-    }
+      // Serialized item
+      const sn = item.serialNumber!;
+      const existingIdx = selectedItems.findIndex(
+        (si) => si.itemId === item.itemId && si.warehouseId === item.warehouseId,
+      );
 
-    setPickerItem(null);
+      if (existingIdx >= 0) {
+        const current = selectedItems[existingIdx];
+        const currentSns = current.serialNumbers || [];
+        if (!currentSns.includes(sn)) {
+          const newSns = [...currentSns, sn];
+          const updated = [...selectedItems];
+          updated[existingIdx] = {
+            ...current,
+            quantity: newSns.length,
+            serialNumbers: newSns,
+          };
+          setSelectedItems(updated);
+        }
+      } else {
+        setSelectedItems((prev) => [
+          ...prev,
+          {
+            itemId: item.itemId,
+            itemName: item.itemName,
+            brand: item.brand,
+            modelNumber: item.modelNumber,
+            trackingType: 'SERIALIZED',
+            unit: item.unit,
+            unitSymbol: item.unitSymbol,
+            warehouseId: item.warehouseId,
+            warehouseName: item.warehouseName,
+            cityCode: item.cityCode,
+            quantity: 1,
+            maxAvailable: item.availableQty,
+            pic: sharedPic || '',
+            remarks: '',
+            serialNumbers: [sn],
+          },
+        ]);
+      }
+    }
   };
 
-  const handleRemoveItem = (itemId: number) => {
-    const filtered = selectedItems.filter((i) => i.itemId !== itemId);
-    setSelectedItems(filtered);
-    if (filtered.length === 0) {
+  const handleRemoveSelectedItem = (index: number) => {
+    const updated = selectedItems.filter((_, i) => i !== index);
+    setSelectedItems(updated);
+    if (updated.length === 0) {
       setEstablishedWarehouseId(null);
     }
   };
 
+  const handleItemPropertyChange = (index: number, field: 'quantity' | 'pic' | 'remarks', value: any) => {
+    const updated = [...selectedItems];
+    const current = updated[index];
+    if (field === 'quantity') {
+      const bQty = Math.max(1, Math.min(value, current.maxAvailable));
+      updated[index] = { ...current, quantity: bQty };
+    } else {
+      updated[index] = { ...current, [field]: value };
+    }
+    setSelectedItems(updated);
+  };
+
+  // Rule 23: Apply PIC to All Items
+  const handleApplyPicToAll = () => {
+    if (!sharedPic.trim()) return;
+    const updated = selectedItems.map((si) => ({
+      ...si,
+      pic: sharedPic.trim(),
+    }));
+    setSelectedItems(updated);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMsg(null);
-
     if (!selectedProjectId) {
-      setErrorMsg('Please select a destination Project');
+      setErrorMsg('Project is required');
       return;
     }
-
-    if (!selectedProject?.referenceNumber || !selectedProject.referenceNumber.trim()) {
-      setErrorMsg(
-        'This project requires a Reference Number before a Delivery Order can be created.',
-      );
-      return;
-    }
-
     if (!activity.trim()) {
-      setErrorMsg('Activity is required');
+      setErrorMsg('Activity is mandatory');
       return;
     }
-
     if (selectedItems.length === 0) {
-      setErrorMsg('At least one item is required in Delivery Order');
+      setErrorMsg('Please select at least one item from available inventory');
       return;
     }
 
     setIsSaving(true);
+    setErrorMsg(null);
+
     try {
+      const itemsPayload = selectedItems.map((si) => ({
+        itemId: si.itemId,
+        quantity: si.quantity,
+        pic: si.pic?.trim() || undefined,
+        remarks: si.remarks?.trim() || undefined,
+        serialNumbers: si.trackingType === 'SERIALIZED' ? si.serialNumbers : undefined,
+      }));
+
       const payload = {
         projectId: Number(selectedProjectId),
-        date: doDate,
+        doDate: doDate ? new Date(doDate).toISOString() : new Date().toISOString(),
         activity: activity.trim(),
         notes: notes.trim() || undefined,
-        items: selectedItems.map((i) => ({
-          itemId: i.itemId,
-          quantity: i.quantity,
-          pic: i.pic || undefined,
-          remarks: i.remarks || undefined,
-          serialNumbers: i.serialNumbers || undefined,
-        })),
+        items: itemsPayload,
       };
 
       if (deliveryOrderId) {
-        await apiClient.patch(`/delivery-orders/${deliveryOrderId}/draft`, payload);
+        await apiClient.patch(`/delivery-orders/${deliveryOrderId}`, payload);
       } else {
-        await apiClient.post('/delivery-orders/draft', payload);
+        await apiClient.post('/delivery-orders', payload);
       }
 
       onSuccess();
       onClose();
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'Failed to save Delivery Order draft');
+      setErrorMsg(err.message || 'Failed to save Delivery Order');
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Grouped inventory for list display
-  const groupedInventory: { [key: string]: AvailableInventoryItem[] } = {};
-  inventoryResults.forEach((inv) => {
-    const key = `${inv.warehouseId}-${inv.itemId}`;
-    if (!groupedInventory[key]) {
-      groupedInventory[key] = [];
-    }
-    groupedInventory[key].push(inv);
-  });
+  const establishedWarehouseName = selectedItems[0]
+    ? `${selectedItems[0].warehouseName} [${selectedItems[0].cityCode}]`
+    : null;
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={deliveryOrderId ? 'Edit Delivery Order Draft' : 'Create Delivery Order Draft'}
-      maxWidth="880px"
-    >
-      <form onSubmit={handleSubmit}>
-        <div className="modal-body" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
-          {errorMsg && (
-            <div className="alert-error" style={{ marginBottom: '1rem' }}>
-              {errorMsg}
-            </div>
-          )}
-
-          {/* Section 1: Project & Metadata */}
-          <div style={{ marginBottom: '1.25rem' }}>
-            <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.95rem', fontWeight: 600, color: '#1F2839' }}>
-              1. Destination Project & Logistics Header
-            </h4>
-
-            <div className="form-grid" style={{ marginBottom: '1rem' }}>
-              <FormField label="Destination Project" required style={{ marginBottom: 0 }}>
-                <Select
-                  required
-                  value={selectedProjectId}
-                  onChange={(e) => handleProjectSelect(e.target.value)}
-                >
-                  <option value="">Select Active Project...</option>
-                  {projects.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} {p.siteCode ? `[${p.siteCode}]` : ''} {p.client ? `— ${p.client.name}` : ''}
-                    </option>
-                  ))}
-                </Select>
-              </FormField>
-
-              <FormField label="DO Date" required style={{ marginBottom: 0 }}>
-                <Input
-                  type="date"
-                  required
-                  value={doDate}
-                  onChange={(e) => setDoDate(e.target.value)}
-                />
-              </FormField>
-            </div>
-
-            {/* Auto-filled Read-Only Metadata Card */}
-            {selectedProject && (
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                  gap: '0.75rem',
-                  padding: '1rem',
-                  backgroundColor: '#F9FAFB',
-                  border: '1px solid #E5E7EB',
-                  borderRadius: '6px',
-                  marginBottom: '1rem',
-                  fontSize: '0.85rem',
-                }}
-              >
-                <div>
-                  <span style={{ color: '#6B7280', fontSize: '0.75rem', display: 'block' }}>
-                    Client / Company
-                  </span>
-                  <span style={{ fontWeight: 600, color: '#1F2839' }}>
-                    {selectedProject.client?.name || '—'}
-                  </span>
-                </div>
-
-                <div>
-                  <span style={{ color: '#6B7280', fontSize: '0.75rem', display: 'block' }}>
-                    Client Type
-                  </span>
-                  <span
-                    style={{
-                      display: 'inline-block',
-                      padding: '1px 6px',
-                      borderRadius: '4px',
-                      fontWeight: 700,
-                      fontSize: '0.75rem',
-                      backgroundColor:
-                        selectedProject.client?.clientType === 'PHM'
-                          ? 'rgba(34, 80, 161, 0.1)'
-                          : '#E5E7EB',
-                      color:
-                        selectedProject.client?.clientType === 'PHM' ? '#2250A1' : '#374151',
-                    }}
-                  >
-                    {selectedProject.client?.clientType || 'OTHER'}
-                  </span>
-                </div>
-
-                <div>
-                  <span style={{ color: '#6B7280', fontSize: '0.75rem', display: 'block' }}>
-                    Reference Number (PO / Contract)
-                  </span>
-                  {selectedProject.referenceNumber ? (
-                    <span
-                      style={{
-                        fontWeight: 700,
-                        color: '#2250A1',
-                        fontFamily: 'monospace',
-                      }}
-                    >
-                      {selectedProject.referenceNumber}
-                    </span>
-                  ) : (
-                    <span style={{ color: '#EF4444', fontWeight: 600 }}>Missing (Blocked)</span>
-                  )}
-                </div>
-
-                <div>
-                  <span style={{ color: '#6B7280', fontSize: '0.75rem', display: 'block' }}>
-                    Attn / Client PIC
-                  </span>
-                  <span style={{ fontWeight: 500, color: '#1F2839' }}>
-                    {selectedProject.clientContact?.name || '—'}
-                  </span>
-                  {selectedProject.clientContact?.phone && (
-                    <span style={{ display: 'block', fontSize: '0.75rem', color: '#6B7280' }}>
-                      {selectedProject.clientContact.phone}
-                    </span>
-                  )}
-                </div>
-
-                <div>
-                  <span style={{ color: '#6B7280', fontSize: '0.75rem', display: 'block' }}>
-                    Site Code / Location
-                  </span>
-                  <span style={{ fontWeight: 500, color: '#1F2839' }}>
-                    {selectedProject.siteCode ? `[${selectedProject.siteCode}] ` : ''}
-                    {selectedProject.location}
-                  </span>
-                </div>
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={handleRequestClose}
+        title={deliveryOrderId ? 'Edit Delivery Order Draft' : 'Create Delivery Order Draft'}
+        maxWidth="860px"
+      >
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body" style={{ maxHeight: '72vh', overflowY: 'auto' }}>
+            {errorMsg && (
+              <div className="alert-error" style={{ marginBottom: '1rem' }}>
+                {errorMsg}
               </div>
             )}
 
-            <div className="form-grid">
-              <FormField label="Activity" required style={{ marginBottom: 0 }}>
-                <Input
-                  type="text"
-                  required
-                  placeholder="e.g. Rig Mobilization, Site Equipment Supply..."
-                  value={activity}
-                  onChange={(e) => setActivity(e.target.value)}
-                />
-              </FormField>
-
-              <FormField label="Operational Notes / Remarks" style={{ marginBottom: 0 }}>
-                <Input
-                  type="text"
-                  placeholder="e.g. Special handling, transshipment instructions..."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-              </FormField>
-            </div>
-          </div>
-
-          <hr style={{ border: 'none', borderTop: '1px solid #E5E7EB', margin: '1.25rem 0' }} />
-
-          {/* Section 2: Selected Items */}
-          <div style={{ marginBottom: '1.25rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: '#1F2839' }}>
-                2. Dispatched Inventory Items ({selectedItems.length})
-              </h4>
-
-              {establishedWarehouseId && (
-                <div
+            {/* Stepper Header */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '8px 12px',
+                backgroundColor: '#F1F5F9',
+                borderRadius: '6px',
+                marginBottom: '1rem',
+                fontSize: '0.85rem',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontWeight: step === 1 ? 700 : 500,
+                  color: step === 1 ? '#2250A1' : '#64748B',
+                }}
+              >
+                <span
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '6px',
-                    padding: '3px 10px',
-                    borderRadius: '16px',
-                    backgroundColor: 'rgba(34, 80, 161, 0.08)',
-                    color: '#2250A1',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
+                    justifyContent: 'center',
+                    width: '22px',
+                    height: '22px',
+                    borderRadius: '50%',
+                    backgroundColor: step === 1 ? '#2250A1' : '#CBD5E1',
+                    color: '#FFFFFF',
+                    fontSize: '0.75rem',
                   }}
                 >
-                  <WarehouseIcon size={14} />
-                  <span>Source Hub: {selectedItems[0]?.warehouseName} [{selectedItems[0]?.cityCode}]</span>
-                </div>
-              )}
-            </div>
+                  1
+                </span>
+                Delivery Information
+              </div>
 
-            {selectedItems.length === 0 ? (
+              <div style={{ color: '#CBD5E1' }}>→</div>
+
               <div
                 style={{
-                  padding: '2rem',
-                  textAlign: 'center',
-                  backgroundColor: '#F9FAFB',
-                  border: '1px dashed #D1D5DB',
-                  borderRadius: '6px',
-                  color: '#6B7280',
-                  fontSize: '0.875rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontWeight: step === 2 ? 700 : 500,
+                  color: step === 2 ? '#2250A1' : '#64748B',
                 }}
               >
-                No items added yet. Search and select available warehouse inventory below.
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '22px',
+                    height: '22px',
+                    borderRadius: '50%',
+                    backgroundColor: step === 2 ? '#2250A1' : '#CBD5E1',
+                    color: '#FFFFFF',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  2
+                </span>
+                Inventory &amp; Line Items
               </div>
-            ) : (
-              <div style={{ border: '1px solid #E5E7EB', borderRadius: '6px', overflow: 'hidden' }}>
-                <table className="data-table" style={{ margin: 0, fontSize: '0.85rem' }}>
-                  <thead>
-                    <tr>
-                      <th>Item Description</th>
-                      <th>Type</th>
-                      <th>Qty</th>
-                      <th>Unit</th>
-                      <th>PIC / Remarks</th>
-                      <th style={{ width: '40px' }}></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedItems.map((item) => (
-                      <tr key={item.itemId}>
-                        <td>
-                          <div style={{ fontWeight: 600, color: '#1F2839' }}>{item.itemName}</div>
-                          <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>
-                            {item.brand && `Brand: ${item.brand} `}
-                            {item.modelNumber && `| MN: ${item.modelNumber}`}
-                          </div>
-                          {item.trackingType === 'SERIALIZED' && item.selectedSerials && (
-                            <div style={{ marginTop: '4px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                              {item.selectedSerials.map((s) => (
-                                <span
-                                  key={s.id}
+            </div>
+
+            {/* STEP 1: DELIVERY INFORMATION */}
+            {step === 1 && (
+              <div>
+                <div className="form-grid" style={{ marginBottom: '1rem' }}>
+                  <FormField label="Destination Project" required style={{ marginBottom: 0 }}>
+                    <Select
+                      disabled={Boolean(deliveryOrderId)}
+                      required
+                      value={selectedProjectId}
+                      onChange={(e) => setSelectedProjectId(e.target.value)}
+                    >
+                      <option value="">Select Project...</option>
+                      {projects.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} {p.siteCode ? `[${p.siteCode}]` : ''} — {p.client?.name || 'No Client'}
+                        </option>
+                      ))}
+                    </Select>
+                  </FormField>
+
+                  <FormField label="Document Date" required style={{ marginBottom: 0 }}>
+                    <Input
+                      type="date"
+                      required
+                      value={doDate}
+                      onChange={(e) => setDoDate(e.target.value)}
+                    />
+                  </FormField>
+                </div>
+
+                {/* Project Snapshot Card Preview */}
+                {selectedProject && (
+                  <div>
+                    <ProjectSnapshotCard
+                      clientName={selectedProject.client?.name}
+                      clientType={selectedProject.client?.clientType}
+                      attnName={selectedProject.clientContact?.name}
+                      attnPhone={selectedProject.clientContact?.phone}
+                      projectName={selectedProject.name}
+                      referenceNumber={selectedProject.referenceNumber}
+                      projectLocation={selectedProject.location}
+                      siteCode={selectedProject.siteCode}
+                    />
+
+                    {isMissingReference && (
+                      <div
+                        style={{
+                          backgroundColor: '#FEF2F2',
+                          border: '1px solid #FCA5A5',
+                          borderRadius: '6px',
+                          padding: '10px 14px',
+                          color: '#B91C1C',
+                          fontSize: '0.85rem',
+                          marginBottom: '1rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                        }}
+                      >
+                        <AlertCircle size={16} />
+                        <div>
+                          <strong>Missing Reference Number:</strong> This project requires a Reference Number (PO / Contract) before a Delivery Order can be created.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Rule 21: Activity remains free text */}
+                <FormField label="Activity" required>
+                  <Input
+                    placeholder="e.g. Mobilization, Site Equipment Replacement, Maintenance Dispatch..."
+                    required
+                    value={activity}
+                    onChange={(e) => setActivity(e.target.value)}
+                  />
+                </FormField>
+
+                <FormField label="Special Instructions / Delivery Notes" style={{ marginBottom: 0 }}>
+                  <Textarea
+                    placeholder="e.g. Handover to site supervisor upon arrival, fragile handling required..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                  />
+                </FormField>
+              </div>
+            )}
+
+            {/* STEP 2: INVENTORY & LINE ITEMS */}
+            {step === 2 && (
+              <div>
+                {/* Project Context Summary */}
+                {selectedProject && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '8px 12px',
+                      backgroundColor: '#EFF6FF',
+                      borderRadius: '6px',
+                      marginBottom: '1rem',
+                      fontSize: '0.85rem',
+                    }}
+                  >
+                    <div>
+                      <span style={{ color: '#64748B' }}>DO For: </span>
+                      <strong style={{ color: '#1E293B' }}>{selectedProject.name}</strong>
+                      <span style={{ color: '#64748B' }}> | Ref: </span>
+                      <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#2250A1' }}>
+                        {selectedProject.referenceNumber}
+                      </span>
+                    </div>
+                    {establishedWarehouseId && (
+                      <div
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          color: '#2250A1',
+                          fontWeight: 600,
+                        }}
+                      >
+                        <WarehouseIcon size={14} /> {establishedWarehouseName}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Available Inventory Picker */}
+                <div style={{ marginBottom: '1rem' }}>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      color: '#1F2839',
+                      marginBottom: '6px',
+                    }}
+                  >
+                    Available Warehouse Inventory
+                  </label>
+                  <InventoryPicker
+                    onSelectItem={handleAddInventoryItem}
+                    lockedWarehouseId={establishedWarehouseId}
+                    lockedWarehouseName={establishedWarehouseName}
+                    height="180px"
+                  />
+                </div>
+
+                {/* Rule 22 & 23: Shared Internal PIC with Apply to All */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 12px',
+                    backgroundColor: '#F8FAFC',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: '6px',
+                    marginBottom: '1rem',
+                  }}
+                >
+                  <Users size={16} color="#64748B" />
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#334155', whiteSpace: 'nowrap' }}>
+                    Shared Internal PIC:
+                  </span>
+                  <Input
+                    placeholder="e.g. Agung (Logistics Lead), Field Tech Team..."
+                    value={sharedPic}
+                    onChange={(e) => setSharedPic(e.target.value)}
+                    style={{ padding: '4px 8px', fontSize: '0.8rem', flex: 1 }}
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleApplyPicToAll}
+                    style={{ padding: '4px 10px', fontSize: '0.75rem', whiteSpace: 'nowrap' }}
+                  >
+                    Apply PIC to All Items
+                  </Button>
+                </div>
+
+                {/* Selected Items Table with Line-item PIC & Remarks */}
+                <div>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '0.85rem', fontWeight: 600, color: '#1E293B' }}>
+                    Document Items ({selectedItems.length})
+                  </h4>
+
+                  {selectedItems.length === 0 ? (
+                    <div
+                      style={{
+                        padding: '1.5rem',
+                        textAlign: 'center',
+                        backgroundColor: '#F9FAFB',
+                        border: '1px dashed #D1D5DB',
+                        borderRadius: '6px',
+                        color: '#6B7280',
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      No items selected yet. Click "+ Add" on available stock above.
+                    </div>
+                  ) : (
+                    <div style={{ border: '1px solid #E2E8F0', borderRadius: '6px', overflow: 'hidden' }}>
+                      <table className="data-table" style={{ margin: 0, fontSize: '0.85rem' }}>
+                        <thead>
+                          <tr style={{ backgroundColor: '#F8FAFC' }}>
+                            <th>Item &amp; Model</th>
+                            <th style={{ width: '90px', textAlign: 'center' }}>Qty</th>
+                            <th style={{ width: '150px' }}>Internal PIC</th>
+                            <th style={{ width: '160px' }}>Remarks</th>
+                            <th style={{ width: '40px', textAlign: 'center' }}></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedItems.map((si, idx) => (
+                            <tr key={idx}>
+                              <td>
+                                <div style={{ fontWeight: 600, color: '#1E293B' }}>{si.itemName}</div>
+                                <div style={{ fontSize: '0.75rem', color: '#64748B' }}>
+                                  {si.brand && `${si.brand} `}
+                                  {si.modelNumber && `| MN: ${si.modelNumber}`}
+                                  {si.trackingType === 'SERIALIZED' && si.serialNumbers && (
+                                    <div style={{ marginTop: '2px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                      {si.serialNumbers.map((sn) => (
+                                        <span
+                                          key={sn}
+                                          style={{
+                                            fontFamily: 'monospace',
+                                            fontWeight: 700,
+                                            fontSize: '0.75rem',
+                                            backgroundColor: '#F5F3FF',
+                                            color: '#7C3AED',
+                                            padding: '1px 5px',
+                                            borderRadius: '3px',
+                                            border: '1px solid #DDD6FE',
+                                          }}
+                                        >
+                                          {sn}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+
+                              <td style={{ textAlign: 'center' }}>
+                                {si.trackingType === 'BULK' ? (
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    max={si.maxAvailable}
+                                    value={si.quantity}
+                                    onChange={(e) =>
+                                      handleItemPropertyChange(idx, 'quantity', parseInt(e.target.value, 10) || 1)
+                                    }
+                                    style={{ width: '60px', padding: '3px 6px', textAlign: 'center' }}
+                                  />
+                                ) : (
+                                  <span style={{ fontWeight: 700, color: '#2250A1' }}>
+                                    {si.quantity} {si.unitSymbol}
+                                  </span>
+                                )}
+                              </td>
+
+                              <td>
+                                <Input
+                                  placeholder="Internal PIC..."
+                                  value={si.pic || ''}
+                                  onChange={(e) => handleItemPropertyChange(idx, 'pic', e.target.value)}
+                                  style={{ padding: '3px 6px', fontSize: '0.8rem' }}
+                                />
+                              </td>
+
+                              <td>
+                                <Input
+                                  placeholder="Remarks..."
+                                  value={si.remarks || ''}
+                                  onChange={(e) => handleItemPropertyChange(idx, 'remarks', e.target.value)}
+                                  style={{ padding: '3px 6px', fontSize: '0.8rem' }}
+                                />
+                              </td>
+
+                              <td style={{ textAlign: 'center' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveSelectedItem(idx)}
                                   style={{
-                                    padding: '1px 6px',
-                                    borderRadius: '3px',
-                                    fontFamily: 'monospace',
-                                    fontSize: '0.75rem',
-                                    fontWeight: 700,
-                                    backgroundColor: 'rgba(34, 80, 161, 0.08)',
-                                    color: '#2250A1',
+                                    border: 'none',
+                                    background: 'transparent',
+                                    color: '#EF4444',
+                                    cursor: 'pointer',
+                                    padding: '4px',
                                   }}
                                 >
-                                  {s.serialNumber}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </td>
-                        <td>
-                          <span
-                            style={{
-                              fontSize: '0.75rem',
-                              fontWeight: 700,
-                              color: item.trackingType === 'BULK' ? '#047857' : '#2250A1',
-                            }}
-                          >
-                            {item.trackingType}
-                          </span>
-                        </td>
-                        <td style={{ fontWeight: 700 }}>{item.quantity}</td>
-                        <td>{item.unitSymbol || item.unit}</td>
-                        <td>
-                          <div style={{ fontSize: '0.75rem', color: '#4B5563' }}>
-                            {item.pic ? `PIC: ${item.pic}` : ''}
-                            {item.remarks ? ` (${item.remarks})` : ''}
-                            {!item.pic && !item.remarks && '—'}
-                          </div>
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveItem(item.itemId)}
-                            style={{
-                              border: 'none',
-                              background: 'transparent',
-                              color: '#EF4444',
-                              cursor: 'pointer',
-                              padding: '4px',
-                            }}
-                            title="Remove Item"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                                  <Trash2 size={16} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
 
-          <hr style={{ border: 'none', borderTop: '1px solid #E5E7EB', margin: '1.25rem 0' }} />
+          {/* Modal Footer */}
+          <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {step === 1 ? (
+              <Button variant="secondary" type="button" onClick={handleRequestClose} disabled={isSaving}>
+                Cancel
+              </Button>
+            ) : (
+              <Button
+                variant="secondary"
+                type="button"
+                onClick={() => setStep(1)}
+                disabled={isSaving}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+              >
+                <ArrowLeft size={16} /> Back to Step 1
+              </Button>
+            )}
 
-          {/* Section 3: Available Inventory Search & Selector */}
-          <div>
-            <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.95rem', fontWeight: 600, color: '#1F2839' }}>
-              3. Available Warehouse Inventory
-            </h4>
-
-            <div style={{ marginBottom: '0.75rem', position: 'relative' }}>
-              <Input
-                type="text"
-                placeholder="Search available stock by item name, brand, MN, or SN..."
-                value={inventorySearch}
-                onChange={(e) => setInventorySearch(e.target.value)}
-              />
-            </div>
-
-            {/* Inventory Results Table */}
-            <div
-              style={{
-                border: '1px solid #E5E7EB',
-                borderRadius: '6px',
-                maxHeight: '220px',
-                overflowY: 'auto',
-              }}
-            >
-              <table className="data-table" style={{ margin: 0, fontSize: '0.85rem' }}>
-                <thead>
-                  <tr>
-                    <th>Item / Brand</th>
-                    <th>Warehouse</th>
-                    <th>Type</th>
-                    <th>Available Stock</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.keys(groupedInventory).length === 0 ? (
-                    <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', padding: '1.5rem', color: '#6B7280' }}>
-                        {isSearchingInventory ? 'Searching available inventory...' : 'No available inventory matching criteria.'}
-                      </td>
-                    </tr>
-                  ) : (
-                    Object.entries(groupedInventory).map(([key, group]) => {
-                      const first = group[0];
-                      const isWarehouseMismatched =
-                        establishedWarehouseId !== null && establishedWarehouseId !== first.warehouseId;
-                      const isAlreadySelected = selectedItems.some((i) => i.itemId === first.itemId);
-
-                      return (
-                        <tr
-                          key={key}
-                          style={{
-                            opacity: isWarehouseMismatched ? 0.45 : 1,
-                            backgroundColor: isAlreadySelected ? '#F0FDF4' : undefined,
-                          }}
-                        >
-                          <td>
-                            <div style={{ fontWeight: 600, color: '#1F2839' }}>{first.itemName}</div>
-                            <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>
-                              {first.brand && `${first.brand} `}
-                              {first.modelNumber && `[${first.modelNumber}]`}
-                            </div>
-                          </td>
-                          <td>
-                            <span style={{ fontWeight: 600, color: '#2250A1' }}>
-                              {first.warehouseName} [{first.cityCode}]
-                            </span>
-                          </td>
-                          <td>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>
-                              {first.trackingType}
-                            </span>
-                          </td>
-                          <td style={{ fontWeight: 600 }}>
-                            {first.trackingType === 'BULK' ? (
-                              <span>
-                                {first.availableQty} {first.unitSymbol}
-                              </span>
-                            ) : (
-                              <span>{group.length} serial asset(s)</span>
-                            )}
-                          </td>
-                          <td>
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="sm"
-                              disabled={isWarehouseMismatched}
-                              onClick={() => handleSelectItemForAdd(first)}
-                            >
-                              {isAlreadySelected ? 'Edit Qty / SN' : '+ Select'}
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+            {step === 1 ? (
+              <Button
+                variant="primary"
+                type="button"
+                disabled={Boolean(isMissingReference)}
+                onClick={handleStep1Continue}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                Continue to Line Items <ArrowRight size={16} />
+              </Button>
+            ) : (
+              <Button variant="primary" type="submit" isLoading={isSaving}>
+                {deliveryOrderId ? 'Save Changes' : 'Save Delivery Order Draft'}
+              </Button>
+            )}
           </div>
+        </form>
+      </Modal>
 
-          {/* Sub-modal / Drawer for Item Configuration (Qty, SN, PIC, Remarks) */}
-          {pickerItem && (
-            <div
-              style={{
-                marginTop: '1rem',
-                padding: '1rem',
-                backgroundColor: '#EFF6FF',
-                border: '1px solid #BFDBFE',
-                borderRadius: '8px',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                <h5 style={{ margin: 0, fontWeight: 700, color: '#1E40AF', fontSize: '0.9rem' }}>
-                  Configure Item: {pickerItem.itemName} ({pickerItem.trackingType})
-                </h5>
-                <Button variant="ghost" size="sm" onClick={() => setPickerItem(null)}>
-                  Cancel
-                </Button>
-              </div>
-
-              {pickerItem.trackingType === 'BULK' ? (
-                <div>
-                  <div className="form-grid" style={{ marginBottom: '0.75rem' }}>
-                    <FormField label={`Quantity (Max: ${pickerItem.availableQty} ${pickerItem.unitSymbol})`} required style={{ marginBottom: 0 }}>
-                      <Input
-                        type="number"
-                        min="1"
-                        max={pickerItem.availableQty}
-                        value={bulkQtyInput}
-                        onChange={(e) => setBulkQtyInput(parseInt(e.target.value, 10) || 1)}
-                      />
-                    </FormField>
-
-                    <FormField label="Assigned PIC (Optional)" style={{ marginBottom: 0 }}>
-                      <Input
-                        type="text"
-                        placeholder="e.g. John / Site Tech"
-                        value={itemPicInput}
-                        onChange={(e) => setItemPicInput(e.target.value)}
-                      />
-                    </FormField>
-                  </div>
-
-                  <FormField label="Item Remarks (Optional)" style={{ marginBottom: '0.75rem' }}>
-                    <Input
-                      type="text"
-                      placeholder="e.g. Batch #4, for generator hookup"
-                      value={itemRemarksInput}
-                      onChange={(e) => setItemRemarksInput(e.target.value)}
-                    />
-                  </FormField>
-
-                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <Button variant="primary" size="sm" onClick={handleConfirmAddBulk}>
-                      Confirm Bulk Item
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  {(() => {
-                    const groupKey = `${pickerItem.warehouseId}-${pickerItem.itemId}`;
-                    const serials = groupedInventory[groupKey] || [pickerItem];
-
-                    return (
-                      <div>
-                        <div style={{ fontSize: '0.8rem', color: '#1E40AF', marginBottom: '0.5rem', fontWeight: 600 }}>
-                          Select Available Serial Numbers (Checked: {Object.values(selectedSnMap).filter(Boolean).length}):
-                        </div>
-
-                        <div
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-                            gap: '6px',
-                            maxHeight: '140px',
-                            overflowY: 'auto',
-                            padding: '0.5rem',
-                            backgroundColor: '#FFFFFF',
-                            border: '1px solid #DBEAFE',
-                            borderRadius: '6px',
-                            marginBottom: '0.75rem',
-                          }}
-                        >
-                          {serials.map((s) => {
-                            const isChecked = !!selectedSnMap[s.serialNumber || ''];
-                            return (
-                              <label
-                                key={s.id}
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  fontSize: '0.8rem',
-                                  cursor: 'pointer',
-                                  padding: '4px 6px',
-                                  borderRadius: '4px',
-                                  backgroundColor: isChecked ? '#EFF6FF' : 'transparent',
-                                }}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={(e) =>
-                                    setSelectedSnMap({
-                                      ...selectedSnMap,
-                                      [s.serialNumber || '']: e.target.checked,
-                                    })
-                                  }
-                                />
-                                <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>
-                                  {s.serialNumber}
-                                </span>
-                                <span style={{ fontSize: '0.7rem', color: '#6B7280' }}>
-                                  ({s.condition})
-                                </span>
-                              </label>
-                            );
-                          })}
-                        </div>
-
-                        <div className="form-grid" style={{ marginBottom: '0.75rem' }}>
-                          <FormField label="Assigned PIC (Optional)" style={{ marginBottom: 0 }}>
-                            <Input
-                              type="text"
-                              placeholder="e.g. Site Engineer"
-                              value={itemPicInput}
-                              onChange={(e) => setItemPicInput(e.target.value)}
-                            />
-                          </FormField>
-
-                          <FormField label="Item Remarks (Optional)" style={{ marginBottom: 0 }}>
-                            <Input
-                              type="text"
-                              placeholder="e.g. Primary unit for tower"
-                              value={itemRemarksInput}
-                              onChange={(e) => setItemRemarksInput(e.target.value)}
-                            />
-                          </FormField>
-                        </div>
-
-                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() => handleConfirmAddSerialized(serials)}
-                          >
-                            Confirm Serialized Items
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="modal-footer">
-          <Button variant="secondary" type="button" onClick={onClose} disabled={isSaving}>
-            Cancel
-          </Button>
-          <Button variant="primary" type="submit" isLoading={isSaving} disabled={isLoading || selectedItems.length === 0}>
-            {deliveryOrderId ? 'Save Draft Changes' : 'Save as Draft'}
-          </Button>
-        </div>
-      </form>
-    </Modal>
+      <ConfirmModal
+        isOpen={showDiscardConfirm}
+        onClose={() => setShowDiscardConfirm(false)}
+        onConfirm={() => {
+          setShowDiscardConfirm(false);
+          onClose();
+        }}
+        title="Discard Unsaved Changes?"
+        message="You have unsaved changes in this Delivery Order form. Are you sure you want to discard them?"
+        confirmLabel="Discard Changes"
+        variant="danger"
+      />
+    </>
   );
 };
+
+export default DeliveryOrderFormModal;

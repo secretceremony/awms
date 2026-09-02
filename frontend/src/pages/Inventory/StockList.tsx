@@ -2,15 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PaginatedTable, type Column } from '../../components/PaginatedTable.js';
 import { apiClient } from '../../api/client.js';
-import { Eye, Plus, Layers, Edit2, AlertCircle, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Eye, Plus, Layers, Edit2, SlidersHorizontal, AlertCircle, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Button, PageHeader, Select } from '../../components/ui/index.js';
 import { ItemFormModal, type Item } from '../../components/inventory/ItemFormModal.js';
 import { InitialStockModal } from '../../components/inventory/InitialStockModal.js';
+import { AdjustmentModal } from '../../components/history/AdjustmentModal.js';
 import { FilterBar, FilterPanel, type ActiveFilter } from '../../components/filters/index.js';
 
 interface StockRow {
   id: string;
   itemId: number;
+  warehouseId?: number | null;
   registeredDate: string;
   location: string;
   locationType: 'WAREHOUSE' | 'PROJECT';
@@ -44,6 +46,11 @@ export const StockList: React.FC = () => {
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [isInitialStockModalOpen, setIsInitialStockModalOpen] = useState(false);
+  const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
+  const [adjustContext, setAdjustContext] = useState<{ itemId: number | null; warehouseId: number | null }>({
+    itemId: null,
+    warehouseId: null,
+  });
 
   useEffect(() => {
     const fetchWarehouses = async () => {
@@ -271,6 +278,23 @@ export const StockList: React.FC = () => {
           >
             <Edit2 size={15} />
           </Button>
+          {r.locationType === 'WAREHOUSE' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const wh = warehouses.find((w) => r.location.includes(w.name) || (w.cityCode && r.location.includes(w.cityCode)));
+                setAdjustContext({
+                  itemId: r.itemId,
+                  warehouseId: r.warehouseId || wh?.id || null,
+                });
+                setIsAdjustModalOpen(true);
+              }}
+              title="Adjust Stock / Condition"
+            >
+              <SlidersHorizontal size={15} />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -368,6 +392,18 @@ export const StockList: React.FC = () => {
       <InitialStockModal
         isOpen={isInitialStockModalOpen}
         onClose={() => setIsInitialStockModalOpen(false)}
+        onSuccess={() => setRefreshKey((prev) => prev + 1)}
+      />
+
+      <AdjustmentModal
+        isOpen={isAdjustModalOpen}
+        onClose={() => {
+          setIsAdjustModalOpen(false);
+          setAdjustContext({ itemId: null, warehouseId: null });
+        }}
+        initialItemId={adjustContext.itemId}
+        initialWarehouseId={adjustContext.warehouseId}
+        lockContext={Boolean(adjustContext.itemId)}
         onSuccess={() => setRefreshKey((prev) => prev + 1)}
       />
     </div>

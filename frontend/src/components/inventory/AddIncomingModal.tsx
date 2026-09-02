@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Modal,
   FormField,
@@ -7,8 +7,10 @@ import {
   Select,
   Textarea,
   Button,
+  SegmentedControl,
+  ConfirmModal,
 } from '../ui/index.js';
-import { Plus, Trash2, ClipboardList, RotateCcw, PackageCheck } from 'lucide-react';
+import { Plus, Trash2, ClipboardList, RotateCcw, PackageCheck, CheckSquare, Square}  from 'lucide-react';
 import { apiClient } from '../../api/client.js';
 
 interface ItemOption {
@@ -95,6 +97,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
   });
 
   const [projectInventory, setProjectInventory] = useState<ProjectInventoryItem[]>([]);
+  const [snSearch, setSnSearch] = useState('');
   const [isLoadingInventory, setIsLoadingInventory] = useState(false);
 
   // Return selection state
@@ -103,6 +106,9 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
     [sn: string]: { selected: boolean; conditionLabel: string; notes: string };
   }>({});
 
+  const [initialStateSnapshot, setInitialStateSnapshot] = useState('');
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+
   // Multi-paste modal for regular incoming
   const [pasteModalOpen, setPasteModalOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');
@@ -110,6 +116,9 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
 
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const itemSelectRef = useRef<HTMLSelectElement>(null);
+  const whSelectRef = useRef<HTMLSelectElement>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -130,7 +139,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
     if (isOpen) {
       fetchData();
       setSourceType('REGULAR');
-      setRegularForm({
+      const rInit = {
         movementDate: new Date().toISOString().split('T')[0],
         warehouseId: '',
         itemId: '',
@@ -138,21 +147,29 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
         serialRows: [{ serialNumber: '', conditionLabel: 'Standby Good', notes: '' }],
         referenceNumber: '',
         notes: '',
-      });
-      setReturnForm({
+      };
+      const retInit = {
         movementDate: new Date().toISOString().split('T')[0],
         projectId: '',
         warehouseId: '',
         referenceNumber: '',
         notes: '',
-      });
+      };
+      setRegularForm(rInit);
+      setReturnForm(retInit);
       setProjectInventory([]);
       setSelectedBulkReturns({});
       setSelectedSerialReturns({});
+      setSnSearch('');
       setErrorMsg(null);
       setPasteModalOpen(false);
       setPasteText('');
       setPasteError(null);
+      setInitialStateSnapshot(JSON.stringify({ sourceType: 'REGULAR', rInit, retInit }));
+
+      setTimeout(() => {
+        whSelectRef.current?.focus();
+      }, 50);
     }
   }, [isOpen]);
 
@@ -172,7 +189,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
         const invList: ProjectInventoryItem[] = Array.isArray(res) ? res : res?.data || [];
         setProjectInventory(invList);
 
-        // Reset return selections
+        // Reset return selections; preserve current condition per SN by default
         setSelectedBulkReturns({});
         const snInitial: any = {};
         invList
@@ -180,6 +197,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
           .forEach((s) => {
             snInitial[s.serialNumber!] = {
               selected: false,
+              // Rule 14: Default condition preserves each SN's existing/current condition
               conditionLabel: s.condition || 'Standby Good',
               notes: '',
             };
@@ -195,6 +213,24 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
 
     fetchProjectInventory();
   }, [sourceType, returnForm.projectId]);
+
+  const currentSnapshot = JSON.stringify({
+    sourceType,
+    regularForm,
+    returnForm,
+    selectedBulkReturns,
+    selectedSerialReturns,
+  });
+
+  const isDirty = currentSnapshot !== initialStateSnapshot && initialStateSnapshot !== '';
+
+  const handleRequestClose = () => {
+    if (isDirty) {
+      setShowDiscardConfirm(true);
+    } else {
+      onClose();
+    }
+  };
 
   // --- Regular Incoming Handlers ---
   const selectedRegularItem = items.find((i) => String(i.id) === regularForm.itemId);
@@ -293,6 +329,28 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
     }));
   };
 
+  const handleSelectAllSerials = () => {
+    const updated: any = { ...selectedSerialReturns };
+    const filteredSns = projectInventory
+      .filter((i) => i.trackingType === 'SERIALIZED' && i.serialNumber)
+      .map((i) => i.serialNumber!);
+
+    filteredSns.forEach((sn) => {
+      if (updated[sn]) {
+        updated[sn] = { ...updated[sn], selected: true };
+      }
+    });
+    setSelectedSerialReturns(updated);
+  };
+
+  const handleDeselectAllSerials = () => {
+    const updated: any = { ...selectedSerialReturns };
+    Object.keys(updated).forEach((sn) => {
+      updated[sn] = { ...updated[sn], selected: false };
+    });
+    setSelectedSerialReturns(updated);
+  };
+
   const handleSerialReturnConditionChange = (sn: string, cond: string) => {
     setSelectedSerialReturns((prev) => ({
       ...prev,
@@ -314,8 +372,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
   };
 
   // --- Submit Handler ---
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveInternal = async (addAnother: boolean) => {
     setErrorMsg(null);
     setIsSaving(true);
 
@@ -330,14 +387,15 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
 
         let itemsPayload: any[] = [];
         if (isRegularSerialized) {
-          const serials = regularForm.serialRows.map((r) => ({
-            serialNumber: r.serialNumber.trim(),
-            conditionLabel: r.conditionLabel,
-            notes: r.notes.trim() || undefined,
-          }));
+          const serials = regularForm.serialRows
+            .map((r) => ({
+              serialNumber: r.serialNumber.trim(),
+              conditionLabel: r.conditionLabel,
+              notes: r.notes.trim() || undefined,
+            }))
+            .filter((s) => Boolean(s.serialNumber));
 
-          const emptySerials = serials.filter((s) => !s.serialNumber);
-          if (emptySerials.length > 0) {
+          if (serials.length === 0) {
             throw new Error('All serial numbers must be specified');
           }
 
@@ -376,6 +434,25 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
           notes: regularForm.notes.trim() || undefined,
           items: itemsPayload,
         });
+
+        onSuccess();
+
+        if (addAnother) {
+          // Rule 13: KEEP Source = External Incoming, Date, Destination Warehouse; RESET Item, Qty/SN, Reference, Notes
+          setRegularForm((prev) => ({
+            ...prev,
+            itemId: '',
+            quantity: 1,
+            serialRows: [{ serialNumber: '', conditionLabel: 'Standby Good', notes: '' }],
+            referenceNumber: '',
+            notes: '',
+          }));
+          setTimeout(() => {
+            itemSelectRef.current?.focus();
+          }, 50);
+        } else {
+          onClose();
+        }
       } else {
         if (!returnForm.projectId) {
           throw new Error('Please select a Source Project');
@@ -433,10 +510,10 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
           notes: returnForm.notes.trim() || undefined,
           items: itemsPayload,
         });
-      }
 
-      onSuccess();
-      onClose();
+        onSuccess();
+        onClose();
+      }
     } catch (err: any) {
       console.error(err);
       setErrorMsg(err.message || 'Failed to record incoming movement');
@@ -446,25 +523,36 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
   };
 
   const bulkProjectItems = projectInventory.filter((i) => i.trackingType === 'BULK');
-  const serializedProjectItems = projectInventory.filter((i) => i.trackingType === 'SERIALIZED');
+  const serializedProjectItems = projectInventory.filter(
+    (i) =>
+      i.trackingType === 'SERIALIZED' &&
+      (!snSearch.trim() ||
+        i.serialNumber?.toLowerCase().includes(snSearch.toLowerCase()) ||
+        i.itemName.toLowerCase().includes(snSearch.toLowerCase())),
+  );
 
   return (
     <>
       <Modal
         isOpen={isOpen}
-        onClose={onClose}
+        onClose={handleRequestClose}
         title={sourceType === 'REGULAR' ? 'Record Incoming Stock' : 'Record Project Return / Recheck'}
-        maxWidth="840px"
+        maxWidth="820px"
       >
-        <form onSubmit={handleSubmit}>
-          <div className="modal-body" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSaveInternal(false);
+          }}
+        >
+          <div className="modal-body" style={{ maxHeight: '72vh', overflowY: 'auto' }}>
             {errorMsg && (
               <div className="alert-error" style={{ marginBottom: '1.25rem' }}>
                 {errorMsg}
               </div>
             )}
 
-            {/* 1. Incoming Source Selection */}
+            {/* 1. Incoming Source Selection via SegmentedControl */}
             <div style={{ marginBottom: '1.25rem' }}>
               <label
                 style={{
@@ -477,80 +565,31 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
               >
                 Incoming Source *
               </label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <button
-                  type="button"
-                  onClick={() => setSourceType('REGULAR')}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '10px 14px',
-                    borderRadius: '6px',
-                    border: `1.5px solid ${sourceType === 'REGULAR' ? '#2250A1' : '#E5E7EB'}`,
-                    backgroundColor: sourceType === 'REGULAR' ? '#EFF6FF' : '#FFFFFF',
-                    color: sourceType === 'REGULAR' ? '#2250A1' : '#4B5563',
-                    fontWeight: 600,
-                    fontSize: '0.875rem',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                  }}
-                >
-                  <PackageCheck size={18} />
-                  <div>
-                    <div>External / Regular Incoming</div>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 400, color: '#6B7280' }}>
-                      Goods received from external supplier into Warehouse
-                    </div>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSourceType('RETURN')}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '10px 14px',
-                    borderRadius: '6px',
-                    border: `1.5px solid ${sourceType === 'RETURN' ? '#8B5CF6' : '#E5E7EB'}`,
-                    backgroundColor: sourceType === 'RETURN' ? '#F5F3FF' : '#FFFFFF',
-                    color: sourceType === 'RETURN' ? '#7C3AED' : '#4B5563',
-                    fontWeight: 600,
-                    fontSize: '0.875rem',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                  }}
-                >
-                  <RotateCcw size={18} />
-                  <div>
-                    <div>Project Return / Recheck</div>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 400, color: '#6B7280' }}>
-                      Goods returning from active/completed Project into Warehouse
-                    </div>
-                  </div>
-                </button>
-              </div>
+              <SegmentedControl<'REGULAR' | 'RETURN'>
+                value={sourceType}
+                onChange={(val) => setSourceType(val)}
+                options={[
+                  {
+                    value: 'REGULAR',
+                    label: 'External / Regular Incoming',
+                    icon: <PackageCheck size={16} />,
+                  },
+                  {
+                    value: 'RETURN',
+                    label: 'Project Return / Recheck',
+                    icon: <RotateCcw size={16} />,
+                  },
+                ]}
+              />
             </div>
-
-            <hr style={{ border: 'none', borderTop: '1px solid #E5E7EB', margin: '1rem 0' }} />
 
             {/* A. REGULAR INCOMING FORM */}
             {sourceType === 'REGULAR' && (
               <div>
                 <div className="form-grid" style={{ marginBottom: '1rem' }}>
-                  <FormField label="Movement Date" required style={{ marginBottom: 0 }}>
-                    <Input
-                      type="date"
-                      required
-                      value={regularForm.movementDate}
-                      onChange={(e) => setRegularForm({ ...regularForm, movementDate: e.target.value })}
-                    />
-                  </FormField>
-
                   <FormField label="Destination Warehouse" required style={{ marginBottom: 0 }}>
                     <Select
+                      ref={whSelectRef}
                       required
                       value={regularForm.warehouseId}
                       onChange={(e) => setRegularForm({ ...regularForm, warehouseId: e.target.value })}
@@ -563,14 +602,35 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                       ))}
                     </Select>
                   </FormField>
+
+                  <FormField label="Movement Date" required style={{ marginBottom: 0 }}>
+                    <Input
+                      type="date"
+                      required
+                      value={regularForm.movementDate}
+                      onChange={(e) => setRegularForm({ ...regularForm, movementDate: e.target.value })}
+                    />
+                  </FormField>
                 </div>
 
                 <div className="form-grid" style={{ marginBottom: '1rem' }}>
                   <FormField label="Item Master" required style={{ marginBottom: 0 }}>
                     <Select
+                      ref={itemSelectRef}
                       required
                       value={regularForm.itemId}
-                      onChange={(e) => setRegularForm({ ...regularForm, itemId: e.target.value })}
+                      onChange={(e) => {
+                        const newId = e.target.value;
+                        const it = items.find((i) => String(i.id) === newId);
+                        setRegularForm({
+                          ...regularForm,
+                          itemId: newId,
+                          serialRows:
+                            it?.trackingType === 'SERIALIZED'
+                              ? [{ serialNumber: '', conditionLabel: 'Standby Good', notes: '' }]
+                              : [],
+                        });
+                      }}
                     >
                       <option value="">Select Item...</option>
                       {items.map((i) => (
@@ -591,7 +651,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                       />
                     </FormField>
                   ) : (
-                    <FormField label="Total Serial Numbers" style={{ marginBottom: 0 }}>
+                    <FormField label="Serial Count" style={{ marginBottom: 0 }}>
                       <div style={{ paddingTop: '8px', fontWeight: 600, color: '#2250A1' }}>
                         {regularForm.serialRows.length} Serial Unit(s)
                       </div>
@@ -599,19 +659,20 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                   )}
                 </div>
 
+                {/* Serialized Asset Configuration */}
                 {isRegularSerialized && (
                   <div
                     style={{
-                      border: '1px solid #E5E7EB',
+                      border: '1px solid #E2E8F0',
                       borderRadius: '6px',
                       padding: '1rem',
-                      backgroundColor: '#F9FAFB',
+                      backgroundColor: '#F8FAFC',
                       marginBottom: '1rem',
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                      <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600, color: '#1F2839' }}>
-                        Serial Numbers &amp; Condition ({regularForm.serialRows.length})
+                      <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600, color: '#1E293B' }}>
+                        Serial Numbers ({regularForm.serialRows.length})
                       </h4>
                       <Button
                         type="button"
@@ -624,7 +685,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                       </Button>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto' }}>
                       {regularForm.serialRows.map((row, idx) => (
                         <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                           <Input
@@ -675,7 +736,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                 )}
 
                 <div className="form-grid">
-                  <FormField label="Reference Number (PO / Contract / Waybill)" style={{ marginBottom: 0 }}>
+                  <FormField label="Reference (PO / Contract / Waybill)">
                     <Input
                       placeholder="e.g. PO-2026-001, WB-9988..."
                       value={regularForm.referenceNumber}
@@ -683,7 +744,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                     />
                   </FormField>
 
-                  <FormField label="Notes / Remarks" style={{ marginBottom: 0 }}>
+                  <FormField label="Notes / Remarks">
                     <Input
                       placeholder="e.g. Received in good condition..."
                       value={regularForm.notes}
@@ -698,16 +759,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
             {sourceType === 'RETURN' && (
               <div>
                 <div className="form-grid" style={{ marginBottom: '1rem' }}>
-                  <FormField label="Movement Date" required style={{ marginBottom: 0 }}>
-                    <Input
-                      type="date"
-                      required
-                      value={returnForm.movementDate}
-                      onChange={(e) => setReturnForm({ ...returnForm, movementDate: e.target.value })}
-                    />
-                  </FormField>
-
-                  <FormField label="Source Project (Active or Completed)" required style={{ marginBottom: 0 }}>
+                  <FormField label="Source Project" required style={{ marginBottom: 0 }}>
                     <Select
                       required
                       value={returnForm.projectId}
@@ -721,9 +773,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                       ))}
                     </Select>
                   </FormField>
-                </div>
 
-                <div className="form-grid" style={{ marginBottom: '1rem' }}>
                   <FormField label="Destination Warehouse" required style={{ marginBottom: 0 }}>
                     <Select
                       required
@@ -738,8 +788,19 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                       ))}
                     </Select>
                   </FormField>
+                </div>
 
-                  <FormField label="DO Reference / Return Reference" style={{ marginBottom: 0 }}>
+                <div className="form-grid" style={{ marginBottom: '1rem' }}>
+                  <FormField label="Movement Date" required style={{ marginBottom: 0 }}>
+                    <Input
+                      type="date"
+                      required
+                      value={returnForm.movementDate}
+                      onChange={(e) => setReturnForm({ ...returnForm, movementDate: e.target.value })}
+                    />
+                  </FormField>
+
+                  <FormField label="DO / Return Reference" style={{ marginBottom: 0 }}>
                     <Input
                       placeholder="e.g. DO-PHM-2026-001, RET-09..."
                       value={returnForm.referenceNumber}
@@ -750,16 +811,12 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
 
                 {/* Project Inventory Section */}
                 <div style={{ marginBottom: '1rem' }}>
-                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', fontWeight: 600, color: '#1F2839' }}>
-                    Current Project Inventory (Select items/serials to return)
-                  </h4>
-
                   {!returnForm.projectId ? (
                     <div style={{ padding: '1.5rem', textAlign: 'center', backgroundColor: '#F9FAFB', border: '1px dashed #D1D5DB', borderRadius: '6px', color: '#6B7280', fontSize: '0.85rem' }}>
-                      Select a Source Project above to view its active inventory.
+                      Select a Source Project above to view its deployed inventory.
                     </div>
                   ) : isLoadingInventory ? (
-                    <div style={{ padding: '1.5rem', textAlign: 'center', color: '#6B7280' }}>
+                    <div style={{ padding: '1.5rem', textAlign: 'center', color: '#6B7280', fontSize: '0.85rem' }}>
                       Loading project inventory...
                     </div>
                   ) : projectInventory.length === 0 ? (
@@ -770,8 +827,8 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                       {/* Bulk Items at Project */}
                       {bulkProjectItems.length > 0 && (
-                        <div style={{ border: '1px solid #E5E7EB', borderRadius: '6px', overflow: 'hidden' }}>
-                          <div style={{ padding: '6px 12px', backgroundColor: '#F3F4F6', fontWeight: 600, fontSize: '0.8rem', color: '#374151' }}>
+                        <div style={{ border: '1px solid #E2E8F0', borderRadius: '6px', overflow: 'hidden' }}>
+                          <div style={{ padding: '6px 12px', backgroundColor: '#F8FAFC', fontWeight: 600, fontSize: '0.8rem', color: '#334155' }}>
                             Bulk Stock ({bulkProjectItems.length} items)
                           </div>
                           <table className="data-table" style={{ margin: 0, fontSize: '0.85rem' }}>
@@ -786,8 +843,8 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                               {bulkProjectItems.map((b) => (
                                 <tr key={b.id}>
                                   <td>
-                                    <div style={{ fontWeight: 600, color: '#1F2839' }}>{b.itemName}</div>
-                                    <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>
+                                    <div style={{ fontWeight: 600, color: '#1E293B' }}>{b.itemName}</div>
+                                    <div style={{ fontSize: '0.75rem', color: '#64748B' }}>
                                       {b.brand && `${b.brand} `} {b.modelNumber && `| MN: ${b.modelNumber}`}
                                     </div>
                                   </td>
@@ -820,86 +877,126 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
 
                       {/* Serialized Items at Project */}
                       {serializedProjectItems.length > 0 && (
-                        <div style={{ border: '1px solid #E5E7EB', borderRadius: '6px', overflow: 'hidden' }}>
-                          <div style={{ padding: '6px 12px', backgroundColor: '#F3F4F6', fontWeight: 600, fontSize: '0.8rem', color: '#374151' }}>
-                            Serialized Assets ({serializedProjectItems.length} units deployed)
+                        <div style={{ border: '1px solid #E2E8F0', borderRadius: '6px', overflow: 'hidden' }}>
+                          <div
+                            style={{
+                              padding: '6px 12px',
+                              backgroundColor: '#F8FAFC',
+                              borderBottom: '1px solid #E2E8F0',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <span style={{ fontWeight: 600, fontSize: '0.8rem', color: '#334155' }}>
+                              Serialized Assets ({serializedProjectItems.length} units deployed)
+                            </span>
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                              <Input
+                                placeholder="Filter SN..."
+                                value={snSearch}
+                                onChange={(e) => setSnSearch(e.target.value)}
+                                style={{ width: '130px', padding: '2px 6px', fontSize: '0.75rem' }}
+                              />
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                onClick={handleSelectAllSerials}
+                                style={{ padding: '2px 8px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              >
+                                <CheckSquare size={12} /> Select All
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleDeselectAllSerials}
+                                style={{ padding: '2px 8px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              >
+                                <Square size={12} /> Deselect All
+                              </Button>
+                            </div>
                           </div>
-                          <table className="data-table" style={{ margin: 0, fontSize: '0.85rem' }}>
-                            <thead>
-                              <tr>
-                                <th style={{ width: '35px' }}></th>
-                                <th>Item / SN</th>
-                                <th style={{ width: '160px' }}>Returned Condition *</th>
-                                <th style={{ width: '180px' }}>Notes</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {serializedProjectItems.map((s) => {
-                                const sn = s.serialNumber!;
-                                const stateEntry = selectedSerialReturns[sn] || {
-                                  selected: false,
-                                  conditionLabel: 'Standby Good',
-                                  notes: '',
-                                };
 
-                                return (
-                                  <tr
-                                    key={s.id}
-                                    style={{
-                                      backgroundColor: stateEntry.selected ? '#F5F3FF' : undefined,
-                                    }}
-                                  >
-                                    <td>
-                                      <input
-                                        type="checkbox"
-                                        checked={stateEntry.selected}
-                                        onChange={() => handleSerialSelectToggle(sn)}
-                                        style={{ cursor: 'pointer' }}
-                                      />
-                                    </td>
-                                    <td>
-                                      <div style={{ fontWeight: 600, color: '#1F2839' }}>{s.itemName}</div>
-                                      <span
-                                        style={{
-                                          fontFamily: 'monospace',
-                                          fontWeight: 700,
-                                          color: '#7C3AED',
-                                          fontSize: '0.8rem',
-                                        }}
-                                      >
-                                        {sn}
-                                      </span>
-                                    </td>
-                                    <td>
-                                      <Select
-                                        disabled={!stateEntry.selected}
-                                        value={stateEntry.conditionLabel}
-                                        onChange={(e) =>
-                                          handleSerialReturnConditionChange(sn, e.target.value)
-                                        }
-                                        style={{ padding: '4px 8px', fontSize: '0.8rem' }}
-                                      >
-                                        <option value="Standby Good">Standby Good</option>
-                                        <option value="Standby Bad">Standby Bad</option>
-                                        <option value="Under Repair">Under Repair</option>
-                                      </Select>
-                                    </td>
-                                    <td>
-                                      <Input
-                                        disabled={!stateEntry.selected}
-                                        placeholder="Inspection note..."
-                                        value={stateEntry.notes}
-                                        onChange={(e) =>
-                                          handleSerialReturnNotesChange(sn, e.target.value)
-                                        }
-                                        style={{ padding: '4px 8px', fontSize: '0.8rem' }}
-                                      />
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
+                          <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                            <table className="data-table" style={{ margin: 0, fontSize: '0.85rem' }}>
+                              <thead>
+                                <tr style={{ position: 'sticky', top: 0, backgroundColor: '#F1F5F9', zIndex: 1 }}>
+                                  <th style={{ width: '35px' }}></th>
+                                  <th>Item / SN</th>
+                                  <th style={{ width: '160px' }}>Returned Condition *</th>
+                                  <th style={{ width: '180px' }}>Notes</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {serializedProjectItems.map((s) => {
+                                  const sn = s.serialNumber!;
+                                  const stateEntry = selectedSerialReturns[sn] || {
+                                    selected: false,
+                                    conditionLabel: s.condition || 'Standby Good',
+                                    notes: '',
+                                  };
+
+                                  return (
+                                    <tr
+                                      key={s.id}
+                                      style={{
+                                        backgroundColor: stateEntry.selected ? '#F5F3FF' : undefined,
+                                      }}
+                                    >
+                                      <td>
+                                        <input
+                                          type="checkbox"
+                                          checked={stateEntry.selected}
+                                          onChange={() => handleSerialSelectToggle(sn)}
+                                          style={{ cursor: 'pointer' }}
+                                        />
+                                      </td>
+                                      <td>
+                                        <div style={{ fontWeight: 600, color: '#1E293B' }}>{s.itemName}</div>
+                                        <span
+                                          style={{
+                                            fontFamily: 'monospace',
+                                            fontWeight: 700,
+                                            color: '#7C3AED',
+                                            fontSize: '0.8rem',
+                                          }}
+                                        >
+                                          {sn}
+                                        </span>
+                                      </td>
+                                      <td>
+                                        <Select
+                                          disabled={!stateEntry.selected}
+                                          value={stateEntry.conditionLabel}
+                                          onChange={(e) =>
+                                            handleSerialReturnConditionChange(sn, e.target.value)
+                                          }
+                                          style={{ padding: '4px 8px', fontSize: '0.8rem' }}
+                                        >
+                                          <option value="Standby Good">Standby Good</option>
+                                          <option value="Standby Bad">Standby Bad</option>
+                                          <option value="Under Repair">Under Repair</option>
+                                        </Select>
+                                      </td>
+                                      <td>
+                                        <Input
+                                          disabled={!stateEntry.selected}
+                                          placeholder="Inspection note..."
+                                          value={stateEntry.notes}
+                                          onChange={(e) =>
+                                            handleSerialReturnNotesChange(sn, e.target.value)
+                                          }
+                                          style={{ padding: '4px 8px', fontSize: '0.8rem' }}
+                                        />
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -917,13 +1014,25 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
             )}
           </div>
 
-          <div className="modal-footer">
-            <Button variant="secondary" type="button" onClick={onClose} disabled={isSaving}>
+          <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Button variant="secondary" type="button" onClick={handleRequestClose} disabled={isSaving}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit" isLoading={isSaving}>
-              {sourceType === 'REGULAR' ? 'Record Incoming' : 'Record Project Return'}
-            </Button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {sourceType === 'REGULAR' && (
+                <Button
+                  variant="secondary"
+                  type="button"
+                  onClick={() => handleSaveInternal(true)}
+                  isLoading={isSaving}
+                >
+                  Save &amp; Add Another
+                </Button>
+              )}
+              <Button variant="primary" type="submit" isLoading={isSaving}>
+                {sourceType === 'REGULAR' ? 'Record Incoming' : 'Record Project Return'}
+              </Button>
+            </div>
           </div>
         </form>
       </Modal>
@@ -955,6 +1064,21 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
           </Button>
         </div>
       </Modal>
+
+      <ConfirmModal
+        isOpen={showDiscardConfirm}
+        onClose={() => setShowDiscardConfirm(false)}
+        onConfirm={() => {
+          setShowDiscardConfirm(false);
+          onClose();
+        }}
+        title="Discard Unsaved Changes?"
+        message="You have unsaved changes in this form. Are you sure you want to discard them?"
+        confirmLabel="Discard Changes"
+        variant="danger"
+      />
     </>
   );
 };
+
+export default AddIncomingModal;

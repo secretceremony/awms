@@ -13,3 +13,4 @@ export * from './StatusBadge.js';
 export * from './EmptyState.js';
 export * from './LoadingState.js';
 export * from './ErrorState.js';
+export * from './SegmentedControl.js';

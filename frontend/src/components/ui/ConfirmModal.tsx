@@ -10,6 +10,7 @@ export interface ConfirmModalProps {
   title: string;
   message: React.ReactNode;
   confirmText?: string;
+  confirmLabel?: string;
   cancelText?: string;
   variant?: 'danger' | 'primary' | 'warning';
   isLoading?: boolean;
@@ -21,11 +22,13 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   onConfirm,
   title,
   message,
-  confirmText = 'Confirm',
+  confirmText,
+  confirmLabel,
   cancelText = 'Cancel',
   variant = 'danger',
   isLoading = false,
 }) => {
+  const finalConfirmText = confirmText || confirmLabel || 'Confirm';
   const isDanger = variant === 'danger';
   const isWarning = variant === 'warning';
 
@@ -60,7 +63,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           onClick={onConfirm}
           isLoading={isLoading}
         >
-          {confirmText}
+          {finalConfirmText}
         </Button>
       </div>
     </Modal>

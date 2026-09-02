@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, FormField, Input, Select, Button } from '../ui/index.js';
+import React, { useState, useEffect, useRef } from 'react';
+import { Modal, FormField, Input, Select, Button, ConfirmModal } from '../ui/index.js';
 import { apiClient } from '../../api/client.js';
 
 export interface Warehouse {
@@ -40,8 +40,13 @@ export const WarehouseFormModal: React.FC<WarehouseFormModalProps> = ({
     cityCode: '',
     location: '',
   });
+  const [hasCustomName, setHasCustomName] = useState(false);
+  const [initialData, setInitialData] = useState(formData);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchCities = async () => {
@@ -56,131 +61,194 @@ export const WarehouseFormModal: React.FC<WarehouseFormModalProps> = ({
     if (isOpen) {
       fetchCities();
       if (warehouse) {
-        setFormData({
+        const init = {
           name: warehouse.name,
           city: warehouse.city,
           cityCode: warehouse.cityCode,
-          location: warehouse.location,
-        });
+          location: warehouse.location || '',
+        };
+        setFormData(init);
+        setInitialData(init);
+        setHasCustomName(true);
       } else {
-        setFormData({
+        const init = {
           name: '',
           city: '',
           cityCode: '',
           location: '',
-        });
+        };
+        setFormData(init);
+        setInitialData(init);
+        setHasCustomName(false);
       }
       setErrorMsg(null);
-    }
-  }, [warehouse, isOpen]);
 
-  const handleCitySelect = (cityName: string) => {
-    const matched = cities.find((c) => c.name.toLowerCase() === cityName.toLowerCase());
-    setFormData((prev) => ({
-      ...prev,
+      setTimeout(() => {
+        nameInputRef.current?.focus();
+      }, 50);
+    }
+  }, [isOpen, warehouse]);
+
+  const handleCityChange = (cityName: string) => {
+    const selectedCity = cities.find((c) => c.name === cityName);
+    const newCityCode = selectedCity ? selectedCity.code : '';
+    
+    // Auto-suggest "[City Name] Warehouse" if not manually customized
+    const suggestedName = !hasCustomName && cityName ? `${cityName} Warehouse` : formData.name;
+
+    setFormData({
+      ...formData,
       city: cityName,
-      cityCode: matched ? matched.code : prev.cityCode,
-    }));
+      cityCode: newCityCode,
+      name: suggestedName,
+    });
+  };
+
+  const isDirty = JSON.stringify(formData) !== JSON.stringify(initialData);
+
+  const handleRequestClose = () => {
+    if (isDirty) {
+      setShowDiscardConfirm(true);
+    } else {
+      onClose();
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.name.trim() || !formData.city.trim() || !formData.location.trim()) {
+      setErrorMsg('Warehouse Name, City, and Location are required');
+      return;
+    }
+
     setIsSaving(true);
     setErrorMsg(null);
 
     try {
-      const payload = {
-        name: formData.name.trim(),
-        city: formData.city.trim(),
-        location: formData.location.trim(),
-      };
-
       if (warehouse) {
-        await apiClient.request(`/warehouses/${warehouse.id}`, {
-          method: 'PATCH',
-          body: JSON.stringify(payload),
+        await apiClient.patch(`/warehouses/${warehouse.id}`, {
+          name: formData.name.trim(),
+          city: formData.city.trim(),
+          location: formData.location.trim(),
         });
       } else {
-        await apiClient.post('/warehouses', payload);
+        await apiClient.post('/warehouses', {
+          name: formData.name.trim(),
+          city: formData.city.trim(),
+          location: formData.location.trim(),
+        });
       }
 
       onSuccess();
       onClose();
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'An error occurred while saving the warehouse');
+      setErrorMsg(err.message || 'Failed to save warehouse');
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={warehouse ? 'Edit Warehouse' : 'Add Warehouse'}
-      maxWidth="500px"
-    >
-      <form onSubmit={handleSubmit}>
-        <div className="modal-body">
-          {errorMsg && <div className="alert-error" style={{ marginBottom: '1rem' }}>{errorMsg}</div>}
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={handleRequestClose}
+        title={warehouse ? 'Edit Warehouse' : 'Add New Warehouse'}
+        maxWidth="520px"
+      >
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body">
+            {errorMsg && (
+              <div className="alert-error" style={{ marginBottom: '1rem' }}>
+                {errorMsg}
+              </div>
+            )}
 
-          <FormField label="Warehouse Name" required>
-            <Input
-              type="text"
-              required
-              placeholder="e.g. Main Balikpapan Hub"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            />
-          </FormField>
-
-          <div className="form-grid" style={{ marginBottom: '1rem' }}>
-            <FormField label="City" required style={{ marginBottom: 0 }}>
+            <div style={{ marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1F2839' }}>
+                  City *
+                </label>
+                {formData.cityCode && (
+                  <span
+                    style={{
+                      fontFamily: 'monospace',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      backgroundColor: '#EFF6FF',
+                      color: '#2250A1',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      border: '1px solid #BFDBFE',
+                    }}
+                  >
+                    Code: {formData.cityCode}
+                  </span>
+                )}
+              </div>
               <Select
                 required
                 value={formData.city}
-                onChange={(e) => handleCitySelect(e.target.value)}
+                onChange={(e) => handleCityChange(e.target.value)}
               >
-                <option value="">Select configured City...</option>
+                <option value="">Select City...</option>
                 {cities.map((c) => (
                   <option key={c.id} value={c.name}>
                     {c.name} ({c.code})
                   </option>
                 ))}
               </Select>
+            </div>
+
+            <FormField label="Warehouse Name" required>
+              <Input
+                ref={nameInputRef}
+                placeholder="e.g. Balikpapan Central Warehouse"
+                required
+                value={formData.name}
+                onChange={(e) => {
+                  setFormData({ ...formData, name: e.target.value });
+                  setHasCustomName(true);
+                }}
+              />
             </FormField>
 
-            <FormField label="City Code (Derived)" style={{ marginBottom: 0 }}>
+            <FormField label="Full Location / Address" required>
               <Input
-                type="text"
-                disabled
-                value={formData.cityCode || (warehouse ? warehouse.cityCode : 'Auto-derived')}
-                style={{ fontFamily: 'monospace', fontWeight: 700, backgroundColor: '#F3F4F6' }}
+                placeholder="e.g. Jl. Mulawarman No. 45, Sepinggan"
+                required
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
               />
             </FormField>
           </div>
 
-          <FormField label="Location Address (Full Physical Street Address)" required>
-            <Input
-              type="text"
-              required
-              placeholder="e.g. Jl. Mulawarman No. 88, Balikpapan"
-              value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-            />
-          </FormField>
-        </div>
+          <div className="modal-footer">
+            <Button variant="secondary" type="button" onClick={handleRequestClose} disabled={isSaving}>
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit" isLoading={isSaving}>
+              {warehouse ? 'Save Changes' : 'Create Warehouse'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
-        <div className="modal-footer">
-          <Button variant="secondary" type="button" onClick={onClose} disabled={isSaving}>
-            Cancel
-          </Button>
-          <Button variant="primary" type="submit" isLoading={isSaving}>
-            {warehouse ? 'Save Changes' : 'Add Warehouse'}
-          </Button>
-        </div>
-      </form>
-    </Modal>
+      <ConfirmModal
+        isOpen={showDiscardConfirm}
+        onClose={() => setShowDiscardConfirm(false)}
+        onConfirm={() => {
+          setShowDiscardConfirm(false);
+          onClose();
+        }}
+        title="Discard Unsaved Changes?"
+        message="You have unsaved changes in this form. Are you sure you want to discard them?"
+        confirmLabel="Discard Changes"
+        variant="danger"
+      />
+    </>
   );
 };
+
+export default WarehouseFormModal;

@@ -53,4 +53,9 @@ export class CreateAdjustmentDto {
   @ValidateNested()
   @Type(() => SerialAdjustmentDetailDto)
   serialDetail?: SerialAdjustmentDetailDto;
+
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => SerialAdjustmentDetailDto)
+  serials?: SerialAdjustmentDetailDto[];
 }

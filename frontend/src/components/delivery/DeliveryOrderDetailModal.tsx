@@ -50,6 +50,7 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
     onConfirm: async () => {},
   });
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showIssueSuccess, setShowIssueSuccess] = useState(false);
 
   const printContainerRef = useRef<HTMLDivElement>(null);
 
@@ -94,6 +95,7 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
           await apiClient.post(`/delivery-orders/${deliveryOrder.id}/issue`);
           await fetchDetail();
           setConfirmConfig((prev: any) => ({ ...prev, isOpen: false }));
+          setShowIssueSuccess(true);
           if (onIssuedSuccess) onIssuedSuccess();
         } catch (err: any) {
           setErrorMsg(err.message || 'Failed to issue Delivery Order');
@@ -475,6 +477,83 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
         variant={confirmConfig.variant}
         isLoading={isProcessing}
       />
+
+      {/* DO Issue Success Action Modal (Rules 26 & 27) */}
+      <Modal
+        isOpen={showIssueSuccess}
+        onClose={() => setShowIssueSuccess(false)}
+        title="Delivery Order Issued Successfully"
+        maxWidth="500px"
+      >
+        <div className="modal-body" style={{ textAlign: 'center', padding: '1.5rem 1rem' }}>
+          <div
+            style={{
+              display: 'inline-flex',
+              padding: '12px',
+              borderRadius: '50%',
+              backgroundColor: '#ECFDF5',
+              color: '#059669',
+              marginBottom: '1rem',
+            }}
+          >
+            <Send size={28} />
+          </div>
+
+          <h3 style={{ margin: '0 0 8px 0', fontSize: '1.1rem', color: '#1E293B' }}>
+            Official DO Number Generated
+          </h3>
+
+          <div
+            style={{
+              fontFamily: 'monospace',
+              fontSize: '1rem',
+              fontWeight: 700,
+              backgroundColor: '#EFF6FF',
+              color: '#2250A1',
+              padding: '8px 14px',
+              borderRadius: '6px',
+              border: '1px solid #BFDBFE',
+              display: 'inline-block',
+              marginBottom: '1rem',
+            }}
+          >
+            {deliveryOrder?.doNumber || 'DO Issued'}
+          </div>
+
+          <p style={{ fontSize: '0.85rem', color: '#64748B', margin: 0 }}>
+            Warehouse stocks have been decremented and serialized assets relocated to the project. Choose an option below:
+          </p>
+        </div>
+
+        <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Button variant="secondary" onClick={() => setShowIssueSuccess(false)}>
+            Close
+          </Button>
+
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowIssueSuccess(false);
+                handlePrint();
+              }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Printer size={15} /> Save / Print PDF
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setShowIssueSuccess(false);
+                handlePrint();
+              }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Printer size={15} /> Print Now
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </Modal>
   );
 };

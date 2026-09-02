@@ -1237,44 +1237,67 @@ export class StockMovementsService {
       }
 
       if (item.trackingType === TrackingType.SERIALIZED) {
-        if (!serialDetail || !serialDetail.serialNumber?.trim()) {
-          throw new BadRequestException('Serial number is required for serialized item adjustment');
+        const rawSerials = dto.serials || (dto.serialDetail ? [dto.serialDetail] : []);
+        if (rawSerials.length === 0) {
+          throw new BadRequestException('At least one serial number is required for serialized item adjustment');
         }
 
-        const sn = serialDetail.serialNumber.trim();
-        const itemSerial = await tx.itemSerial.findUnique({
-          where: { serialNumber: sn },
-        });
+        const updatedSerials: any[] = [];
+        const snListStr: string[] = [];
 
-        if (!itemSerial || itemSerial.itemId !== item.id) {
-          throw new BadRequestException(`Serial number ${sn} does not exist or does not belong to ${item.name}`);
+        for (const sDetail of rawSerials) {
+          const sn = sDetail.serialNumber?.trim();
+          if (!sn) {
+            throw new BadRequestException('Serial number cannot be empty');
+          }
+
+          const itemSerial = await tx.itemSerial.findUnique({
+            where: { serialNumber: sn },
+          });
+
+          if (!itemSerial || itemSerial.itemId !== item.id) {
+            throw new BadRequestException(
+              `Serial number ${sn} does not exist or does not belong to ${item.name}`,
+            );
+          }
+
+          if (itemSerial.currentWarehouseId !== warehouseId) {
+            throw new BadRequestException(
+              `Serial number ${sn} is not located in the selected warehouse`,
+            );
+          }
+
+          const oldCondition = itemSerial.conditionLabel || itemSerial.state;
+          const oldState = itemSerial.state;
+          const newCondition = sDetail.newCondition || oldCondition;
+          const newState =
+            sDetail.newState ||
+            (newCondition === 'Standby Bad'
+              ? 'STANDBY_BAD'
+              : newCondition === 'Under Repair'
+              ? 'UNDER_REPAIR'
+              : 'STANDBY_GOOD');
+
+          const updatedSerial = await tx.itemSerial.update({
+            where: { id: itemSerial.id },
+            data: {
+              conditionLabel: newCondition,
+              state: newState,
+              notes:
+                sDetail.notes !== undefined
+                  ? sDetail.notes.trim() || null
+                  : itemSerial.notes,
+            },
+          });
+
+          updatedSerials.push(updatedSerial);
+          snListStr.push(`${sn} (${oldCondition} -> ${newCondition})`);
         }
 
-        if (itemSerial.currentWarehouseId !== warehouseId) {
-          throw new BadRequestException(
-            `Serial number ${sn} is not located in the selected warehouse`,
-          );
-        }
-
-        const oldCondition = itemSerial.conditionLabel || itemSerial.state;
-        const oldState = itemSerial.state;
-        const newCondition = serialDetail.newCondition || oldCondition;
-        const newState =
-          serialDetail.newState ||
-          (newCondition === 'Standby Bad'
-            ? 'STANDBY_BAD'
-            : newCondition === 'Under Repair'
-            ? 'UNDER_REPAIR'
-            : 'STANDBY_GOOD');
-
-        const updatedSerial = await tx.itemSerial.update({
-          where: { id: itemSerial.id },
-          data: {
-            conditionLabel: newCondition,
-            state: newState,
-            notes: serialDetail.notes?.trim() || itemSerial.notes,
-          },
-        });
+        const refNote =
+          snListStr.length === 1
+            ? `ADJ: SN ${snListStr[0]}`
+            : `ADJ: ${snListStr.length} Serials (${snListStr.slice(0, 2).join(', ')}${snListStr.length > 2 ? '...' : ''})`;
 
         const movement = await tx.stockMovement.create({
           data: {
@@ -1282,7 +1305,7 @@ export class StockMovementsService {
             movementType: MovementType.ADJUSTMENT,
             movementDate: dateObj,
             destinationWarehouseId: warehouseId,
-            referenceNumber: `ADJ: SN ${sn} (${oldCondition} -> ${newCondition})`,
+            referenceNumber: refNote,
             notes: reason.trim(),
             createdById: userId,
           },
@@ -1292,32 +1315,34 @@ export class StockMovementsService {
           data: {
             stockMovementId: movement.id,
             itemId: item.id,
-            quantity: 1,
+            quantity: updatedSerials.length,
           },
         });
 
-        await tx.stockMovementItemSerial.create({
-          data: {
-            stockMovementItemId: movementItem.id,
-            itemSerialId: updatedSerial.id,
-          },
-        });
+        for (const uSerial of updatedSerials) {
+          await tx.stockMovementItemSerial.create({
+            data: {
+              stockMovementItemId: movementItem.id,
+              itemSerialId: uSerial.id,
+            },
+          });
+        }
 
         await tx.auditLog.create({
           data: {
             userId,
             action: 'ADJUSTMENT',
             entityName: 'ItemSerial',
-            entityId: updatedSerial.id,
+            entityId: item.id,
             payload: {
               movementNumber,
               trackingType: 'SERIALIZED',
-              serialNumber: sn,
               warehouseId,
-              previousCondition: oldCondition,
-              newCondition,
-              previousState: oldState,
-              newState,
+              totalAdjusted: updatedSerials.length,
+              serials: rawSerials.map((s) => ({
+                serialNumber: s.serialNumber,
+                newCondition: s.newCondition,
+              })),
               reason: reason.trim(),
             },
           },

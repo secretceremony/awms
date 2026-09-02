@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, FormField, Input, NumberInput, Select, Textarea, Button } from '../ui/index.js';
+import React, { useState, useEffect, useRef } from 'react';
+import { Modal, FormField, Input, NumberInput, Select, Textarea, Button, ConfirmModal } from '../ui/index.js';
 import { Plus, Trash2, ClipboardList } from 'lucide-react';
 import { apiClient } from '../../api/client.js';
 
@@ -38,18 +38,26 @@ export const InitialStockModal: React.FC<InitialStockModalProps> = ({
   const [items, setItems] = useState<ItemOption[]>([]);
   const [warehouses, setWarehouses] = useState<WarehouseOption[]>([]);
   const [formData, setFormData] = useState({
-    itemId: '',
+    movementDate: new Date().toISOString().split('T')[0],
     warehouseId: '',
+    itemId: '',
     quantity: 1,
-    serialRows: [{ serialNumber: '', conditionLabel: 'Standby Good', notes: '' }] as SerialItemEntry[],
+    serialRows: [] as SerialItemEntry[],
     notes: '',
   });
+
+  const [initialData, setInitialData] = useState(formData);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+
   const [pasteModalOpen, setPasteModalOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const [pasteError, setPasteError] = useState<string | null>(null);
 
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const itemSelectRef = useRef<HTMLSelectElement>(null);
+  const whSelectRef = useRef<HTMLSelectElement>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -67,22 +75,39 @@ export const InitialStockModal: React.FC<InitialStockModalProps> = ({
 
     if (isOpen) {
       fetchData();
-      setFormData({
-        itemId: '',
+      const init = {
+        movementDate: new Date().toISOString().split('T')[0],
         warehouseId: '',
+        itemId: '',
         quantity: 1,
         serialRows: [{ serialNumber: '', conditionLabel: 'Standby Good', notes: '' }],
         notes: '',
-      });
+      };
+      setFormData(init);
+      setInitialData(init);
       setErrorMsg(null);
       setPasteModalOpen(false);
       setPasteText('');
       setPasteError(null);
+
+      setTimeout(() => {
+        whSelectRef.current?.focus();
+      }, 50);
     }
   }, [isOpen]);
 
   const selectedItem = items.find((i) => String(i.id) === formData.itemId);
   const isSerialized = selectedItem?.trackingType === 'SERIALIZED';
+
+  const isDirty = JSON.stringify(formData) !== JSON.stringify(initialData);
+
+  const handleRequestClose = () => {
+    if (isDirty) {
+      setShowDiscardConfirm(true);
+    } else {
+      onClose();
+    }
+  };
 
   const handleAddSerialField = () => {
     setFormData((prev) => ({
@@ -98,61 +123,63 @@ export const InitialStockModal: React.FC<InitialStockModalProps> = ({
     }));
   };
 
-  const handleSerialRowChange = (index: number, field: keyof SerialItemEntry, value: string) => {
+  const handleSerialChange = (index: number, field: keyof SerialItemEntry, value: string) => {
     setFormData((prev) => {
-      const next = [...prev.serialRows];
-      next[index] = { ...next[index], [field]: value };
-      return { ...prev, serialRows: next };
+      const updated = [...prev.serialRows];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, serialRows: updated };
     });
   };
 
-  const handleApplyPastedSerials = () => {
+  const handleProcessPaste = () => {
     setPasteError(null);
-    const lines = pasteText
-      .split('\n')
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0);
-
-    if (lines.length === 0) {
-      setPasteError('No serial numbers found. Paste at least one serial number.');
+    if (!pasteText.trim()) {
+      setPasteError('Please enter some serial numbers');
       return;
     }
 
-    // Check for duplicates in pasted list
-    const seen = new Set<string>();
-    const newRows: SerialItemEntry[] = [];
+    const lines = pasteText
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
 
-    for (const sn of lines) {
-      const lower = sn.toLowerCase();
-      if (seen.has(lower)) {
-        setPasteError(`Duplicate serial number in paste text: "${sn}"`);
-        return;
-      }
-      seen.add(lower);
-      newRows.push({
-        serialNumber: sn,
-        conditionLabel: 'Standby Good',
-        notes: '',
-      });
+    if (lines.length === 0) {
+      setPasteError('No valid serial numbers found');
+      return;
     }
 
+    const seen = new Set<string>();
+    const duplicates: string[] = [];
+    const newRows: SerialItemEntry[] = [];
+
+    lines.forEach((line) => {
+      if (seen.has(line)) {
+        duplicates.push(line);
+      } else {
+        seen.add(line);
+        newRows.push({
+          serialNumber: line,
+          conditionLabel: 'Standby Good',
+          notes: '',
+        });
+      }
+    });
+
+    if (duplicates.length > 0) {
+      setPasteError(`Duplicate serial numbers found in paste: ${duplicates.join(', ')}`);
+      return;
+    }
+
+    // Rule 12: Remove/ignore blank placeholder row automatically on paste
     setFormData((prev) => ({
       ...prev,
-      // If the current list only has 1 empty field, replace it; otherwise append
-      serialRows:
-        prev.serialRows.length === 1 && !prev.serialRows[0].serialNumber.trim()
-          ? newRows
-          : [...prev.serialRows, ...newRows],
+      serialRows: newRows,
     }));
-
     setPasteModalOpen(false);
     setPasteText('');
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
-
+  const handleSaveInternal = async (addAnother: boolean) => {
     if (!formData.warehouseId) {
       setErrorMsg('Please select a warehouse');
       return;
@@ -162,67 +189,83 @@ export const InitialStockModal: React.FC<InitialStockModalProps> = ({
       return;
     }
 
-    let cleanedSerialDetails: SerialItemEntry[] = [];
-    if (isSerialized) {
-      cleanedSerialDetails = formData.serialRows
-        .map((r) => ({
-          serialNumber: r.serialNumber.trim(),
-          conditionLabel: r.conditionLabel,
-          notes: r.notes.trim() || undefined as any,
-        }))
-        .filter((r) => r.serialNumber.length > 0);
-
-      if (cleanedSerialDetails.length === 0) {
-        setErrorMsg('At least one Serial Number is required for serialized items');
-        return;
-      }
-
-      // Check for duplicate SN in form
-      const seen = new Set<string>();
-      for (const entry of cleanedSerialDetails) {
-        const lower = entry.serialNumber.toLowerCase();
-        if (seen.has(lower)) {
-          setErrorMsg(`Duplicate Serial Number entered in form: "${entry.serialNumber}"`);
-          return;
-        }
-        seen.add(lower);
-      }
-    } else {
-      if (formData.quantity < 1) {
-        setErrorMsg('Quantity must be at least 1');
-        return;
-      }
-    }
-
     setIsSaving(true);
+    setErrorMsg(null);
 
     try {
-      const payload = {
-        movementType: 'INITIAL',
-        destinationWarehouseId: parseInt(formData.warehouseId, 10),
-        items: [
-          {
-            itemId: parseInt(formData.itemId, 10),
-            quantity: isSerialized ? cleanedSerialDetails.length : formData.quantity,
-            serialNumbers: isSerialized ? cleanedSerialDetails.map((s) => s.serialNumber) : undefined,
-            serialDetails: isSerialized
-              ? cleanedSerialDetails.map((s) => ({
-                  serialNumber: s.serialNumber,
-                  conditionLabel: s.conditionLabel,
-                  state: s.conditionLabel,
-                  notes: s.notes,
-                }))
-              : undefined,
-          },
-        ],
-      };
+      let itemsPayload: any[] = [];
+      if (isSerialized) {
+        const serials = formData.serialRows
+          .map((r) => ({
+            serialNumber: r.serialNumber.trim(),
+            conditionLabel: r.conditionLabel,
+            notes: r.notes.trim() || undefined,
+          }))
+          .filter((s) => Boolean(s.serialNumber));
 
-      await apiClient.post('/stock-movements', payload);
+        if (serials.length === 0) {
+          throw new Error('Please add at least one valid serial number');
+        }
+
+        const snSet = new Set<string>();
+        for (const s of serials) {
+          if (snSet.has(s.serialNumber)) {
+            throw new Error(`Duplicate serial number: ${s.serialNumber}`);
+          }
+          snSet.add(s.serialNumber);
+        }
+
+        itemsPayload = [
+          {
+            itemId: Number(formData.itemId),
+            quantity: serials.length,
+            serialDetails: serials,
+          },
+        ];
+      } else {
+        if (formData.quantity <= 0) {
+          throw new Error('Quantity must be greater than 0');
+        }
+        itemsPayload = [
+          {
+            itemId: Number(formData.itemId),
+            quantity: Number(formData.quantity),
+          },
+        ];
+      }
+
+      await apiClient.post('/stock-movements/incoming', {
+        movementType: 'INITIAL',
+        movementDate: formData.movementDate,
+        destinationWarehouseId: Number(formData.warehouseId),
+        referenceNumber: 'INITIAL-STOCK',
+        notes: formData.notes.trim() || undefined,
+        items: itemsPayload,
+      });
+
       onSuccess();
-      onClose();
+
+      if (addAnother) {
+        // Rule 11: KEEP Warehouse and Movement Date, RESET Item, Qty, SNs, Notes
+        const nextState = {
+          movementDate: formData.movementDate,
+          warehouseId: formData.warehouseId,
+          itemId: '',
+          quantity: 1,
+          serialRows: [{ serialNumber: '', conditionLabel: 'Standby Good', notes: '' }],
+          notes: '',
+        };
+        setFormData(nextState);
+        setInitialData(nextState);
+        setTimeout(() => {
+          itemSelectRef.current?.focus();
+        }, 50);
+      } else {
+        onClose();
+      }
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'An error occurred while recording initial stock');
+      setErrorMsg(err.message || 'Failed to record initial stock');
     } finally {
       setIsSaving(false);
     }
@@ -231,188 +274,155 @@ export const InitialStockModal: React.FC<InitialStockModalProps> = ({
   return (
     <>
       <Modal
-        isOpen={isOpen && !pasteModalOpen}
-        onClose={onClose}
-        title="Add Initial Stock"
-        maxWidth="600px"
+        isOpen={isOpen}
+        onClose={handleRequestClose}
+        title="Set Initial / Baseline Stock"
+        maxWidth="640px"
       >
-        <form onSubmit={handleSubmit}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSaveInternal(false);
+          }}
+        >
           <div className="modal-body">
-            {errorMsg && <div className="alert-error">{errorMsg}</div>}
-
-            <FormField label="Warehouse" required>
-              <Select
-                required
-                value={formData.warehouseId}
-                onChange={(e) => setFormData({ ...formData, warehouseId: e.target.value })}
-              >
-                <option value="">-- Select Warehouse --</option>
-                {warehouses.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name} {w.cityCode ? `(${w.cityCode})` : ''}
-                  </option>
-                ))}
-              </Select>
-            </FormField>
-
-            <FormField label="Item" required>
-              <Select
-                required
-                value={formData.itemId}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    itemId: e.target.value,
-                    serialRows: [{ serialNumber: '', conditionLabel: 'Standby Good', notes: '' }],
-                    quantity: 1,
-                  })
-                }
-              >
-                <option value="">-- Select Item --</option>
-                {items.map((i) => (
-                  <option key={i.id} value={i.id}>
-                    {i.name} {i.brand ? `[${i.brand}]` : ''} {i.modelNumber ? `(${i.modelNumber})` : ''}
-                  </option>
-                ))}
-              </Select>
-            </FormField>
-
-            {/* Read-only Item Metadata Banner */}
-            {selectedItem && (
-              <div
-                style={{
-                  backgroundColor: 'var(--accent-secondary-bg)',
-                  border: '1px solid var(--card-border)',
-                  borderRadius: '6px',
-                  padding: '10px 14px',
-                  marginBottom: '16px',
-                  fontSize: '13px',
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
-                  gap: '8px',
-                }}
-              >
-                <div>
-                  <span style={{ color: '#6B7280', fontSize: '11px', display: 'block' }}>Brand</span>
-                  <strong>{selectedItem.brand || '-'}</strong>
-                </div>
-                <div>
-                  <span style={{ color: '#6B7280', fontSize: '11px', display: 'block' }}>Model Number</span>
-                  <strong>{selectedItem.modelNumber || '-'}</strong>
-                </div>
-                <div>
-                  <span style={{ color: '#6B7280', fontSize: '11px', display: 'block' }}>Unit</span>
-                  <strong>{selectedItem.unit?.symbol || selectedItem.unit?.name || '-'}</strong>
-                </div>
-                <div>
-                  <span style={{ color: '#6B7280', fontSize: '11px', display: 'block' }}>Tracking</span>
-                  <strong>{selectedItem.trackingType}</strong>
-                </div>
+            {errorMsg && (
+              <div className="alert-error" style={{ marginBottom: '1rem' }}>
+                {errorMsg}
               </div>
             )}
 
-            {/* BULK: Quantity input */}
-            {!isSerialized ? (
-              <FormField label="Quantity" required>
-                <NumberInput
+            {/* Field Order 1: Warehouse * & Movement Date */}
+            <div className="form-grid" style={{ marginBottom: '1rem' }}>
+              <FormField label="Destination Warehouse" required style={{ marginBottom: 0 }}>
+                <Select
+                  ref={whSelectRef}
                   required
-                  min={1}
-                  value={formData.quantity}
-                  onChange={(val) => setFormData({ ...formData, quantity: val })}
+                  value={formData.warehouseId}
+                  onChange={(e) => setFormData({ ...formData, warehouseId: e.target.value })}
+                >
+                  <option value="">Select Warehouse...</option>
+                  {warehouses.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name} {w.cityCode ? `[${w.cityCode}]` : ''}
+                    </option>
+                  ))}
+                </Select>
+              </FormField>
+
+              <FormField label="Movement Date" required style={{ marginBottom: 0 }}>
+                <Input
+                  type="date"
+                  required
+                  value={formData.movementDate}
+                  onChange={(e) => setFormData({ ...formData, movementDate: e.target.value })}
                 />
               </FormField>
-            ) : (
-              /* SERIALIZED: Individual Serial Rows + Bulk Paste */
-              <div style={{ marginBottom: '16px' }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '8px',
+            </div>
+
+            {/* Field Order 2: Item * & Quantity */}
+            <div className="form-grid" style={{ marginBottom: '1rem' }}>
+              <FormField label="Item Master" required style={{ marginBottom: 0 }}>
+                <Select
+                  ref={itemSelectRef}
+                  required
+                  value={formData.itemId}
+                  onChange={(e) => {
+                    const newId = e.target.value;
+                    const it = items.find((i) => String(i.id) === newId);
+                    setFormData({
+                      ...formData,
+                      itemId: newId,
+                      serialRows:
+                        it?.trackingType === 'SERIALIZED'
+                          ? [{ serialNumber: '', conditionLabel: 'Standby Good', notes: '' }]
+                          : [],
+                    });
                   }}
                 >
-                  <label className="form-label" style={{ marginBottom: 0 }}>
-                    Serial Numbers <span className="form-label-required">*</span>
-                  </label>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setPasteModalOpen(true)}
-                    >
-                      <ClipboardList size={14} /> Paste SN List
-                    </Button>
-                    <span
-                      style={{
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        color: 'var(--accent-blue)',
-                        backgroundColor: 'rgba(34, 80, 161, 0.08)',
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                      }}
-                    >
-                      Quantity: {formData.serialRows.filter((r) => r.serialNumber.trim()).length}
-                    </span>
+                  <option value="">Select Item...</option>
+                  {items.map((i) => (
+                    <option key={i.id} value={i.id}>
+                      {i.name} {i.brand ? `(${i.brand})` : ''} — {i.trackingType}
+                    </option>
+                  ))}
+                </Select>
+              </FormField>
+
+              {!isSerialized ? (
+                <FormField label="Quantity" required style={{ marginBottom: 0 }}>
+                  <NumberInput
+                    min={1}
+                    required
+                    value={formData.quantity}
+                    onChange={(val) => setFormData({ ...formData, quantity: val || 1 })}
+                  />
+                </FormField>
+              ) : (
+                <FormField label="Serial Count" style={{ marginBottom: 0 }}>
+                  <div style={{ paddingTop: '8px', fontWeight: 600, color: '#2250A1' }}>
+                    {formData.serialRows.length} Serial Unit(s)
                   </div>
+                </FormField>
+              )}
+            </div>
+
+            {/* Field Order 3: Serialized SN grid if applicable */}
+            {isSerialized && (
+              <div
+                style={{
+                  border: '1px solid #E2E8F0',
+                  borderRadius: '6px',
+                  padding: '1rem',
+                  backgroundColor: '#F8FAFC',
+                  marginBottom: '1rem',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                  <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600, color: '#1E293B' }}>
+                    Serial Numbers ({formData.serialRows.length})
+                  </h4>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setPasteModalOpen(true)}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <ClipboardList size={14} /> Multi-SN Paste
+                  </Button>
                 </div>
 
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '10px',
-                    maxHeight: '260px',
-                    overflowY: 'auto',
-                    paddingRight: '4px',
-                  }}
-                >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto' }}>
                   {formData.serialRows.map((row, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 140px 1fr auto',
-                        gap: '8px',
-                        alignItems: 'center',
-                        backgroundColor: '#F9FAFB',
-                        padding: '8px',
-                        borderRadius: '6px',
-                        border: '1px solid #E5E7EB',
-                      }}
-                    >
+                    <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                       <Input
-                        type="text"
+                        placeholder={`Serial #${idx + 1}`}
                         required
-                        placeholder={`SN #${idx + 1}`}
                         value={row.serialNumber}
-                        onChange={(e) => handleSerialRowChange(idx, 'serialNumber', e.target.value)}
+                        onChange={(e) => handleSerialChange(idx, 'serialNumber', e.target.value)}
+                        style={{ flex: 2 }}
                       />
-
                       <Select
                         value={row.conditionLabel}
-                        onChange={(e) => handleSerialRowChange(idx, 'conditionLabel', e.target.value)}
+                        onChange={(e) => handleSerialChange(idx, 'conditionLabel', e.target.value)}
+                        style={{ flex: 1.5 }}
                       >
                         <option value="Standby Good">Standby Good</option>
                         <option value="Standby Bad">Standby Bad</option>
                         <option value="Under Repair">Under Repair</option>
                       </Select>
-
                       <Input
-                        type="text"
-                        placeholder="Note (optional)"
+                        placeholder="Notes (optional)"
                         value={row.notes}
-                        onChange={(e) => handleSerialRowChange(idx, 'notes', e.target.value)}
+                        onChange={(e) => handleSerialChange(idx, 'notes', e.target.value)}
+                        style={{ flex: 2 }}
                       />
-
                       {formData.serialRows.length > 1 && (
                         <button
                           type="button"
-                          className="btn-icon btn-icon-danger"
                           onClick={() => handleRemoveSerialField(idx)}
-                          title="Remove Serial Row"
+                          style={{ border: 'none', background: 'transparent', color: '#EF4444', cursor: 'pointer', padding: '4px' }}
                         >
                           <Trash2 size={16} />
                         </button>
@@ -421,68 +431,91 @@ export const InitialStockModal: React.FC<InitialStockModalProps> = ({
                   ))}
                 </div>
 
-                <div style={{ marginTop: '10px' }}>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleAddSerialField}
-                  >
-                    <Plus size={14} /> Add Serial Number
-                  </Button>
-                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleAddSerialField}
+                  style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <Plus size={14} /> Add Row
+                </Button>
               </div>
             )}
 
-            <FormField label="General Movement Note">
+            {/* Field Order 4: Notes */}
+            <FormField label="Initial Balance Notes" style={{ marginBottom: 0 }}>
               <Textarea
-                placeholder="Optional remarks regarding initial stock entry"
+                placeholder="e.g. Migration opening count, physical warehouse audit..."
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               />
             </FormField>
           </div>
 
-          <div className="modal-footer">
-            <Button variant="secondary" type="button" onClick={onClose} disabled={isSaving}>
+          <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Button variant="secondary" type="button" onClick={handleRequestClose} disabled={isSaving}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit" isLoading={isSaving}>
-              Record Initial Stock
-            </Button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Button
+                variant="secondary"
+                type="button"
+                onClick={() => handleSaveInternal(true)}
+                isLoading={isSaving}
+              >
+                Save &amp; Add Another
+              </Button>
+              <Button variant="primary" type="submit" isLoading={isSaving}>
+                Save Stock
+              </Button>
+            </div>
           </div>
         </form>
       </Modal>
 
-      {/* Paste Serial Numbers Modal */}
+      {/* Multi-SN Batch Paste Modal */}
       <Modal
         isOpen={pasteModalOpen}
         onClose={() => setPasteModalOpen(false)}
-        title="Paste Serial Numbers"
-        maxWidth="480px"
+        title="Multi-SN Batch Paste"
+        maxWidth="500px"
       >
         <div className="modal-body">
-          {pasteError && <div className="alert-error">{pasteError}</div>}
-          <p style={{ fontSize: '13px', color: '#4B5563', marginBottom: '8px' }}>
-            Paste a list of Serial Numbers below (one per line). Whitespace will be trimmed automatically.
-          </p>
-          <Textarea
-            rows={8}
-            placeholder={`SN-001\nSN-002\nSN-003`}
-            value={pasteText}
-            onChange={(e) => setPasteText(e.target.value)}
-            style={{ fontFamily: 'monospace', fontSize: '13px' }}
-          />
+          {pasteError && <div className="alert-error" style={{ marginBottom: '1rem' }}>{pasteError}</div>}
+          <FormField label="Paste Serial Numbers (One per line)" required>
+            <Textarea
+              rows={8}
+              placeholder={`SN-001\nSN-002\nSN-003`}
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+            />
+          </FormField>
         </div>
         <div className="modal-footer">
-          <Button variant="secondary" onClick={() => setPasteModalOpen(false)}>
+          <Button variant="secondary" type="button" onClick={() => setPasteModalOpen(false)}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleApplyPastedSerials}>
-            Apply Serial Numbers
+          <Button variant="primary" type="button" onClick={handleProcessPaste}>
+            Import Serials
           </Button>
         </div>
       </Modal>
+
+      <ConfirmModal
+        isOpen={showDiscardConfirm}
+        onClose={() => setShowDiscardConfirm(false)}
+        onConfirm={() => {
+          setShowDiscardConfirm(false);
+          onClose();
+        }}
+        title="Discard Unsaved Changes?"
+        message="You have unsaved changes in this form. Are you sure you want to discard them?"
+        confirmLabel="Discard Changes"
+        variant="danger"
+      />
     </>
   );
 };
+
+export default InitialStockModal;

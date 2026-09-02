@@ -30,22 +30,40 @@ export class CustomersService {
     const phone = createClientDto.phone?.trim() || null;
     const address = createClientDto.address?.trim() || null;
 
-    const client = await this.prisma.client.create({
-      data: {
-        name,
-        clientType,
-        email,
-        phone,
-        address,
-        isActive: true,
-      },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      const client = await tx.client.create({
+        data: {
+          name,
+          clientType,
+          email,
+          phone,
+          address,
+          isActive: true,
+        },
+      });
 
-    await this.auditLogs.logAction(userId, 'CREATE', 'clients', client.id, {
-      newValues: { name, clientType, email, phone, address, isActive: true },
-    });
+      if (createClientDto.primaryContact?.name?.trim()) {
+        const contactName = createClientDto.primaryContact.name.trim();
+        const contactEmail = createClientDto.primaryContact.email?.trim().toLowerCase() || null;
+        const contactPhone = createClientDto.primaryContact.phone?.trim() || null;
 
-    return client;
+        await tx.clientContact.create({
+          data: {
+            clientId: client.id,
+            name: contactName,
+            email: contactEmail,
+            phone: contactPhone,
+            isActive: true,
+          },
+        });
+      }
+
+      await this.auditLogs.logAction(userId, 'CREATE', 'clients', client.id, {
+        newValues: { name, clientType, email, phone, address, isActive: true },
+      });
+
+      return client;
+    });
   }
 
   async findAll(
