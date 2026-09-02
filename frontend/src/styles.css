@@ -1036,3 +1036,75 @@ tr:hover td {
   outline: none;
   box-shadow: 0 0 0 3px rgba(34, 80, 161, 0.1);
 }
+
+/* Print Styles for Delivery Order A4 Landscape */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm 15mm 12mm 15mm;
+  }
+
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    font-size: 9pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .no-print,
+  .dashboard-sidebar,
+  .dashboard-header,
+  .modal-overlay,
+  .modal-header,
+  .modal-footer,
+  .btn,
+  button {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .print-do-page {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .print-do-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 6px;
+    margin-bottom: 10px;
+    page-break-inside: auto;
+  }
+
+  .print-do-table th,
+  .print-do-table td {
+    padding: 5px 6px;
+    font-size: 8.5pt;
+  }
+
+  .print-do-table th {
+    background-color: #EBF3FA !important;
+    color: #1E293B !important;
+    font-weight: bold;
+    border: 1px solid #475569 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-do-table td {
+    border: 1px solid #64748B !important;
+  }
+
+  .print-do-table tr {
+    page-break-inside: avoid;
+  }
+}

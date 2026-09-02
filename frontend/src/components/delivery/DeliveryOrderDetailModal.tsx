@@ -140,7 +140,7 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
     const printContents = printContainerRef.current?.innerHTML;
     if (!printContents) return;
 
-    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    const printWindow = window.open('', '_blank', 'width=1100,height=750');
     if (printWindow) {
       printWindow.document.write(`
         <!DOCTYPE html>
@@ -148,11 +148,36 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
           <head>
             <title>Delivery Order - ${deliveryOrder.doNumber || 'Draft'}</title>
             <style>
-              @page { size: A4 portrait; margin: 12mm 15mm; }
-              body { font-family: Arial, sans-serif; color: #000; margin: 0; padding: 0; font-size: 9.5pt; }
-              table { width: 100%; border-collapse: collapse; }
-              th, td { border: 1px solid #333; padding: 6px 8px; font-size: 9pt; }
-              th { background-color: #f2f2f2; font-weight: bold; }
+              @page {
+                size: A4 landscape;
+                margin: 10mm 15mm 12mm 15mm;
+              }
+              * {
+                box-sizing: border-box;
+              }
+              body {
+                font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+                color: #000000;
+                background-color: #FFFFFF;
+                margin: 0;
+                padding: 0;
+                font-size: 9pt;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              table {
+                width: 100%;
+                border-collapse: collapse;
+              }
+              .print-do-table th {
+                background-color: #EBF3FA !important;
+                color: #1E293B !important;
+                font-weight: bold;
+                border: 1px solid #475569 !important;
+              }
+              .print-do-table td {
+                border: 1px solid #64748B !important;
+              }
             </style>
           </head>
           <body>
