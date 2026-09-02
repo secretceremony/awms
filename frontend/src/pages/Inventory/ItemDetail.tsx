@@ -13,7 +13,7 @@ interface ItemSerial {
   conditionLabel: string | null;
   notes: string | null;
   currentWarehouse?: { id: number; name: string; cityCode?: string | null };
-  currentProject?: { id: number; name: string; jobNo?: string | null; location?: string | null };
+  currentProject?: { id: number; name: string; location?: string | null };
 }
 
 interface WarehouseStockBalance {
@@ -24,31 +24,54 @@ interface WarehouseStockBalance {
 }
 
 export const ItemDetail = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [item, setItem] = useState<(Item & { warehouseStocks?: WarehouseStockBalance[] }) | null>(null);
+
+  const [item, setItem] = useState<Item | null>(null);
+  const [balances, setBalances] = useState<WarehouseStockBalance[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const fetchItem = async () => {
+  const fetchItemData = async () => {
+    if (!id) return;
+    setIsLoading(true);
+    setErrorMsg(null);
     try {
-      const res: any = await apiClient.get(`/items/${id}`);
-      setItem(res?.data || res);
-    } catch (err) {
-      console.error('Failed to load item detail:', err);
+      const [itemRes, balancesRes]: any = await Promise.all([
+        apiClient.get(`/items/${id}`),
+        apiClient.get(`/items/${id}/balances`),
+      ]);
+      setItem(itemRes?.data || itemRes);
+      setBalances(Array.isArray(balancesRes) ? balancesRes : balancesRes?.data || []);
+    } catch (err: any) {
+      console.error('Failed to load item:', err);
+      setErrorMsg(err.message || 'Failed to load item details');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchItem();
+    fetchItemData();
   }, [id, refreshKey]);
 
-  if (!item) {
+  if (isLoading) {
     return (
       <div className="page-container">
         <div className="table-loading">
           <p>Loading item details...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (errorMsg || !item) {
+    return (
+      <div className="page-container">
+        <p style={{ color: 'red' }}>{errorMsg || 'Item not found'}</p>
+        <Button onClick={() => navigate('/inventory')}>Back to Stock List</Button>
       </div>
     );
   }
@@ -72,13 +95,23 @@ export const ItemDetail = () => {
       ),
     },
     {
+      header: 'Condition / State',
+      key: 'state',
+      render: (s) => (
+        <StatusBadge
+          type="condition"
+          status={s.conditionLabel || s.state}
+        />
+      ),
+    },
+    {
       header: 'Current Location',
       key: 'currentWarehouse',
       render: (s) => {
         if (s.currentProject) {
           return (
             <span style={{ fontWeight: 600, color: '#1F2839' }}>
-              {s.currentProject.jobNo || s.currentProject.name || s.currentProject.location}
+              {s.currentProject.name || s.currentProject.location}
             </span>
           );
         }
@@ -210,8 +243,8 @@ export const ItemDetail = () => {
                 </tr>
               </thead>
               <tbody>
-                {item.warehouseStocks && item.warehouseStocks.length > 0 ? (
-                  item.warehouseStocks.map((ws) => (
+                {balances && balances.length > 0 ? (
+                  balances.map((ws) => (
                     <tr key={ws.id}>
                       <td style={{ fontWeight: 600, color: '#1F2839' }}>
                         {ws.warehouse.cityCode || ws.warehouse.name}

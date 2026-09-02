@@ -136,7 +136,7 @@ export class StocksService {
             },
             include: {
               currentWarehouse: { select: { id: true, name: true, cityCode: true } },
-              currentProject: { select: { id: true, name: true, jobNo: true, location: true } },
+              currentProject: { select: { id: true, name: true, location: true } },
               movementSerials: {
                 take: 1,
                 orderBy: { createdAt: 'asc' },
@@ -179,7 +179,7 @@ export class StocksService {
             let currentStatus = 'In Warehouse';
 
             if (s.currentProjectId && s.currentProject) {
-              locName = s.currentProject.jobNo || s.currentProject.name || s.currentProject.location;
+              locName = s.currentProject.name || s.currentProject.location;
               locType = 'PROJECT';
               currentStatus = 'Deploy';
             } else if (s.currentWarehouse) {

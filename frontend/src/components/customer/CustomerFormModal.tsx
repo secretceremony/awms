@@ -4,10 +4,11 @@ import { apiClient } from '../../api/client.js';
 
 export interface Customer {
   id: number;
-  name: string;
-  company: string | null;
-  phone: string | null;
+  name: string; // Company Name
+  code: string | null;
+  attnName: string | null;
   email: string | null;
+  phone: string | null;
   address: string | null;
   isActive: boolean;
 }
@@ -27,9 +28,10 @@ export const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
 }) => {
   const [formData, setFormData] = useState({
     name: '',
-    company: '',
-    phone: '',
+    code: '',
+    attnName: '',
     email: '',
+    phone: '',
     address: '',
   });
   const [isSaving, setIsSaving] = useState(false);
@@ -39,17 +41,19 @@ export const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
     if (customer) {
       setFormData({
         name: customer.name,
-        company: customer.company || '',
-        phone: customer.phone || '',
+        code: customer.code || '',
+        attnName: customer.attnName || '',
         email: customer.email || '',
+        phone: customer.phone || '',
         address: customer.address || '',
       });
     } else {
       setFormData({
         name: '',
-        company: '',
-        phone: '',
+        code: '',
+        attnName: '',
         email: '',
+        phone: '',
         address: '',
       });
     }
@@ -64,9 +68,10 @@ export const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
     try {
       const payload = {
         name: formData.name.trim(),
-        company: formData.company.trim() || undefined,
-        phone: formData.phone.trim() || undefined,
+        code: formData.code.trim() || undefined,
+        attnName: formData.attnName.trim() || undefined,
         email: formData.email.trim() || undefined,
+        phone: formData.phone.trim() || undefined,
         address: formData.address.trim() || undefined,
       };
 
@@ -83,7 +88,7 @@ export const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
       onClose();
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'An error occurred while saving the customer');
+      setErrorMsg(err.message || 'An error occurred while saving the user');
     } finally {
       setIsSaving(false);
     }
@@ -93,55 +98,67 @@ export const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={customer ? 'Edit Customer / Mitra' : 'Add Customer / Mitra'}
+      title={customer ? 'Edit User / Company' : 'Add New User / Company'}
       maxWidth="500px"
     >
       <form onSubmit={handleSubmit}>
         <div className="modal-body">
           {errorMsg && <div className="alert-error">{errorMsg}</div>}
 
-          <FormField label="Customer / Mitra Name" required>
+          <FormField label="Company Name" required>
             <Input
               type="text"
               required
-              placeholder="e.g. PT Alssa Logistics"
+              placeholder="e.g. PT Telekomunikasi Selular"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             />
           </FormField>
 
-          <FormField label="Company Name">
-            <Input
-              type="text"
-              placeholder="e.g. Corporate Entity"
-              value={formData.company}
-              onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-            />
-          </FormField>
-
-          <div className="form-grid" style={{ marginBottom: '1rem' }}>
-            <FormField label="Phone" style={{ marginBottom: 0 }}>
+          <div className="form-grid">
+            <FormField label="User Code">
               <Input
-                type="tel"
+                type="text"
+                placeholder="e.g. TELKOMSEL"
+                value={formData.code}
+                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+              />
+            </FormField>
+
+            <FormField label="Attn / PIC">
+              <Input
+                type="text"
+                placeholder="e.g. Budi Santoso"
+                value={formData.attnName}
+                onChange={(e) => setFormData({ ...formData, attnName: e.target.value })}
+              />
+            </FormField>
+          </div>
+
+          <div className="form-grid">
+            <FormField label="Email Address">
+              <Input
+                type="email"
+                placeholder="e.g. contact@company.com"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              />
+            </FormField>
+
+            <FormField label="Phone Number">
+              <Input
+                type="text"
                 placeholder="e.g. +62 812-3456-7890"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               />
             </FormField>
-
-            <FormField label="Email" style={{ marginBottom: 0 }}>
-              <Input
-                type="email"
-                placeholder="e.g. contact@alssa.com"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              />
-            </FormField>
           </div>
 
-          <FormField label="Address">
+          <FormField label="Office / Site Address">
             <Textarea
-              placeholder="Full address details"
+              rows={3}
+              placeholder="Street address, building, floor..."
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
             />
@@ -153,7 +170,7 @@ export const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
             Cancel
           </Button>
           <Button variant="primary" type="submit" isLoading={isSaving}>
-            {customer ? 'Save Changes' : 'Add Customer'}
+            {customer ? 'Save Changes' : 'Create User'}
           </Button>
         </div>
       </form>

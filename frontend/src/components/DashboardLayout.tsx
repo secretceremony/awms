@@ -43,7 +43,7 @@ export const DashboardLayout = () => {
     { type: 'header', label: 'Master Data' },
     { to: '/warehouses', label: 'Warehouses', icon: Warehouse },
     { to: '/projects', label: 'Projects', icon: Briefcase },
-    { to: '/customers', label: 'Customers', icon: Users },
+    { to: '/customers', label: 'Users', icon: Users },
     { to: '/units', label: 'Units', icon: Ruler },
     { type: 'header', label: 'Deliveries' },
     { to: '/delivery-orders', label: 'Delivery Orders', icon: Truck },

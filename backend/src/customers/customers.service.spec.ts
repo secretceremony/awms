@@ -41,6 +41,7 @@ describe('CustomersService', () => {
         name: 'Telkom Indonesia',
         code: 'TELKOM',
         attnName: 'Pak Budi',
+        email: 'budi@telkom.co.id',
         phone: '0812345678',
         address: 'Gatot Subroto',
         isActive: true,
@@ -53,6 +54,7 @@ describe('CustomersService', () => {
           name: 'Telkom Indonesia',
           code: 'TELKOM',
           attnName: 'Pak Budi',
+          email: 'budi@telkom.co.id',
           phone: '0812345678',
           address: 'Gatot Subroto',
         },
@@ -65,6 +67,7 @@ describe('CustomersService', () => {
           name: 'Telkom Indonesia',
           code: 'TELKOM',
           attnName: 'Pak Budi',
+          email: 'budi@telkom.co.id',
           phone: '0812345678',
           address: 'Gatot Subroto',
           isActive: true,
@@ -72,12 +75,13 @@ describe('CustomersService', () => {
       });
     });
 
-    it('should allow customer without code', async () => {
+    it('should allow customer without code or email', async () => {
       const mockCustomer = {
         id: 2,
         name: 'No Code Customer',
         code: null,
         attnName: null,
+        email: null,
         phone: null,
         address: null,
         isActive: true,
@@ -86,6 +90,7 @@ describe('CustomersService', () => {
 
       const result = await service.create({ name: 'No Code Customer' }, 1);
       expect(result.code).toBeNull();
+      expect(result.email).toBeNull();
     });
 
     it('should throw BadRequestException if duplicate code provided', async () => {

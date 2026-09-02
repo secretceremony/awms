@@ -102,7 +102,7 @@ export class StockMovementsService {
         include: {
           sourceWarehouse: { select: { id: true, name: true, cityCode: true, location: true } },
           destinationWarehouse: { select: { id: true, name: true, cityCode: true, location: true } },
-          project: { select: { id: true, name: true, jobNo: true, location: true } },
+          project: { select: { id: true, name: true, location: true } },
           createdBy: { select: { id: true, name: true, email: true } },
           items: {
             include: {
@@ -127,7 +127,7 @@ export class StockMovementsService {
       include: {
         sourceWarehouse: { select: { id: true, name: true, cityCode: true, location: true } },
         destinationWarehouse: { select: { id: true, name: true, cityCode: true, location: true } },
-        project: { select: { id: true, name: true, jobNo: true, location: true } },
+        project: { select: { id: true, name: true, location: true } },
         createdBy: { select: { id: true, name: true, email: true } },
         items: {
           include: {

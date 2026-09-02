@@ -1,4 +1,4 @@
-import { IsString, IsOptional, MaxLength } from 'class-validator';
+import { IsString, IsOptional, MaxLength, IsEmail } from 'class-validator';
 
 export class UpdateCustomerDto {
   @IsString()
@@ -9,20 +9,24 @@ export class UpdateCustomerDto {
   @IsString()
   @IsOptional()
   @MaxLength(50)
-  code?: string;
+  code?: string | null;
 
   @IsString()
   @IsOptional()
   @MaxLength(100)
-  attnName?: string;
+  attnName?: string | null;
+
+  @IsOptional()
+  @IsEmail({}, { message: 'Invalid email format' })
+  email?: string | null;
 
   @IsString()
   @IsOptional()
   @MaxLength(50)
-  phone?: string;
+  phone?: string | null;
 
   @IsString()
   @IsOptional()
   @MaxLength(255)
-  address?: string;
+  address?: string | null;
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { PaginatedTable, type Column } from '../components/PaginatedTable.js';
 import { apiClient } from '../api/client.js';
-import { Eye, Edit2, PowerOff, ArrowLeft } from 'lucide-react';
+import { Eye, Edit2, PowerOff, ArrowLeft, Plus } from 'lucide-react';
 import { Button, StatusBadge, PageHeader, Select, ConfirmModal } from '../components/ui/index.js';
 import { ProjectFormModal, type Project } from '../components/project/ProjectFormModal.js';
 
@@ -61,21 +61,47 @@ export const Projects = () => {
   };
 
   const listColumns: Column<Project>[] = [
-    { header: 'Job No.', key: 'jobNo', render: (item) => <code>{item.jobNo}</code> },
-    { header: 'Project Name', key: 'name' },
     {
-      header: 'Customer',
+      header: 'Project Name',
+      key: 'name',
+      render: (item) => <span style={{ fontWeight: 600, color: '#1F2839' }}>{item.name}</span>,
+    },
+    {
+      header: 'User / Company',
       key: 'customer',
       render: (item) => item.customer?.name || '-',
     },
-    { header: 'Location', key: 'location', render: (item) => item.location || '-' },
+    {
+      header: 'Reference No.',
+      key: 'referenceNumber',
+      render: (item) =>
+        item.referenceNumber ? (
+          <code>{item.referenceNumber}</code>
+        ) : (
+          <span style={{ color: '#9CA3AF' }}>-</span>
+        ),
+    },
+    {
+      header: 'Location',
+      key: 'location',
+      render: (item) => item.location || '-',
+    },
+    {
+      header: 'Leader',
+      key: 'leaderName',
+      render: (item) => item.leaderName || '-',
+    },
+    {
+      header: 'Attn / PIC',
+      key: 'attnName',
+      render: (item) => item.attnName || '-',
+    },
     {
       header: 'Status',
       key: 'status',
       render: (item) => {
-        let label = item.status;
-        let isActive = item.status === 'ACTIVE';
-        return <StatusBadge status={isActive} label={label} />;
+        const isActive = item.status === 'ACTIVE';
+        return <StatusBadge status={isActive} label={item.status} />;
       },
     },
     {
@@ -170,8 +196,8 @@ export const Projects = () => {
           </div>
 
           <PageHeader
-            title={`${viewingProject.jobNo} - ${viewingProject.name}`}
-            description={`Customer: ${viewingProject.customer?.name || '-'} • Location: ${viewingProject.location || 'N/A'}`}
+            title={viewingProject.name}
+            description={`User / Company: ${viewingProject.customer?.name || '-'} • Reference: ${viewingProject.referenceNumber || 'N/A'} • Location: ${viewingProject.location || 'N/A'}`}
             actions={
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                 <StatusBadge status={viewingProject.status === 'ACTIVE'} label={viewingProject.status} />
@@ -211,7 +237,7 @@ export const Projects = () => {
         <div>
           <PageHeader
             title="Projects"
-            description="Manage client project deployments and tracked equipment."
+            description="Manage client project deployments, reference numbers, and equipment tracking."
             actions={
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                 <Select
@@ -236,7 +262,7 @@ export const Projects = () => {
                 </Select>
 
                 <Button variant="primary" onClick={openCreateModal}>
-                  Add Project
+                  <Plus size={16} /> Add Project
                 </Button>
               </div>
             }
@@ -245,9 +271,9 @@ export const Projects = () => {
           <PaginatedTable<Project>
             key={`projects-${statusFilter}-${projectStatusFilter}-${refreshKey}`}
             fetchUrl="/projects"
-            searchPlaceholder="Search projects by job no, name, or customer..."
+            searchPlaceholder="Search projects by name, reference no, user, or location..."
             extraParams={{
-              status: statusFilter,
+              status: statusFilter !== 'all' ? statusFilter : undefined,
               projectStatus: projectStatusFilter !== 'all' ? projectStatusFilter : undefined,
             }}
             columns={listColumns}
@@ -269,7 +295,7 @@ export const Projects = () => {
         onClose={() => setDeactivatingProject(null)}
         onConfirm={handleDeactivate}
         title="Deactivate Project"
-        message={`Are you sure you want to deactivate project "${deactivatingProject?.name}" (${deactivatingProject?.jobNo})?`}
+        message={`Are you sure you want to deactivate project "${deactivatingProject?.name}"?`}
         confirmText="Deactivate"
         isDestructive
         isLoading={isDeactivating}

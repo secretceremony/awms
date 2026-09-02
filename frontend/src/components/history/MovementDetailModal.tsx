@@ -92,7 +92,7 @@ export const MovementDetailModal: React.FC<MovementDetailModalProps> = ({
   } else if (movement?.sourceWarehouse) {
     locationDisplay = `${movement.sourceWarehouse.name} (${movement.sourceWarehouse.cityCode || 'WH'})`;
   } else if (movement?.project) {
-    locationDisplay = `${movement.project.name} [${movement.project.jobNo || 'PRJ'}]`;
+    locationDisplay = movement.project.name;
   }
 
   return (

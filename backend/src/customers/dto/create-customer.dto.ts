@@ -1,8 +1,8 @@
-import { IsString, IsNotEmpty, IsOptional, MaxLength } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, MaxLength, IsEmail } from 'class-validator';
 
 export class CreateCustomerDto {
   @IsString()
-  @IsNotEmpty({ message: 'Customer name is required' })
+  @IsNotEmpty({ message: 'Company name is required' })
   @MaxLength(100)
   name!: string;
 
@@ -15,6 +15,10 @@ export class CreateCustomerDto {
   @IsOptional()
   @MaxLength(100)
   attnName?: string;
+
+  @IsOptional()
+  @IsEmail({}, { message: 'Invalid email format' })
+  email?: string;
 
   @IsString()
   @IsOptional()

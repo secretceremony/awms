@@ -115,19 +115,18 @@ model Customer {
 }
 
 model Project {
-  id          Int           @id @default(autoincrement())
-  name        String
-  jobNo       String?       @map("job_no")
-  location    String
-  attnName    String?       @map("attn_name")
-  leaderName  String?       @map("leader_name")
-  activity    String?
-  status      ProjectStatus @default(ACTIVE)
-  startedAt   DateTime?     @map("started_at")
-  endedAt     DateTime?     @map("ended_at")
-  customerId  Int?          @map("customer_id")
-  customer    Customer?     @relation(fields: [customerId], references: [id])
-  isActive    Boolean       @default(true) @map("is_active")
+  id              Int           @id @default(autoincrement())
+  name            String
+  referenceNumber String?       @map("reference_number")
+  location        String
+  attnName        String?       @map("attn_name")
+  leaderName      String?       @map("leader_name")
+  status          ProjectStatus @default(ACTIVE)
+  startedAt       DateTime?     @map("started_at")
+  endedAt         DateTime?     @map("ended_at")
+  customerId      Int?          @map("customer_id")
+  customer        Customer?     @relation(fields: [customerId], references: [id])
+  isActive        Boolean       @default(true) @map("is_active")
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
 

@@ -26,6 +26,7 @@ export class CustomersService {
     const name = createCustomerDto.name.trim();
     const code = createCustomerDto.code?.trim().toUpperCase() || null;
     const attnName = createCustomerDto.attnName?.trim() || null;
+    const email = createCustomerDto.email?.trim().toLowerCase() || null;
     const phone = createCustomerDto.phone?.trim() || null;
     const address = createCustomerDto.address?.trim() || null;
 
@@ -35,7 +36,7 @@ export class CustomersService {
       });
       if (existing) {
         throw new BadRequestException(
-          `Customer with code "${code}" already exists`,
+          `User/Company with code "${code}" already exists`,
         );
       }
     }
@@ -45,6 +46,7 @@ export class CustomersService {
         name,
         code,
         attnName,
+        email,
         phone,
         address,
         isActive: true,
@@ -52,7 +54,7 @@ export class CustomersService {
     });
 
     await this.auditLogs.logAction(userId, 'CREATE', 'customers', customer.id, {
-      newValues: { name, code, attnName, phone, address, isActive: true },
+      newValues: { name, code, attnName, email, phone, address, isActive: true },
     });
 
     return customer;
@@ -80,6 +82,7 @@ export class CustomersService {
         { name: { contains: search, mode: 'insensitive' } },
         { code: { contains: search, mode: 'insensitive' } },
         { attnName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
         { phone: { contains: search, mode: 'insensitive' } },
       ];
     }
@@ -104,7 +107,7 @@ export class CustomersService {
       where: { id },
     });
     if (!customer) {
-      throw new NotFoundException(`Customer with ID ${id} not found`);
+      throw new NotFoundException(`User/Company with ID ${id} not found`);
     }
     return customer;
   }
@@ -125,6 +128,10 @@ export class CustomersService {
       updateCustomerDto.attnName !== undefined
         ? updateCustomerDto.attnName?.trim() || null
         : undefined;
+    const email =
+      updateCustomerDto.email !== undefined
+        ? updateCustomerDto.email?.trim().toLowerCase() || null
+        : undefined;
     const phone =
       updateCustomerDto.phone !== undefined
         ? updateCustomerDto.phone?.trim() || null
@@ -140,7 +147,7 @@ export class CustomersService {
       });
       if (existing) {
         throw new BadRequestException(
-          `Customer with code "${code}" already exists`,
+          `User/Company with code "${code}" already exists`,
         );
       }
     }
@@ -151,6 +158,7 @@ export class CustomersService {
         ...(name && { name }),
         ...(code !== undefined && { code }),
         ...(attnName !== undefined && { attnName }),
+        ...(email !== undefined && { email }),
         ...(phone !== undefined && { phone }),
         ...(address !== undefined && { address }),
       },
@@ -161,6 +169,7 @@ export class CustomersService {
         name: customer.name,
         code: customer.code,
         attnName: customer.attnName,
+        email: customer.email,
         phone: customer.phone,
         address: customer.address,
       },
@@ -168,6 +177,7 @@ export class CustomersService {
         name: updatedCustomer.name,
         code: updatedCustomer.code,
         attnName: updatedCustomer.attnName,
+        email: updatedCustomer.email,
         phone: updatedCustomer.phone,
         address: updatedCustomer.address,
       },
@@ -179,20 +189,14 @@ export class CustomersService {
   async deactivate(id: number, userId: number) {
     const customer = await this.findOne(id);
 
-    if (!customer.isActive) {
-      throw new BadRequestException(
-        `Customer "${customer.name}" is already inactive`,
-      );
-    }
-
     const updatedCustomer = await this.prisma.customer.update({
       where: { id },
       data: { isActive: false },
     });
 
     await this.auditLogs.logAction(userId, 'DEACTIVATE', 'customers', id, {
-      oldValues: { name: customer.name, isActive: true },
-      newValues: { name: customer.name, isActive: false },
+      oldValues: { isActive: customer.isActive },
+      newValues: { isActive: false },
     });
 
     return updatedCustomer;

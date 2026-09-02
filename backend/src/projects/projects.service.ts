@@ -26,11 +26,23 @@ export class ProjectsService {
   async create(createProjectDto: CreateProjectDto, userId: number) {
     const name = createProjectDto.name.trim();
     const location = createProjectDto.location.trim();
-    const jobNo = createProjectDto.jobNo?.trim() || null;
+    const referenceNumber = createProjectDto.referenceNumber?.trim() || null;
     const attnName = createProjectDto.attnName?.trim() || null;
     const leaderName = createProjectDto.leaderName?.trim() || null;
-    const activity = createProjectDto.activity?.trim() || null;
-    const customerId = createProjectDto.customerId ?? null;
+    const customerId = createProjectDto.customerId;
+
+    if (!customerId) {
+      throw new BadRequestException('User / Company is required for a project');
+    }
+
+    const customer = await this.prisma.customer.findUnique({
+      where: { id: customerId },
+    });
+    if (!customer || !customer.isActive) {
+      throw new BadRequestException(
+        'Selected user/company is inactive or not found',
+      );
+    }
 
     const startedAt = createProjectDto.startedAt
       ? new Date(createProjectDto.startedAt)
@@ -45,25 +57,13 @@ export class ProjectsService {
       );
     }
 
-    if (customerId) {
-      const customer = await this.prisma.customer.findUnique({
-        where: { id: customerId },
-      });
-      if (!customer || !customer.isActive) {
-        throw new BadRequestException(
-          'Selected customer is inactive or not found',
-        );
-      }
-    }
-
     const project = await this.prisma.project.create({
       data: {
         name,
         location,
-        jobNo,
+        referenceNumber,
         attnName,
         leaderName,
-        activity,
         status: ProjectStatus.ACTIVE,
         startedAt,
         endedAt,
@@ -79,10 +79,9 @@ export class ProjectsService {
       newValues: {
         name,
         location,
-        jobNo,
+        referenceNumber,
         attnName,
         leaderName,
-        activity,
         status: ProjectStatus.ACTIVE,
         startedAt,
         endedAt,
@@ -123,8 +122,10 @@ export class ProjectsService {
     if (search) {
       whereClause.OR = [
         { name: { contains: search, mode: 'insensitive' } },
-        { jobNo: { contains: search, mode: 'insensitive' } },
+        { referenceNumber: { contains: search, mode: 'insensitive' } },
         { location: { contains: search, mode: 'insensitive' } },
+        { attnName: { contains: search, mode: 'insensitive' } },
+        { leaderName: { contains: search, mode: 'insensitive' } },
         {
           customer: {
             name: { contains: search, mode: 'insensitive' },
@@ -188,9 +189,9 @@ export class ProjectsService {
 
     const name = updateProjectDto.name?.trim();
     const location = updateProjectDto.location?.trim();
-    const jobNo =
-      updateProjectDto.jobNo !== undefined
-        ? updateProjectDto.jobNo?.trim() || null
+    const referenceNumber =
+      updateProjectDto.referenceNumber !== undefined
+        ? updateProjectDto.referenceNumber?.trim() || null
         : undefined;
     const attnName =
       updateProjectDto.attnName !== undefined
@@ -200,10 +201,6 @@ export class ProjectsService {
       updateProjectDto.leaderName !== undefined
         ? updateProjectDto.leaderName?.trim() || null
         : undefined;
-    const activity =
-      updateProjectDto.activity !== undefined
-        ? updateProjectDto.activity?.trim() || null
-        : undefined;
     const customerId = updateProjectDto.customerId;
 
     if (customerId && customerId !== project.customerId) {
@@ -212,7 +209,7 @@ export class ProjectsService {
       });
       if (!customer || !customer.isActive) {
         throw new BadRequestException(
-          'Selected customer is inactive or not found',
+          'Selected user/company is inactive or not found',
         );
       }
     }
@@ -242,10 +239,9 @@ export class ProjectsService {
       data: {
         ...(name && { name }),
         ...(location && { location }),
-        ...(jobNo !== undefined && { jobNo }),
+        ...(referenceNumber !== undefined && { referenceNumber }),
         ...(attnName !== undefined && { attnName }),
         ...(leaderName !== undefined && { leaderName }),
-        ...(activity !== undefined && { activity }),
         ...(customerId !== undefined && { customerId }),
         ...(updateProjectDto.startedAt !== undefined && { startedAt }),
         ...(updateProjectDto.endedAt !== undefined && { endedAt }),
@@ -259,10 +255,9 @@ export class ProjectsService {
       oldValues: {
         name: project.name,
         location: project.location,
-        jobNo: project.jobNo,
+        referenceNumber: project.referenceNumber,
         attnName: project.attnName,
         leaderName: project.leaderName,
-        activity: project.activity,
         customerId: project.customerId,
         startedAt: project.startedAt,
         endedAt: project.endedAt,
@@ -270,10 +265,9 @@ export class ProjectsService {
       newValues: {
         name: updatedProject.name,
         location: updatedProject.location,
-        jobNo: updatedProject.jobNo,
+        referenceNumber: updatedProject.referenceNumber,
         attnName: updatedProject.attnName,
         leaderName: updatedProject.leaderName,
-        activity: updatedProject.activity,
         customerId: updatedProject.customerId,
         startedAt: updatedProject.startedAt,
         endedAt: updatedProject.endedAt,

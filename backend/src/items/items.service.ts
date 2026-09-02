@@ -205,7 +205,7 @@ export class ItemsService {
         take,
         include: {
           currentWarehouse: { select: { id: true, name: true, cityCode: true } },
-          currentProject: { select: { id: true, name: true, jobNo: true, location: true } },
+          currentProject: { select: { id: true, name: true, location: true } },
         },
         orderBy: { serialNumber: 'asc' },
       }),

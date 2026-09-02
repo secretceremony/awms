@@ -26,7 +26,6 @@ interface StockMovement {
   project?: {
     id: number;
     name: string;
-    jobNo?: string | null;
   };
   createdBy?: {
     name: string;
@@ -117,7 +116,7 @@ export const MovementHistory = () => {
       key: 'project',
       render: (m) => (
         <span style={{ fontSize: '13px', color: '#4B5563' }}>
-          {m.project?.jobNo || m.project?.name || '-'}
+          {m.project?.name || '-'}
         </span>
       ),
     },

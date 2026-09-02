@@ -19,7 +19,7 @@ export const Orders = () => {
       render: (item) => new Date(item.doDate).toLocaleDateString()
     },
     { 
-      header: 'Customer', 
+      header: 'User / Company', 
       key: 'customer',
       render: (item) => item.customer?.name || '-'
     },

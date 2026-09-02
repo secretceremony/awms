@@ -5,6 +5,7 @@ import {
   MaxLength,
   IsInt,
   IsDateString,
+  IsPositive,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -14,20 +15,20 @@ export class CreateProjectDto {
   @MaxLength(100)
   name!: string;
 
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive({ message: 'User / Company is required' })
+  customerId!: number;
+
   @IsString()
   @IsNotEmpty({ message: 'Location is required' })
   @MaxLength(255)
   location!: string;
 
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  customerId?: number;
-
   @IsString()
   @IsOptional()
   @MaxLength(100)
-  jobNo?: string;
+  referenceNumber?: string;
 
   @IsString()
   @IsOptional()
@@ -38,11 +39,6 @@ export class CreateProjectDto {
   @IsOptional()
   @MaxLength(100)
   leaderName?: string;
-
-  @IsString()
-  @IsOptional()
-  @MaxLength(255)
-  activity?: string;
 
   @IsOptional()
   @IsDateString()

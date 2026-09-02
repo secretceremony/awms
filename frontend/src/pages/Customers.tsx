@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { PaginatedTable, type Column } from '../components/PaginatedTable.js';
 import { apiClient } from '../api/client.js';
-import { Edit2, PowerOff } from 'lucide-react';
+import { Edit2, PowerOff, Plus } from 'lucide-react';
 import { Button, StatusBadge, PageHeader, Select, ConfirmModal } from '../components/ui/index.js';
 import { CustomerFormModal, type Customer } from '../components/customer/CustomerFormModal.js';
 
@@ -36,17 +36,47 @@ export const Customers = () => {
       setDeactivatingCustomer(null);
     } catch (err: any) {
       console.error(err);
-      alert(err.message || 'Failed to deactivate customer');
+      alert(err.message || 'Failed to deactivate user');
     } finally {
       setIsDeactivating(false);
     }
   };
 
   const listColumns: Column<Customer>[] = [
-    { header: 'Name', key: 'name' },
-    { header: 'Company', key: 'company', render: (item) => item.company || '-' },
-    { header: 'Phone', key: 'phone', render: (item) => item.phone || '-' },
-    { header: 'Email', key: 'email', render: (item) => item.email || '-' },
+    {
+      header: 'Company',
+      key: 'name',
+      render: (item) => <span style={{ fontWeight: 600, color: '#1F2839' }}>{item.name}</span>,
+    },
+    {
+      header: 'Code',
+      key: 'code',
+      render: (item) => (item.code ? <code>{item.code}</code> : '-'),
+    },
+    {
+      header: 'Attn / PIC',
+      key: 'attnName',
+      render: (item) => item.attnName || '-',
+    },
+    {
+      header: 'Email',
+      key: 'email',
+      render: (item) => item.email || '-',
+    },
+    {
+      header: 'Phone',
+      key: 'phone',
+      render: (item) => item.phone || '-',
+    },
+    {
+      header: 'Address',
+      key: 'address',
+      render: (item) => (
+        <span style={{ fontSize: '12px', color: '#4B5563', maxWidth: '240px', display: 'inline-block' }}>
+          {item.address || '-'}
+        </span>
+      ),
+    },
     {
       header: 'Status',
       key: 'isActive',
@@ -60,7 +90,7 @@ export const Customers = () => {
           <button
             className="btn-icon"
             onClick={() => openEditModal(item)}
-            title="Edit Customer"
+            title="Edit User / Company"
           >
             <Edit2 size={16} />
           </button>
@@ -68,7 +98,7 @@ export const Customers = () => {
             <button
               className="btn-icon btn-icon-danger"
               onClick={() => setDeactivatingCustomer(item)}
-              title="Deactivate Customer"
+              title="Deactivate User"
             >
               <PowerOff size={16} />
             </button>
@@ -81,8 +111,8 @@ export const Customers = () => {
   return (
     <div className="page-container">
       <PageHeader
-        title="Customers / Mitra"
-        description="Manage corporate clients, partners, and contacts."
+        title="User Management"
+        description="Manage business client companies, contractors, and contact personnel."
         actions={
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
             <Select
@@ -96,21 +126,23 @@ export const Customers = () => {
             </Select>
 
             <Button variant="primary" onClick={openCreateModal}>
-              Add Customer
+              <Plus size={16} /> Add User
             </Button>
           </div>
         }
       />
 
       <PaginatedTable<Customer>
-        key={`customers-${statusFilter}-${refreshKey}`}
+        key={`customers-table-${statusFilter}-${refreshKey}`}
         fetchUrl="/customers"
-        searchPlaceholder="Search customers by name, company, or email..."
-        extraParams={{ status: statusFilter }}
+        searchPlaceholder="Search by company name, code, contact person, or email..."
+        extraParams={{
+          status: statusFilter !== 'all' ? statusFilter : undefined,
+        }}
         columns={listColumns}
       />
 
-      {/* Form Modal */}
+      {/* Create / Edit User Modal */}
       <CustomerFormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -123,8 +155,8 @@ export const Customers = () => {
         isOpen={!!deactivatingCustomer}
         onClose={() => setDeactivatingCustomer(null)}
         onConfirm={handleDeactivate}
-        title="Deactivate Customer"
-        message={`Are you sure you want to deactivate customer "${deactivatingCustomer?.name}"? Associated projects and records will remain archived.`}
+        title="Deactivate User / Company"
+        message={`Are you sure you want to deactivate user "${deactivatingCustomer?.name}"? Projects already linked to this user will remain intact.`}
         confirmText="Deactivate"
         isDestructive
         isLoading={isDeactivating}

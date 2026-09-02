@@ -21,12 +21,12 @@ export class UpdateProjectDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  customerId?: number | null;
+  customerId?: number;
 
   @IsString()
   @IsOptional()
   @MaxLength(100)
-  jobNo?: string | null;
+  referenceNumber?: string | null;
 
   @IsString()
   @IsOptional()
@@ -37,11 +37,6 @@ export class UpdateProjectDto {
   @IsOptional()
   @MaxLength(100)
   leaderName?: string | null;
-
-  @IsString()
-  @IsOptional()
-  @MaxLength(255)
-  activity?: string | null;
 
   @IsOptional()
   @IsDateString()

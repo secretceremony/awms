@@ -67,7 +67,7 @@ export class DashboardService {
         include: {
           destinationWarehouse: { select: { name: true, cityCode: true } },
           sourceWarehouse: { select: { name: true, cityCode: true } },
-          project: { select: { name: true, jobNo: true } },
+          project: { select: { name: true, location: true } },
           createdBy: { select: { name: true } },
           items: {
             select: {
@@ -89,7 +89,7 @@ export class DashboardService {
       } else if (m.sourceWarehouse) {
         location = m.sourceWarehouse.cityCode || m.sourceWarehouse.name;
       } else if (m.project) {
-        location = m.project.jobNo || m.project.name;
+        location = m.project.name;
       }
 
       const totalItemsCount = m.items.reduce((acc, curr) => acc + curr.quantity, 0);
