@@ -98,25 +98,40 @@ export class StockMovementsController {
     });
   }
 
+  @Get('project-inventory')
+  getProjectInventory(
+    @Query('projectId', ParseIntPipe) projectId: number,
+    @Query('search') search?: string,
+  ) {
+    return this.stockMovementsService.getAvailableProjectInventory(projectId, search);
+  }
+
   @Post('incoming')
   createIncoming(
     @Body() createDto: CreateStockMovementDto,
     @CurrentUser() user: any,
   ) {
-    createDto.movementType = 'INCOMING' as any;
+    if (!createDto.movementType) {
+      createDto.movementType = 'INCOMING' as any;
+    }
     return this.stockMovementsService.createMovement(user.id, createDto);
   }
 
   @Get('incoming')
   findIncomingMovements(
     @Query() paginationDto: PaginationDto,
+    @Query('movementType') movementType?: string,
+    @Query('type') type?: string,
     @Query('warehouseId') warehouseId?: number,
+    @Query('projectId') projectId?: number,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
     return this.stockMovementsService.findAllIncoming({
       ...paginationDto,
+      movementType: movementType || type,
       warehouseId,
+      projectId,
       startDate,
       endDate,
     });

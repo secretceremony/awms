@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PaginatedTable, type Column } from '../../components/PaginatedTable.js';
 import { apiClient } from '../../api/client.js';
-import { Eye, Plus } from 'lucide-react';
+import { Eye, Plus, RotateCcw, PackageCheck } from 'lucide-react';
 import { Button, PageHeader, Select, Input } from '../../components/ui/index.js';
 import { AddIncomingModal } from '../../components/inventory/AddIncomingModal.js';
 import { IncomingDetailModal } from '../../components/inventory/IncomingDetailModal.js';
@@ -11,6 +11,7 @@ import { FilterBar, FilterPanel, type ActiveFilter } from '../../components/filt
 interface StockMovement {
   id: number;
   movementNumber: string;
+  movementType: 'INCOMING' | 'RETURN';
   movementDate: string;
   referenceNumber: string | null;
   notes: string | null;
@@ -18,6 +19,16 @@ interface StockMovement {
     id: number;
     name: string;
     cityCode?: string | null;
+  };
+  project?: {
+    id: number;
+    name: string;
+    siteCode?: string | null;
+    client?: { name: string };
+  };
+  deliveryOrder?: {
+    id: number;
+    doNumber: string | null;
   };
   createdBy?: {
     name: string;
@@ -49,36 +60,43 @@ interface StockMovement {
 export const Incoming: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // URL state
+  // URL State
   const search = searchParams.get('search') || '';
+  const movementType = searchParams.get('type') || searchParams.get('movementType') || 'ALL';
   const warehouseId = searchParams.get('warehouseId') || '';
+  const projectId = searchParams.get('projectId') || '';
   const dateFrom = searchParams.get('dateFrom') || '';
   const dateTo = searchParams.get('dateTo') || '';
 
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [warehouses, setWarehouses] = useState<{ id: number; name: string; cityCode?: string | null }[]>([]);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [projects, setProjects] = useState<{ id: number; name: string; siteCode?: string | null }[]>([]);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedMovementId, setSelectedMovementId] = useState<number | null>(null);
 
   useEffect(() => {
-    const fetchWarehouses = async () => {
+    const fetchDependencies = async () => {
       try {
-        const res: any = await apiClient.get('/warehouses', { params: { limit: 100, status: 'active' } });
-        setWarehouses(Array.isArray(res) ? res : res?.data || []);
+        const [whRes, projRes]: any = await Promise.all([
+          apiClient.get('/warehouses', { params: { limit: 100, status: 'active' } }),
+          apiClient.get('/projects', { params: { limit: 100 } }),
+        ]);
+        setWarehouses(Array.isArray(whRes) ? whRes : whRes?.data || []);
+        setProjects(Array.isArray(projRes) ? projRes : projRes?.data || []);
       } catch (err) {
-        console.error('Failed to load warehouses for filter:', err);
+        console.error('Failed to load filter dependencies:', err);
       }
     };
-    fetchWarehouses();
+    fetchDependencies();
   }, []);
 
   const updateFilters = (updates: Record<string, string | number | null>) => {
     const nextParams = new URLSearchParams(searchParams);
     Object.entries(updates).forEach(([key, val]) => {
-      if (val === null || val === undefined || val === '' || val === 'all') {
+      if (val === null || val === undefined || val === '' || val === 'ALL' || val === 'all') {
         nextParams.delete(key);
       } else {
         nextParams.set(key, String(val));
@@ -94,14 +112,32 @@ export const Incoming: React.FC = () => {
     setSearchParams(new URLSearchParams());
   };
 
+  // Active filter badges
   const activeFilters: ActiveFilter[] = [];
+  if (movementType && movementType !== 'ALL') {
+    activeFilters.push({
+      key: 'type',
+      label: 'Type',
+      valueDisplay: movementType === 'INCOMING' ? 'Regular Incoming' : 'Project Return',
+      onClear: () => updateFilters({ type: null, movementType: null }),
+    });
+  }
   if (warehouseId) {
     const matchedWh = warehouses.find((w) => String(w.id) === warehouseId);
     activeFilters.push({
       key: 'warehouseId',
       label: 'Warehouse',
-      valueDisplay: matchedWh ? (matchedWh.cityCode || matchedWh.name) : `WH #${warehouseId}`,
+      valueDisplay: matchedWh ? `${matchedWh.name} [${matchedWh.cityCode || ''}]` : warehouseId,
       onClear: () => updateFilters({ warehouseId: null }),
+    });
+  }
+  if (projectId) {
+    const matchedProj = projects.find((p) => String(p.id) === projectId);
+    activeFilters.push({
+      key: 'projectId',
+      label: 'Project',
+      valueDisplay: matchedProj ? matchedProj.name : projectId,
+      onClear: () => updateFilters({ projectId: null }),
     });
   }
   if (dateFrom) {
@@ -136,6 +172,34 @@ export const Incoming: React.FC = () => {
       ),
     },
     {
+      header: 'Type',
+      key: 'movementType',
+      render: (m) => {
+        const isReturn = m.movementType === 'RETURN';
+        return (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '3px 8px',
+              borderRadius: '12px',
+              fontSize: '11px',
+              fontWeight: 700,
+              backgroundColor: isReturn ? '#F5F3FF' : '#EFF6FF',
+              color: isReturn ? '#7C3AED' : '#2250A1',
+              border: `1px solid ${isReturn ? '#DDD6FE' : '#BFDBFE'}`,
+              textTransform: 'uppercase',
+              letterSpacing: '0.3px',
+            }}
+          >
+            {isReturn ? <RotateCcw size={12} /> : <PackageCheck size={12} />}
+            {isReturn ? 'Return' : 'Incoming'}
+          </span>
+        );
+      },
+    },
+    {
       header: 'Warehouse',
       key: 'destinationWarehouse',
       render: (m) => (
@@ -143,6 +207,26 @@ export const Incoming: React.FC = () => {
           {m.destinationWarehouse?.cityCode || m.destinationWarehouse?.name || '-'}
         </span>
       ),
+    },
+    {
+      header: 'Project / Source',
+      key: 'project',
+      render: (m) => {
+        if (m.movementType === 'RETURN' && m.project) {
+          return (
+            <div>
+              <div style={{ fontWeight: 600, color: '#1F2839', fontSize: '13px' }}>
+                {m.project.siteCode ? `[${m.project.siteCode}] ` : ''}
+                {m.project.name}
+              </div>
+              {m.project.client?.name && (
+                <div style={{ fontSize: '11px', color: '#6B7280' }}>{m.project.client.name}</div>
+              )}
+            </div>
+          );
+        }
+        return <span style={{ color: '#9CA3AF', fontSize: '12px' }}>External</span>;
+      },
     },
     {
       header: 'Item',
@@ -158,8 +242,8 @@ export const Incoming: React.FC = () => {
                 style={{
                   marginLeft: '6px',
                   fontSize: '11px',
-                  backgroundColor: '#EFF6FF',
-                  color: '#2250A1',
+                  backgroundColor: '#F3F4F6',
+                  color: '#4B5563',
                   padding: '2px 6px',
                   borderRadius: '10px',
                   fontWeight: 600,
@@ -171,16 +255,6 @@ export const Incoming: React.FC = () => {
           </div>
         );
       },
-    },
-    {
-      header: 'Brand',
-      key: 'brand',
-      render: (m) => m.items[0]?.item.brand || '-',
-    },
-    {
-      header: 'MN',
-      key: 'modelNumber',
-      render: (m) => m.items[0]?.item.modelNumber || '-',
     },
     {
       header: 'SN',
@@ -227,35 +301,30 @@ export const Incoming: React.FC = () => {
         const firstItem = m.items[0];
         if (!firstItem || firstItem.item.trackingType !== 'SERIALIZED') return '-';
         const serials = firstItem.movementSerials || [];
-        return serials[0]?.itemSerial.conditionLabel || 'Standby Good';
+        if (serials.length === 0) return '-';
+        const cond = serials[0].itemSerial.conditionLabel || serials[0].itemSerial.state;
+        return (
+          <span style={{ fontSize: '12px', color: '#4B5563' }}>
+            {cond || 'Standby Good'}
+          </span>
+        );
       },
+    },
+    {
+      header: 'Reference',
+      key: 'referenceNumber',
+      render: (m) => (
+        <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#4B5563' }}>
+          {m.referenceNumber || '-'}
+        </span>
+      ),
     },
     {
       header: 'Created By',
       key: 'createdBy',
       render: (m) => (
-        <span style={{ fontSize: '13px', color: '#4B5563' }}>
+        <span style={{ fontSize: '12px', color: '#6B7280' }}>
           {m.createdBy?.name || '-'}
-        </span>
-      ),
-    },
-    {
-      header: 'Note',
-      key: 'notes',
-      render: (m) => (
-        <span
-          style={{
-            maxWidth: '120px',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            display: 'inline-block',
-            fontSize: '12px',
-            color: '#6B7280',
-          }}
-          title={m.notes || ''}
-        >
-          {m.notes || '-'}
         </span>
       ),
     },
@@ -263,14 +332,16 @@ export const Incoming: React.FC = () => {
       header: 'Actions',
       key: 'actions',
       render: (m) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setSelectedMovementId(m.id)}
-          title="View Incoming Details"
-        >
-          <Eye size={15} />
-        </Button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelectedMovementId(m.id)}
+            title="View Details"
+          >
+            <Eye size={16} />
+          </Button>
+        </div>
       ),
     },
   ];
@@ -278,15 +349,15 @@ export const Incoming: React.FC = () => {
   return (
     <div className="page-container">
       <PageHeader
-        title="Incoming Stock"
-        description="Receive, register, and log new warehouse inventory and equipment"
+        title="Incoming Stock & Returns"
+        description="Manage goods receipts from external suppliers and returns from projects into warehouses."
         actions={
           <Button
             variant="primary"
             onClick={() => setIsAddModalOpen(true)}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
           >
-            <Plus size={16} /> Add Incoming
+            <Plus size={18} /> Add Incoming / Return
           </Button>
         }
       />
@@ -294,19 +365,16 @@ export const Incoming: React.FC = () => {
       <FilterBar
         searchValue={search}
         onSearchChange={(val) => updateFilters({ search: val })}
-        searchPlaceholder="Search reference no, item name, brand, MN, SN, notes..."
+        searchPlaceholder="Search movement #, reference, item, SN, project, warehouse..."
         primaryFilter={
           <div style={{ width: '180px' }}>
             <Select
-              value={warehouseId}
-              onChange={(e) => updateFilters({ warehouseId: e.target.value })}
+              value={movementType}
+              onChange={(e) => updateFilters({ type: e.target.value, movementType: e.target.value })}
             >
-              <option value="">All Warehouses</option>
-              {warehouses.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.cityCode || w.name} ({w.name})
-                </option>
-              ))}
+              <option value="ALL">All Sources</option>
+              <option value="INCOMING">Regular Incoming</option>
+              <option value="RETURN">Project Returns</option>
             </Select>
           </div>
         }
@@ -318,7 +386,41 @@ export const Incoming: React.FC = () => {
       />
 
       <FilterPanel isOpen={isAdvancedOpen}>
-        <div style={{ width: '150px' }}>
+        <div style={{ width: '180px' }}>
+          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4B5563', marginBottom: '4px' }}>
+            Destination Warehouse
+          </label>
+          <Select
+            value={warehouseId}
+            onChange={(e) => updateFilters({ warehouseId: e.target.value })}
+          >
+            <option value="">All Warehouses</option>
+            {warehouses.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.name} {w.cityCode ? `[${w.cityCode}]` : ''}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        <div style={{ width: '200px' }}>
+          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4B5563', marginBottom: '4px' }}>
+            Source Project
+          </label>
+          <Select
+            value={projectId}
+            onChange={(e) => updateFilters({ projectId: e.target.value })}
+          >
+            <option value="">All Projects</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} {p.siteCode ? `[${p.siteCode}]` : ''}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        <div style={{ width: '140px' }}>
           <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4B5563', marginBottom: '4px' }}>
             From Date
           </label>
@@ -329,7 +431,7 @@ export const Incoming: React.FC = () => {
           />
         </div>
 
-        <div style={{ width: '150px' }}>
+        <div style={{ width: '140px' }}>
           <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4B5563', marginBottom: '4px' }}>
             To Date
           </label>
@@ -343,23 +445,28 @@ export const Incoming: React.FC = () => {
 
       <PaginatedTable<StockMovement>
         fetchUrl="/stock-movements/incoming"
-        searchPlaceholder="Search incoming movements..."
+        searchPlaceholder="Search movement #, reference, item, SN, project, warehouse..."
         columns={columns}
         extraParams={{
+          search: search || undefined,
+          movementType: movementType !== 'ALL' ? movementType : undefined,
+          type: movementType !== 'ALL' ? movementType : undefined,
           warehouseId: warehouseId ? Number(warehouseId) : undefined,
+          projectId: projectId ? Number(projectId) : undefined,
           startDate: dateFrom || undefined,
           endDate: dateTo || undefined,
-          search: search || undefined,
-          _refresh: refreshKey,
+          _refresh: refreshTrigger,
         }}
       />
 
+      {/* Add Incoming / Return Modal */}
       <AddIncomingModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        onSuccess={() => setRefreshKey((prev) => prev + 1)}
+        onSuccess={() => setRefreshTrigger((prev) => prev + 1)}
       />
 
+      {/* Movement Details Modal */}
       <IncomingDetailModal
         isOpen={selectedMovementId !== null}
         movementId={selectedMovementId}

@@ -187,15 +187,24 @@ export class StockMovementsService {
   }
 
   async findAllIncoming(
-    paginationDto: PaginationDto & { warehouseId?: number; startDate?: string; endDate?: string },
+    paginationDto: PaginationDto & {
+      movementType?: string;
+      warehouseId?: number;
+      projectId?: number;
+      startDate?: string;
+      endDate?: string;
+    },
   ): Promise<PaginatedResult<any>> {
     const page = paginationDto.page ?? 1;
     const limit = paginationDto.limit ?? 10;
     const { skip, take } = getSkipAndTake(page, limit);
 
     const where: any = {
-      movementType: MovementType.INCOMING,
+      ...(paginationDto.movementType && paginationDto.movementType !== 'ALL'
+        ? { movementType: paginationDto.movementType as MovementType }
+        : { movementType: { in: [MovementType.INCOMING, MovementType.RETURN] } }),
       ...(paginationDto.warehouseId && { destinationWarehouseId: Number(paginationDto.warehouseId) }),
+      ...(paginationDto.projectId && { projectId: Number(paginationDto.projectId) }),
       ...(paginationDto.startDate && paginationDto.endDate && {
         movementDate: {
           gte: new Date(paginationDto.startDate),
@@ -211,6 +220,10 @@ export class StockMovementsService {
         { referenceNumber: { contains: s, mode: 'insensitive' } },
         { notes: { contains: s, mode: 'insensitive' } },
         { destinationWarehouse: { name: { contains: s, mode: 'insensitive' } } },
+        { destinationWarehouse: { cityCode: { contains: s, mode: 'insensitive' } } },
+        { project: { name: { contains: s, mode: 'insensitive' } } },
+        { project: { siteCode: { contains: s, mode: 'insensitive' } } },
+        { project: { client: { name: { contains: s, mode: 'insensitive' } } } },
         { items: { some: { item: { name: { contains: s, mode: 'insensitive' } } } } },
         { items: { some: { item: { brand: { contains: s, mode: 'insensitive' } } } } },
         { items: { some: { item: { modelNumber: { contains: s, mode: 'insensitive' } } } } },
@@ -232,7 +245,8 @@ export class StockMovementsService {
               name: true,
               siteCode: true,
               location: true,
-              client: { select: { id: true, name: true } },
+              referenceNumber: true,
+              client: { select: { id: true, name: true, clientType: true } },
             },
           },
           deliveryOrder: { select: { id: true, doNumber: true } },
@@ -256,9 +270,22 @@ export class StockMovementsService {
 
   async findOneIncoming(id: number) {
     const movement = await this.prisma.stockMovement.findUnique({
-      where: { id, movementType: MovementType.INCOMING },
+      where: { id },
       include: {
         destinationWarehouse: { select: { id: true, name: true, cityCode: true, location: true } },
+        sourceWarehouse: { select: { id: true, name: true, cityCode: true, location: true } },
+        project: {
+          select: {
+            id: true,
+            name: true,
+            siteCode: true,
+            location: true,
+            referenceNumber: true,
+            client: { select: { id: true, name: true, clientType: true } },
+            clientContact: { select: { id: true, name: true, phone: true, email: true } },
+          },
+        },
+        deliveryOrder: { select: { id: true, doNumber: true } },
         createdBy: { select: { id: true, name: true, email: true } },
         items: {
           include: {
@@ -290,11 +317,120 @@ export class StockMovementsService {
       },
     });
 
-    if (!movement) {
-      throw new NotFoundException(`Incoming movement with ID ${id} not found`);
+    if (
+      !movement ||
+      (movement.movementType !== MovementType.INCOMING &&
+        movement.movementType !== MovementType.RETURN)
+    ) {
+      throw new NotFoundException(
+        `Incoming or Return movement with ID ${id} not found`,
+      );
     }
 
     return movement;
+  }
+
+  async getAvailableProjectInventory(projectId: number, search?: string) {
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: { client: true },
+    });
+
+    if (!project) {
+      throw new NotFoundException(`Project with ID ${projectId} not found`);
+    }
+
+    const s = search?.trim().toLowerCase();
+    const results: any[] = [];
+
+    // 1. Bulk stock at project
+    const projectStocks = await this.prisma.projectStock.findMany({
+      where: {
+        projectId,
+        quantity: { gt: 0 },
+        item: {
+          isActive: true,
+          trackingType: TrackingType.BULK,
+          ...(s && {
+            OR: [
+              { name: { contains: s, mode: 'insensitive' } },
+              { brand: { contains: s, mode: 'insensitive' } },
+              { modelNumber: { contains: s, mode: 'insensitive' } },
+            ],
+          }),
+        },
+      },
+      include: {
+        item: {
+          include: { unit: { select: { id: true, name: true, symbol: true } } },
+        },
+      },
+      orderBy: { item: { name: 'asc' } },
+    });
+
+    for (const ps of projectStocks) {
+      results.push({
+        id: `bulk-${ps.id}`,
+        trackingType: 'BULK',
+        itemId: ps.itemId,
+        itemName: ps.item.name,
+        brand: ps.item.brand,
+        modelNumber: ps.item.modelNumber,
+        availableQty: ps.quantity,
+        unit: ps.item.unit.name,
+        unitSymbol: ps.item.unit.symbol || ps.item.unit.name,
+      });
+    }
+
+    // 2. Serialized assets deployed at project
+    const projectSerials = await this.prisma.itemSerial.findMany({
+      where: {
+        currentProjectId: projectId,
+        item: {
+          isActive: true,
+          trackingType: TrackingType.SERIALIZED,
+          ...(s && {
+            OR: [
+              { name: { contains: s, mode: 'insensitive' } },
+              { brand: { contains: s, mode: 'insensitive' } },
+              { modelNumber: { contains: s, mode: 'insensitive' } },
+            ],
+          }),
+        },
+        ...(s && {
+          OR: [
+            { serialNumber: { contains: s, mode: 'insensitive' } },
+            { item: { name: { contains: s, mode: 'insensitive' } } },
+          ],
+        }),
+      },
+      include: {
+        item: {
+          include: { unit: { select: { id: true, name: true, symbol: true } } },
+        },
+      },
+      orderBy: [{ item: { name: 'asc' } }, { serialNumber: 'asc' }],
+    });
+
+    for (const sItem of projectSerials) {
+      results.push({
+        id: `sn-${sItem.id}`,
+        trackingType: 'SERIALIZED',
+        itemId: sItem.itemId,
+        itemSerialId: sItem.id,
+        serialNumber: sItem.serialNumber,
+        itemName: sItem.item.name,
+        brand: sItem.item.brand,
+        modelNumber: sItem.item.modelNumber,
+        availableQty: 1,
+        condition: sItem.conditionLabel || (sItem.state === 'STANDBY_GOOD' ? 'Standby Good' : sItem.state),
+        state: sItem.state,
+        unit: sItem.item.unit.name,
+        unitSymbol: sItem.item.unit.symbol || sItem.item.unit.name,
+      });
+    }
+
+    return results;
   }
 
   async findAllOutgoing(
@@ -898,13 +1034,23 @@ export class StockMovementsService {
                   `Serial number ${sn} is not deployed in project`,
                 );
               }
+              const cond = sData.conditionLabel || serial.conditionLabel || 'Standby Good';
+              const st =
+                sData.state ||
+                (cond === 'Standby Bad'
+                  ? 'STANDBY_BAD'
+                  : cond === 'Under Repair'
+                  ? 'UNDER_REPAIR'
+                  : 'STANDBY_GOOD');
+
               serial = await tx.itemSerial.update({
                 where: { id: serial.id },
                 data: {
                   currentWarehouseId: destinationWarehouseId,
                   currentProjectId: null,
-                  state: sData.state ?? 'STANDBY_GOOD',
-                  conditionLabel: sData.conditionLabel ?? serial.conditionLabel,
+                  state: st,
+                  conditionLabel: cond,
+                  notes: sData.notes !== undefined ? sData.notes : serial.notes,
                 },
               });
             } else if (

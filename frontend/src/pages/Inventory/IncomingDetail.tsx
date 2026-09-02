@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client.js';
 import { PageHeader, Button, Card, StatusBadge } from '../../components/ui/index.js';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, RotateCcw, PackageCheck } from 'lucide-react';
 
 export const IncomingDetail = () => {
   const { id } = useParams();
@@ -27,11 +27,13 @@ export const IncomingDetail = () => {
     return (
       <div className="page-container">
         <div className="table-loading">
-          <p>Loading incoming movement detail...</p>
+          <p>Loading movement detail...</p>
         </div>
       </div>
     );
   }
+
+  const isReturn = movement.movementType === 'RETURN';
 
   // Expand items for display
   const detailRows: Array<{
@@ -87,19 +89,36 @@ export const IncomingDetail = () => {
     <div className="page-container">
       <div style={{ marginBottom: '16px' }}>
         <Button variant="secondary" size="sm" onClick={() => navigate('/inventory/incoming')}>
-          <ArrowLeft size={16} /> Back to Incoming Records
+          <ArrowLeft size={16} /> Back to Incoming &amp; Returns
         </Button>
       </div>
 
       <PageHeader
-        title={`Incoming Receipt: ${movement.movementNumber}`}
+        title={`${isReturn ? 'Project Return Receipt' : 'Incoming Receipt'}: ${movement.movementNumber}`}
         description={`Movement Date: ${new Date(movement.movementDate || movement.createdAt).toLocaleDateString('en-GB', {
           day: '2-digit',
           month: 'short',
-          year: '2-digit',
+          year: 'numeric',
         })}`}
         actions={
-          <StatusBadge type="status" status="in_stock" label="Received" />
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '4px 10px',
+              borderRadius: '12px',
+              fontSize: '12px',
+              fontWeight: 700,
+              backgroundColor: isReturn ? '#F5F3FF' : '#EFF6FF',
+              color: isReturn ? '#7C3AED' : '#2250A1',
+              border: `1px solid ${isReturn ? '#DDD6FE' : '#BFDBFE'}`,
+              textTransform: 'uppercase',
+            }}
+          >
+            {isReturn ? <RotateCcw size={14} /> : <PackageCheck size={14} />}
+            {isReturn ? 'Project Return' : 'Incoming'}
+          </span>
         }
       />
 
@@ -113,25 +132,49 @@ export const IncomingDetail = () => {
           }}
         >
           <div>
-            <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Destination Warehouse</span>
-            <p style={{ fontWeight: 600, margin: '4px 0 0' }}>{movement.destinationWarehouse?.name || '-'}</p>
+            <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>
+              {isReturn ? 'Source Project / Site' : 'Source / Origin'}
+            </span>
+            <p style={{ fontWeight: 600, margin: '4px 0 0' }}>
+              {isReturn ? (
+                <span>
+                  {movement.project?.siteCode ? `[${movement.project.siteCode}] ` : ''}
+                  {movement.project?.name || 'Project'}
+                  {movement.project?.client?.name && ` (${movement.project.client.name})`}
+                </span>
+              ) : (
+                'External Supplier'
+              )}
+            </p>
           </div>
+
           <div>
-            <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Reference / PO Number</span>
+            <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Destination Warehouse</span>
+            <p style={{ fontWeight: 600, margin: '4px 0 0' }}>
+              {movement.destinationWarehouse?.name} {movement.destinationWarehouse?.cityCode ? `[${movement.destinationWarehouse.cityCode}]` : ''}
+            </p>
+          </div>
+
+          <div>
+            <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Reference / PO / DO</span>
             <p style={{ fontWeight: 600, margin: '4px 0 0' }}>{movement.referenceNumber || '-'}</p>
           </div>
+
           <div>
             <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Recorded By</span>
             <p style={{ fontWeight: 600, margin: '4px 0 0' }}>{movement.createdBy?.name || '-'}</p>
           </div>
-          <div>
-            <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Notes</span>
-            <p style={{ fontWeight: 600, margin: '4px 0 0' }}>{movement.notes || '-'}</p>
-          </div>
         </div>
 
+        {movement.notes && (
+          <div style={{ marginBottom: '1.5rem', padding: '0.75rem', backgroundColor: '#F9FAFB', borderRadius: '4px', border: '1px solid #E5E7EB', fontSize: '0.85rem' }}>
+            <span style={{ fontWeight: 600, color: '#374151' }}>Notes: </span>
+            <span>{movement.notes}</span>
+          </div>
+        )}
+
         <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#1F2839', marginBottom: '12px' }}>
-          Received Items &amp; Serials
+          {isReturn ? 'Returned Items & Assets' : 'Received Items & Serials'}
         </h3>
 
         <div className="table-container">
