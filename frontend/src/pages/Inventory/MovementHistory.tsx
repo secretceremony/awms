@@ -268,13 +268,23 @@ export const MovementHistory: React.FC = () => {
         title="Movement History"
         description="Audit ledger of all stock transactions including receipts, allocations, returns, and adjustments"
         actions={
-          <Button
-            variant="secondary"
-            onClick={() => setIsAdjustmentModalOpen(true)}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-          >
-            <Plus size={16} /> Adjust Stock
-          </Button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Button
+              variant="secondary"
+              disabled
+              title="Excel/PDF table export is coming soon"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', opacity: 0.6, cursor: 'not-allowed' }}
+            >
+              Export (Coming Soon)
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setIsAdjustmentModalOpen(true)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Plus size={16} /> Adjust Stock
+            </Button>
+          </div>
         }
       />
 

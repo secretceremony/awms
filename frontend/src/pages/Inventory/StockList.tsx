@@ -309,6 +309,14 @@ export const StockList: React.FC = () => {
           <div style={{ display: 'flex', gap: '8px' }}>
             <Button
               variant="secondary"
+              disabled
+              title="Excel/PDF table export is coming soon"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', opacity: 0.6, cursor: 'not-allowed' }}
+            >
+              Export (Coming Soon)
+            </Button>
+            <Button
+              variant="secondary"
               onClick={() => setIsInitialStockModalOpen(true)}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
@@ -322,7 +330,7 @@ export const StockList: React.FC = () => {
               }}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
-              <Plus size={16} /> Add Item
+              <Plus size={16} /> Create Item Master
             </Button>
           </div>
         }

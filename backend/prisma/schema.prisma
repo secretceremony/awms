@@ -63,6 +63,7 @@ model User {
   stockMovements        StockMovement[]
   createdDeliveryOrders DeliveryOrder[] @relation("doCreatedBy")
   issuedDeliveryOrders  DeliveryOrder[] @relation("doIssuedBy")
+  shippingLabels        ShippingLabel[]
   auditLogs             AuditLog[]
 
   @@map("users")
@@ -345,7 +346,7 @@ model DeliveryOrder {
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
   items             DeliveryOrderItem[]
-  shippingLabel     ShippingLabel?
+  shippingLabels    ShippingLabel[]
 
   @@index([clientId])
   @@index([projectId])
@@ -399,15 +400,31 @@ model DeliveryOrderItemSerial {
 }
 
 model ShippingLabel {
-  id              Int           @id @default(autoincrement())
-  deliveryOrderId Int           @unique @map("delivery_order_id")
-  deliveryOrder   DeliveryOrder @relation(fields: [deliveryOrderId], references: [id])
-  trackingNumber  String        @map("tracking_number")
-  carrier         String
-  shippingCost    Decimal       @map("shipping_cost") @db.Decimal(10, 2)
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
+  id              Int            @id @default(autoincrement())
+  deliveryOrderId Int?           @map("delivery_order_id")
+  deliveryOrder   DeliveryOrder? @relation(fields: [deliveryOrderId], references: [id], onDelete: SetNull)
+  sourceType      String         @default("STANDALONE") @map("source_type")
+  shipDate        DateTime       @default(now()) @map("ship_date")
+  recipientName   String         @map("recipient_name")
+  attnName        String?        @map("attn_name")
+  destination     String
+  referenceNumber String?        @map("reference_number")
+  doNumber        String?        @map("do_number")
+  senderName      String?        @map("sender_name")
+  senderAddress   String?        @map("sender_address")
+  senderPhone     String?        @map("sender_phone")
+  isFragile       Boolean        @default(false) @map("is_fragile")
+  handlingNote    String?        @map("handling_note")
+  labelWidth      Int?           @default(100) @map("label_width")
+  labelHeight     Int?           @default(150) @map("label_height")
+  notes           String?
+  createdById     Int?           @map("created_by_id")
+  createdBy       User?          @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
 
+  @@index([deliveryOrderId])
+  @@index([createdById])
   @@map("shipping_labels")
 }
 

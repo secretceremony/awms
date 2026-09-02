@@ -1,222 +1,127 @@
 # AWMS — ALSSA Warehouse Management System
 
-[![React](https://img.shields.io/badge/React-19.2-blue?logo=react)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue?logo=typescript)](https://www.typescriptlang.org)
-[![Vite](https://img.shields.io/badge/Vite-8.2-purple?logo=vite)](https://vite.dev)
-[![NestJS](https://img.shields.io/badge/NestJS-11.0-red?logo=nestjs)](https://nestjs.com)
-[![Prisma](https://img.shields.io/badge/Prisma-7.9-teal?logo=prisma)](https://prisma.io)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-blue?logo=postgresql)](https://postgresql.org)
-[![Status](https://img.shields.io/badge/Status-Work--In--Progress-orange)](#)
-
-AWMS (ALSSA Warehouse Management System) is an enterprise-grade web application built to help Logistics Administrators track inventory, handle incoming/outgoing stock movements, generate Delivery Orders (DO), print shipping labels, and inspect system audit logs.
-
-> [!NOTE]
-> This project is currently under active development. Some WMS functional modules are scaffolded and will be progressively completed.
-
----
-
-## 🛠️ Tech Stack
-
-- **Frontend**: React 19 + TypeScript + Vite
-- **Backend**: NestJS (v11) with Express
-- **Database & ORM**: PostgreSQL + Prisma ORM (v7)
-- **Styling**: Modern light-theme CSS scoped modules (navy layouts, corporate blue accents)
+AWMS (ALSSA Warehouse Management System) is an enterprise-grade web application designed for Logistics Administrators and Warehouse Operators to manage material inventory, multi-hub allocations, outbound dispatch workflows, official Delivery Orders (DO), package Shipping Labels, and transactional audit trails.
 
 ---
 
 ## ✨ Features
 
-- **Authentication**: Secure HttpOnly cookie JWT-based session persistence.
-- **Dashboard**: High-level inventory KPIs, low-stock flags, and stats widgets.
-- **Unit Management**: Custom unit of measurements (UoM) configurations.
-- **Multi-Warehouse Management**: Tracking of warehouse assets and status codes.
-- **Mitra / Customer Management**: Administration of delivery consignees.
-- **Project Management**: Binding of stocks and delivery requirements to specific corporate projects.
-- **Inventory Management**:
-  - Support for **Bulk** and **Serialized** tracking types.
-  - Tracking of unique serial numbers (`item_serials`) for serialized assets.
-- **Initial Stock & Incoming**: Recording initial balances and incoming batches.
-- **Ledger movements**: Atomic transactional balance adjustment ledger (`stock_movements`).
-- **Delivery Orders (DO)**: Sequential automatic DO number generator.
-- **Outgoing & Returns**: Logically managing product issues and returns.
-- **Shipping Labels**: Carrier label layouts matching shipments.
-- **Activity & Audit Logs**: Detailed user transaction records with `old_values` and `new_values` tracking.
-- **Database Backup**: Scripts and documentation for DB dump/restore schedules.
+- **Authentication & Security**: Secure HttpOnly cookie-based JWT sessions with role-based access control and audit logging.
+- **Operations Dashboard**: Real-time KPI summaries, stock health tracking (Normal, Low Stock, Out of Stock, Under Repair, Deployed), quick operations, and recent dispatch ledgers.
+- **Master Data Management**:
+  - **Clients & Contacts**: Client directory (PHM vs Other) with authorized primary contacts.
+  - **Warehouses & Cities**: Regional logistics hubs mapped to city codes (e.g. `BPN`, `JKT`, `SMD`).
+  - **Projects**: Active and completed project contracts with site codes and external reference numbers.
+  - **Units of Measurement**: Standardized packaging units (e.g. `pcs`, `box`, `set`, `roll`).
+- **Inventory & Asset Tracking**:
+  - Dual tracking modes: **Bulk** (quantity-based) and **Serialized** (unique serial numbers with conditions: `Standby Good`, `Standby Bad`, `Under Repair`).
+  - **Initial Stock**: Rapid opening balance setup with "Save & Add Another" fast-entry.
+  - **Stock List**: Real-time multi-warehouse and project site asset visibility with contextual adjustment actions.
+- **Stock Movement Engine**:
+  - **Incoming**: External vendor intake with receipt references.
+  - **Project Return / Recheck**: Unified recovery of deployed bulk and serialized assets from project sites back into warehouse hubs with condition updates.
+  - **Outgoing**: 2-step dispatch wizard allocating equipment from warehouse hubs to project sites.
+  - **Adjustment**: Physical count adjustments and multi-serial condition modifications in single atomic transactions.
+  - **Movement History**: Immutable chronological audit ledger of all stock mutations.
+- **Outbound Logistics & Documentation**:
+  - **Delivery Orders (DO)**: 2-step issuance wizard, strict mandatory Reference Number validation, concurrency-safe yearly sequence numbering (`[000]/ALS-[CITY]/DO-[CLIENTTYPE]/[ROMAN_MONTH]/[YEAR]`), frozen historical snapshots, and print-ready A4 landscape forms.
+  - **Shipping Labels**: Package labels generated from issued Delivery Orders or standalone shipments with FRAGILE banners, customizable millimeter dimensions, and thermal/laser print styling.
+- **System Settings**: Configurable low-stock thresholds, default sender information, and default label sizes.
+- **Audit Logs**: Comprehensive administrative audit trail tracking user operations with before/after payload deltas.
+- **Data Export**: Marked as **Coming Soon** across inventory and ledger tables.
 
 ---
 
-## 🔑 Environment Variables
+## 🛠️ Tech Stack
 
-The project uses `.env` files separated by workspace packages. Reference [.env.example](.env.example) for baseline placeholders:
-
-| Variable | Description | Example / Default |
-| :--- | :--- | :--- |
-| `PORT` | Backend application port | `3000` |
-| `NODE_ENV` | Environment mode | `development` |
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://mac@localhost:5432/awms?schema=public` |
-| `JWT_SECRET` | Secret key for signing session tokens | `awms-jwt-secret-placeholder-key-2026` |
-| `FRONTEND_URL` | CORS allowed origin client domain | `http://localhost:5173` |
+- **Frontend**: React 19, TypeScript, Vite
+- **Backend**: NestJS v11 (Express)
+- **Database & ORM**: PostgreSQL 17, Prisma ORM v7
+- **Styling**: Scoped CSS variables, clean corporate theme, print-ready document layouts
 
 ---
 
-## 📥 Installation
+## 📁 Project Structure
 
-1. Install project dependencies for both workspaces:
-   ```bash
-   npm install
-   ```
-
-2. Copy the `.env` example template to backend:
-   ```bash
-   cp .env.example backend/.env
-   ```
-   *(Ensure to edit `backend/.env` with your actual local PostgreSQL database credentials)*
-
-3. Generate the Prisma Client wrapper:
-   ```bash
-   npx prisma generate --workspace=backend
-   ```
+```
+awms/
+├── frontend/             # React 19 Vite SPA client
+│   ├── src/
+│   │   ├── components/   # Reusable UI, filters, modals, and wizards
+│   │   ├── pages/        # Dashboard, Master Data, Inventory, Delivery, Settings
+│   │   └── api/          # Axios HTTP client configuration
+├── backend/              # NestJS REST API server
+│   ├── src/              # Feature modules (Auth, Clients, Items, Movements, DO, Labels)
+│   ├── prisma/           # Prisma schema, migrations, and seed scripts
+│   └── test/             # Unit and integration test suites
+└── docs/                 # Comprehensive technical and operational guides
+```
 
 ---
 
-## 🚀 Running Locally
+## 🚀 Quick Start & Setup
 
-### 1. Database Migrations & Seeding
-Configure your local PostgreSQL server to run on port `5432` with a database named `awms`, then run:
+### 1. Prerequisites
+- **Node.js**: `v20.x` or `v22.x` (LTS)
+- **PostgreSQL**: `15.x` &ndash; `17.x`
+
+### 2. Installation
 ```bash
-# In backend workspace
+# Clone repository and install dependencies
+git clone https://github.com/secretceremony/awms.git
+cd awms
+npm install
+```
+
+### 3. Environment Configuration
+Copy `.env.example` to `backend/.env` and configure your local PostgreSQL database connection:
+```bash
+cp .env.example backend/.env
+```
+*(Reference [.env.example](.env.example) for sample parameters. Never commit real credentials to version control).*
+
+### 4. Database Setup & Seeding
+```bash
 cd backend
 npx prisma migrate dev
 npx prisma db seed
 cd ..
 ```
 
-### 2. Start Development Servers
-Run the NestJS backend and Vite frontend concurrently from the root directory:
+### 5. Start Development Servers
 ```bash
+# Run backend and frontend concurrently
 npm run dev
 ```
-- **Frontend App**: [http://localhost:5173](http://localhost:5173)
+- **Frontend Client**: [http://localhost:5173](http://localhost:5173)
 - **Backend API**: [http://localhost:3000](http://localhost:3000)
 
-### 3. Development Credentials
-Use the seeded Logistics Admin credentials to log in:
-- **Email**: `admin.logistics@alssa.com`
-- **Password**: `securepassword123`
-
----
-
-## 🧭 Basic Flow Usage
-
-```text
-Login with Admin Credentials
-   └── Manage Master Data (Warehouses, Items, Projects)
-         └── Post Stock Movements (Initial, Incoming, Adjustment)
-               └── Create Delivery Orders (Pending / Draft)
-                     └── Issue Shipments (Outgoing / Shipped status)
-                           └── Print Shipping Labels / Monitor Logs
-```
-
----
-
-## 🧪 Running Tests & Build Checks
-
-To verify project type safety, compiler builds, and linters:
-
+### 6. Production Build & Tests
 ```bash
-# Run backend tests
+# Build both frontend and backend bundles
+npm run build:backend
+npm run build:frontend
+
+# Run unit tests
 npm run test --workspace=backend
-
-# Run project linter checks
-npm run lint
-
-# Build production releases
-npm run build
 ```
 
 ---
 
-## 📦 Deployment
+## 📚 Documentation Archive
 
-- **Deployment Status**: Internal-use corporate tool. No public deployment exists.
-- **Production URL**: Not set up.
-- **Dockerization**: No Docker configurations are currently integrated.
+Detailed operational procedures and architecture specifications are available in the [`docs/`](docs/) directory:
 
----
-
-## 📂 Documentation
-
-- **Database Maintenance**: Backup & restore steps are documented in [BACKUP.md](BACKUP.md).
-
----
-
-## 🎯 Development Roadmap
-
-1. **Unit**: Standardize measurement units.
-2. **Warehouse**: Scaffold warehouse status and locations.
-3. **Customer**: Consignee details administration.
-4. **Project**: Binding inventories to corporate projects.
-5. **Inventory / Serial / Initial Stock**: Initializing serialized/bulk items.
-6. **Incoming**: Processing product receipts.
-7. **History / Adjustment**: Inventory ledger balances audit.
-8. **Delivery Order**: Formulating cargo receipts.
-9. **Outgoing**: Moving stock out of active inventory.
-10. **Return / Recheck**: Logging product returns.
-11. **Shipping Label**: Delivery package layouts.
-12. **Dashboard**: High-level visual metrics.
-13. **Export**: Exporting lists to Excel/PDF.
-14. **Settings / Audit Log**: Managing configurations and activity trails.
-15. **Final QA**: Production deployment checks.
-
----
-
-## ⚡ Technical Optimizations (Underway)
-
-- **Atomic Stock Ledger**: Mutates stock levels and registers movement logs inside SQL `$transaction` boundaries to avoid race conditions.
-- **Soft Deletes**: Active status checks prevent hard-deleting items linked to historical ledger movements.
-- **Server-Side Pagination**: Implemented using skip/take limits for audit log and item search queries.
-- **Database Indexing**: Configured index maps on foreign keys (`warehouseId`, `projectId`, `itemId`) for quick query execution.
-
----
-
-## 🧠 Engineering Focus
-
-Key development priorities:
-- **Stock Consistency**: Absolute balance alignment across bulk/serialized tables.
-- **Transaction Integrity**: Automatic rollbacks on partial failures.
-- **Historical Durability**: Read-only ledger rows with zero hard-deletes.
-
----
-
-## 👥 Authors
-
-- **Ansellma Tita Pakartiwuri Putri**
-- GitHub: [@secretceremony](https://github.com/secretceremony)
-
----
-
-## 🤝 Contributing
-
-This is an internal-use corporate application. Public pull requests are not accepted. Maintenance and updates are managed by authorized IT maintainers.
-
----
-
-## 💬 Feedback & Support
-
-For issues, bug reports, and features requests, please open an issue in the [GitHub Issues](https://github.com/secretceremony/awms/issues) page.
-
----
-
-## ❓ FAQ
-
-**Q: Is AWMS production-ready?**  
-A: No, the system is in active development status.
-
-**Q: Is there a public online demo?**  
-A: No public online demo is available at this stage.
-
-**Q: What database engine is supported?**  
-A: PostgreSQL (accessed via Prisma ORM client).
-
-**Q: Does it support unique barcode tracking?**  
-A: Yes, items marked as `SERIALIZED` are tracked with unique individual serial numbers.
+- [01 - System Overview](docs/01-SYSTEM-OVERVIEW.md)
+- [02 - User Guide](docs/02-USER-GUIDE.md)
+- [03 - Administrator Guide](docs/03-ADMIN-GUIDE.md)
+- [04 - Inventory Workflow Guide](docs/04-INVENTORY-WORKFLOW.md)
+- [05 - Delivery Order Guide](docs/05-DELIVERY-ORDER-GUIDE.md)
+- [06 - Shipping Label Guide](docs/06-SHIPPING-LABEL-GUIDE.md)
+- [07 - Database & Data Dictionary](docs/07-DATABASE-AND-DATA-DICTIONARY.md)
+- [08 - Architecture Guide](docs/08-ARCHITECTURE.md)
+- [09 - Deployment Guide](docs/09-DEPLOYMENT-GUIDE.md)
+- [10 - Backup & Restore Guide](docs/10-BACKUP-RESTORE-GUIDE.md)
+- [11 - Audit & Archive Guide](docs/11-AUDIT-AND-ARCHIVE-GUIDE.md)
+- [12 - Troubleshooting Guide](docs/12-TROUBLESHOOTING.md)
+- [13 - Security Guide](docs/13-SECURITY-GUIDE.md)
