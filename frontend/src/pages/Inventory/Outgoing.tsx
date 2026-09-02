@@ -222,8 +222,9 @@ export const Outgoing: React.FC = () => {
     {
       key: 'dispatchSource',
       header: 'Dispatch Source',
-      render: (m: OutgoingMovement) => {
-        const isManual = true; // Future-compatible check if DO linked
+      render: (m: OutgoingMovement & { deliveryOrder?: { id: number; doNumber: string } }) => {
+        const doNumber = (m as any).deliveryOrder?.doNumber;
+        const isDo = !!doNumber;
         return (
           <span
             style={{
@@ -231,12 +232,13 @@ export const Outgoing: React.FC = () => {
               borderRadius: '4px',
               fontSize: '0.75rem',
               fontWeight: 700,
-              backgroundColor: isManual ? '#F3F4F6' : 'rgba(34, 80, 161, 0.1)',
-              color: isManual ? '#4B5563' : '#2250A1',
-              border: `1px solid ${isManual ? '#E5E7EB' : 'rgba(34, 80, 161, 0.2)'}`,
+              fontFamily: isDo ? 'monospace' : 'inherit',
+              backgroundColor: isDo ? 'rgba(34, 80, 161, 0.1)' : '#F3F4F6',
+              color: isDo ? '#2250A1' : '#4B5563',
+              border: `1px solid ${isDo ? 'rgba(34, 80, 161, 0.2)' : '#E5E7EB'}`,
             }}
           >
-            {isManual ? 'Manual' : m.referenceNumber || 'DO'}
+            {isDo ? doNumber : 'Manual'}
           </span>
         );
       },

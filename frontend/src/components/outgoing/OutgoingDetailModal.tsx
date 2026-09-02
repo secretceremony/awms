@@ -110,7 +110,7 @@ export const OutgoingDetailModal: React.FC<OutgoingDetailModalProps> = ({
                   {movement.createdBy?.name || movement.createdBy?.email || 'Admin'}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: '2px' }}>
-                  Source: <span style={{ fontWeight: 700, color: '#2250A1' }}>Manual</span>
+                  Source: <span style={{ fontWeight: 700, color: '#2250A1', fontFamily: movement.deliveryOrder?.doNumber ? 'monospace' : 'inherit' }}>{movement.deliveryOrder?.doNumber || 'Manual'}</span>
                 </div>
               </div>
             </div>

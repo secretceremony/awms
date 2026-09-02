@@ -33,6 +33,7 @@ enum MovementType {
 
 enum OrderStatus {
   DRAFT
+  ISSUED
   APPROVED
   SHIPPED
   DELIVERED
@@ -59,9 +60,10 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  stockMovements StockMovement[]
-  deliveryOrders DeliveryOrder[]
-  auditLogs      AuditLog[]
+  stockMovements        StockMovement[]
+  createdDeliveryOrders DeliveryOrder[] @relation("doCreatedBy")
+  issuedDeliveryOrders  DeliveryOrder[] @relation("doIssuedBy")
+  auditLogs             AuditLog[]
 
   @@map("users")
 }
@@ -207,7 +209,8 @@ model ItemSerial {
   createdAt          DateTime   @default(now()) @map("created_at")
   updatedAt          DateTime   @updatedAt @map("updated_at")
 
-  movementSerials StockMovementItemSerial[]
+  movementSerials          StockMovementItemSerial[]
+  deliveryOrderItemSerials DeliveryOrderItemSerial[]
 
   @@index([itemId])
   @@index([currentWarehouseId])
@@ -263,7 +266,8 @@ model StockMovement {
   createdAt              DateTime     @default(now()) @map("created_at")
   updatedAt              DateTime     @updatedAt @map("updated_at")
 
-  items StockMovementItem[]
+  items         StockMovementItem[]
+  deliveryOrder DeliveryOrder?
 
   @@index([sourceWarehouseId])
   @@index([destinationWarehouseId])
@@ -304,43 +308,94 @@ model StockMovementItemSerial {
 
 model DeliveryOrder {
   id                Int         @id @default(autoincrement())
-  doNumber          String      @unique @map("do_number")
+  doNumber          String?     @unique @map("do_number")
   date              DateTime
+  activity          String      @default("General Dispatch")
+  notes             String?
+  status            OrderStatus @default(DRAFT)
+  issuedAt          DateTime?   @map("issued_at")
+  issuedById        Int?        @map("issued_by_id")
+  issuedBy          User?       @relation("doIssuedBy", fields: [issuedById], references: [id])
   clientId          Int         @map("customer_id")
   client            Client      @relation(fields: [clientId], references: [id])
-  projectId         Int?        @map("project_id")
-  project           Project?    @relation(fields: [projectId], references: [id])
+  projectId         Int         @map("project_id")
+  project           Project     @relation(fields: [projectId], references: [id])
   sourceWarehouseId Int         @map("source_warehouse_id")
   sourceWarehouse   Warehouse   @relation(fields: [sourceWarehouseId], references: [id])
-  status            OrderStatus @default(DRAFT)
   createdById       Int         @map("created_by_id")
-  createdBy         User        @relation(fields: [createdById], references: [id])
-  createdAt         DateTime    @default(now()) @map("created_at")
-  updatedAt         DateTime    @updatedAt @map("updated_at")
+  createdBy         User        @relation("doCreatedBy", fields: [createdById], references: [id])
+  stockMovementId   Int?        @unique @map("stock_movement_id")
+  stockMovement     StockMovement? @relation(fields: [stockMovementId], references: [id])
 
-  items         DeliveryOrderItem[]
-  shippingLabel ShippingLabel?
+  // Historical Snapshot Fields
+  clientCompanyName String?   @map("client_company_name")
+  clientType        String?   @map("client_type")
+  attnName          String?   @map("attn_name")
+  attnPhone         String?   @map("attn_phone")
+  attnEmail         String?   @map("attn_email")
+  projectName       String?   @map("project_name")
+  projectLocation   String?   @map("project_location")
+  siteCode          String?   @map("site_code")
+  referenceNumber   String?   @map("reference_number")
+  warehouseName     String?   @map("warehouse_name")
+  warehouseCityCode String?   @map("warehouse_city_code")
+  snapshots         Json?
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  items             DeliveryOrderItem[]
+  shippingLabel     ShippingLabel?
 
   @@index([clientId])
   @@index([projectId])
   @@index([sourceWarehouseId])
   @@index([createdById])
+  @@index([issuedById])
   @@map("delivery_orders")
 }
 
 model DeliveryOrderItem {
   id              Int           @id @default(autoincrement())
   deliveryOrderId Int           @map("delivery_order_id")
-  deliveryOrder   DeliveryOrder @relation(fields: [deliveryOrderId], references: [id])
+  deliveryOrder   DeliveryOrder @relation(fields: [deliveryOrderId], references: [id], onDelete: Cascade)
   itemId          Int           @map("item_id")
   item            Item          @relation(fields: [itemId], references: [id])
   quantity        Int
+  pic             String?
+  remarks         String?
+
+  // Snapshot attributes
+  itemName        String?       @map("item_name")
+  brand           String?
+  modelNumber     String?       @map("model_number")
+  unitName        String?       @map("unit_name")
+  unitSymbol      String?       @map("unit_symbol")
+  trackingType    TrackingType? @map("tracking_type")
+
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  itemSerials     DeliveryOrderItemSerial[]
 
   @@index([deliveryOrderId])
   @@index([itemId])
   @@map("delivery_order_items")
+}
+
+model DeliveryOrderItemSerial {
+  id                  Int               @id @default(autoincrement())
+  deliveryOrderItemId Int               @map("delivery_order_item_id")
+  deliveryOrderItem   DeliveryOrderItem @relation(fields: [deliveryOrderItemId], references: [id], onDelete: Cascade)
+  itemSerialId        Int               @map("item_serial_id")
+  itemSerial          ItemSerial        @relation(fields: [itemSerialId], references: [id])
+  serialNumber        String?           @map("serial_number")
+  conditionLabel      String?           @map("condition_label")
+  createdAt           DateTime          @default(now()) @map("created_at")
+
+  @@unique([deliveryOrderItemId, itemSerialId])
+  @@index([itemSerialId])
+  @@map("delivery_order_item_serials")
 }
 
 model ShippingLabel {
@@ -358,9 +413,7 @@ model ShippingLabel {
 
 model DoSequence {
   id              Int      @id @default(autoincrement())
-  prefix          String   @unique
-  year            Int
-  month           Int
+  year            Int      @unique
   currentSequence Int      @default(0) @map("current_sequence")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")

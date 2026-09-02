@@ -225,6 +225,17 @@ export class StockMovementsService {
         take,
         include: {
           destinationWarehouse: { select: { id: true, name: true, cityCode: true, location: true } },
+          sourceWarehouse: { select: { id: true, name: true, cityCode: true, location: true } },
+          project: {
+            select: {
+              id: true,
+              name: true,
+              siteCode: true,
+              location: true,
+              client: { select: { id: true, name: true } },
+            },
+          },
+          deliveryOrder: { select: { id: true, doNumber: true } },
           createdBy: { select: { id: true, name: true, email: true } },
           items: {
             include: {
@@ -315,6 +326,7 @@ export class StockMovementsService {
             clientContact: { select: { id: true, name: true, email: true, phone: true } },
           },
         },
+        deliveryOrder: { select: { id: true, doNumber: true } },
         createdBy: { select: { id: true, name: true, email: true } },
         items: {
           include: {
