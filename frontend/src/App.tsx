@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext.js';
 import { ProtectedRoute } from './components/ProtectedRoute.js';
 import { DashboardLayout } from './components/DashboardLayout.js';
@@ -13,7 +13,6 @@ import { Outgoing } from './pages/Inventory/Outgoing.js';
 import { Warehouses } from './pages/Warehouses.js';
 import { Projects } from './pages/Projects.js';
 import { Clients } from './pages/Clients.js';
-import { Units } from './pages/Units.js';
 import { Orders } from './pages/Delivery/Orders.js';
 import { Labels } from './pages/Delivery/Labels.js';
 import { Logs } from './pages/Logs.js';
@@ -42,7 +41,7 @@ function App() {
               <Route path="/projects" element={<Projects />} />
               <Route path="/clients" element={<Clients />} />
               <Route path="/customers" element={<Clients />} />
-              <Route path="/units" element={<Units />} />
+              <Route path="/units" element={<Navigate to="/settings?tab=units" replace />} />
               <Route path="/delivery-orders" element={<Orders />} />
               <Route path="/shipping-labels" element={<Labels />} />
               <Route path="/logs" element={<Logs />} />

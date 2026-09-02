@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   PageHeader,
   Button,
@@ -8,6 +9,7 @@ import {
 import { PaginatedTable, type Column } from '../../components/PaginatedTable.js';
 import { AddOutgoingModal } from '../../components/outgoing/AddOutgoingModal.js';
 import { OutgoingDetailModal } from '../../components/outgoing/OutgoingDetailModal.js';
+import { FilterBar, FilterPanel, type ActiveFilter } from '../../components/filters/index.js';
 import { apiClient } from '../../api/client.js';
 import { Plus, Eye, Warehouse, Building } from 'lucide-react';
 
@@ -43,6 +45,7 @@ export interface OutgoingMovement {
   movementType: string;
   movementDate: string;
   notes: string | null;
+  referenceNumber: string | null;
   sourceWarehouse?: {
     id: number;
     name: string;
@@ -68,14 +71,19 @@ export interface OutgoingMovement {
 }
 
 export const Outgoing: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // URL state
+  const search = searchParams.get('search') || '';
+  const warehouseId = searchParams.get('warehouseId') || '';
+  const projectId = searchParams.get('projectId') || '';
+  const dateFrom = searchParams.get('dateFrom') || '';
+  const dateTo = searchParams.get('dateTo') || '';
+  const dispatchSource = searchParams.get('dispatchSource') || 'all';
+
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
-
-  // Filter states
-  const [warehouseFilter, setWarehouseFilter] = useState('');
-  const [projectFilter, setProjectFilter] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Modals state
@@ -99,10 +107,73 @@ export const Outgoing: React.FC = () => {
     fetchDropdowns();
   }, []);
 
+  const updateFilters = (updates: Record<string, string | number | null>) => {
+    const nextParams = new URLSearchParams(searchParams);
+    Object.entries(updates).forEach(([key, val]) => {
+      if (val === null || val === undefined || val === '' || val === 'all') {
+        nextParams.delete(key);
+      } else {
+        nextParams.set(key, String(val));
+      }
+    });
+    if (!('page' in updates)) {
+      nextParams.delete('page');
+    }
+    setSearchParams(nextParams);
+  };
+
+  const handleResetAll = () => {
+    setSearchParams(new URLSearchParams());
+  };
+
   const handleOpenDetail = (movementId: number) => {
     setSelectedMovementId(movementId);
     setIsDetailModalOpen(true);
   };
+
+  const activeFilters: ActiveFilter[] = [];
+  if (projectId) {
+    const matchedP = projects.find((p) => String(p.id) === projectId);
+    activeFilters.push({
+      key: 'projectId',
+      label: 'Project',
+      valueDisplay: matchedP ? `${matchedP.name} ${matchedP.siteCode ? `[${matchedP.siteCode}]` : ''}` : `Proj #${projectId}`,
+      onClear: () => updateFilters({ projectId: null }),
+    });
+  }
+  if (warehouseId) {
+    const matchedWh = warehouses.find((w) => String(w.id) === warehouseId);
+    activeFilters.push({
+      key: 'warehouseId',
+      label: 'Warehouse',
+      valueDisplay: matchedWh ? (matchedWh.cityCode || matchedWh.name) : `WH #${warehouseId}`,
+      onClear: () => updateFilters({ warehouseId: null }),
+    });
+  }
+  if (dateFrom) {
+    activeFilters.push({
+      key: 'dateFrom',
+      label: 'From',
+      valueDisplay: dateFrom,
+      onClear: () => updateFilters({ dateFrom: null }),
+    });
+  }
+  if (dateTo) {
+    activeFilters.push({
+      key: 'dateTo',
+      label: 'To',
+      valueDisplay: dateTo,
+      onClear: () => updateFilters({ dateTo: null }),
+    });
+  }
+  if (dispatchSource && dispatchSource !== 'all') {
+    activeFilters.push({
+      key: 'dispatchSource',
+      label: 'Source',
+      valueDisplay: dispatchSource.toUpperCase(),
+      onClear: () => updateFilters({ dispatchSource: null }),
+    });
+  }
 
   const columns: Column<OutgoingMovement>[] = [
     {
@@ -149,6 +220,28 @@ export const Outgoing: React.FC = () => {
       ),
     },
     {
+      key: 'dispatchSource',
+      header: 'Dispatch Source',
+      render: (m: OutgoingMovement) => {
+        const isManual = true; // Future-compatible check if DO linked
+        return (
+          <span
+            style={{
+              padding: '2px 8px',
+              borderRadius: '4px',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              backgroundColor: isManual ? '#F3F4F6' : 'rgba(34, 80, 161, 0.1)',
+              color: isManual ? '#4B5563' : '#2250A1',
+              border: `1px solid ${isManual ? '#E5E7EB' : 'rgba(34, 80, 161, 0.2)'}`,
+            }}
+          >
+            {isManual ? 'Manual' : m.referenceNumber || 'DO'}
+          </span>
+        );
+      },
+    },
+    {
       key: 'itemsSummary',
       header: 'Item',
       render: (m: OutgoingMovement) => {
@@ -168,57 +261,16 @@ export const Outgoing: React.FC = () => {
       },
     },
     {
-      key: 'brand',
-      header: 'Brand',
-      render: (m: OutgoingMovement) => {
-        const brand = m.items?.[0]?.item?.brand;
-        return <span>{brand || '—'}</span>;
-      },
-    },
-    {
-      key: 'modelNumber',
-      header: 'MN',
-      render: (m: OutgoingMovement) => {
-        const mn = m.items?.[0]?.item?.modelNumber;
-        return <span>{mn || '—'}</span>;
-      },
-    },
-    {
-      key: 'serialNumber',
-      header: 'SN',
-      render: (m: OutgoingMovement) => {
-        const first = m.items?.[0];
-        if (!first || first.item?.trackingType !== 'SERIALIZED') return <span>—</span>;
-        const serials = first.movementSerials || [];
-        if (serials.length === 0) return <span>—</span>;
-        if (serials.length === 1) {
-          return (
-            <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#2250A1' }}>
-              {serials[0].itemSerial?.serialNumber}
-            </span>
-          );
-        }
-        return (
-          <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#2250A1' }}>
-            {serials[0].itemSerial?.serialNumber} (+{serials.length - 1})
-          </span>
-        );
-      },
-    },
-    {
       key: 'quantity',
       header: 'Qty',
       render: (m: OutgoingMovement) => {
         const totalQty = m.items?.reduce((acc, curr) => acc + curr.quantity, 0) || 0;
-        return <span style={{ fontWeight: 700 }}>{totalQty}</span>;
-      },
-    },
-    {
-      key: 'unit',
-      header: 'Unit',
-      render: (m: OutgoingMovement) => {
-        const unit = m.items?.[0]?.item?.unit;
-        return <span>{unit?.symbol || unit?.name || 'pcs'}</span>;
+        const unit = m.items?.[0]?.item?.unit?.symbol || m.items?.[0]?.item?.unit?.name || 'pcs';
+        return (
+          <span style={{ fontWeight: 700 }}>
+            {totalQty} {unit}
+          </span>
+        );
       },
     },
     {
@@ -232,7 +284,7 @@ export const Outgoing: React.FC = () => {
     },
     {
       key: 'notes',
-      header: 'Notes',
+      header: 'Reason',
       render: (m: OutgoingMovement) => (
         <span
           style={{
@@ -278,20 +330,40 @@ export const Outgoing: React.FC = () => {
         }
       />
 
-      {/* Filters */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '0.75rem',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          marginBottom: '1rem',
-        }}
-      >
+      <FilterBar
+        searchValue={search}
+        onSearchChange={(val) => updateFilters({ search: val })}
+        searchPlaceholder="Search item, brand, MN, SN, project, or reason..."
+        primaryFilter={
+          <div style={{ width: '200px' }}>
+            <Select
+              value={projectId}
+              onChange={(e) => updateFilters({ projectId: e.target.value })}
+            >
+              <option value="">All Projects</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} {p.siteCode ? `[${p.siteCode}]` : ''}
+                </option>
+              ))}
+            </Select>
+          </div>
+        }
+        hasAdvancedFilters
+        isAdvancedOpen={isAdvancedOpen}
+        onToggleAdvanced={() => setIsAdvancedOpen(!isAdvancedOpen)}
+        activeFilters={activeFilters}
+        onResetAll={handleResetAll}
+      />
+
+      <FilterPanel isOpen={isAdvancedOpen}>
         <div style={{ width: '180px' }}>
+          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4B5563', marginBottom: '4px' }}>
+            Source Warehouse
+          </label>
           <Select
-            value={warehouseFilter}
-            onChange={(e) => setWarehouseFilter(e.target.value)}
+            value={warehouseId}
+            onChange={(e) => updateFilters({ warehouseId: e.target.value })}
           >
             <option value="">All Warehouses</option>
             {warehouses.map((w) => (
@@ -302,67 +374,53 @@ export const Outgoing: React.FC = () => {
           </Select>
         </div>
 
-        <div style={{ width: '200px' }}>
+        <div style={{ width: '160px' }}>
+          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4B5563', marginBottom: '4px' }}>
+            Dispatch Source
+          </label>
           <Select
-            value={projectFilter}
-            onChange={(e) => setProjectFilter(e.target.value)}
+            value={dispatchSource}
+            onChange={(e) => updateFilters({ dispatchSource: e.target.value })}
           >
-            <option value="">All Projects</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} {p.siteCode ? `[${p.siteCode}]` : ''}
-              </option>
-            ))}
+            <option value="all">All Sources</option>
+            <option value="manual">Manual Only</option>
+            <option value="do">Delivery Order Only</option>
           </Select>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>From:</span>
-          <div style={{ width: '140px' }}>
-            <Input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-            />
-          </div>
+        <div style={{ width: '140px' }}>
+          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4B5563', marginBottom: '4px' }}>
+            From Date
+          </label>
+          <Input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => updateFilters({ dateFrom: e.target.value })}
+          />
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>To:</span>
-          <div style={{ width: '140px' }}>
-            <Input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-            />
-          </div>
+        <div style={{ width: '140px' }}>
+          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4B5563', marginBottom: '4px' }}>
+            To Date
+          </label>
+          <Input
+            type="date"
+            value={dateTo}
+            onChange={(e) => updateFilters({ dateTo: e.target.value })}
+          />
         </div>
-
-        {(warehouseFilter || projectFilter || dateFrom || dateTo) && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setWarehouseFilter('');
-              setProjectFilter('');
-              setDateFrom('');
-              setDateTo('');
-            }}
-          >
-            Clear Filters
-          </Button>
-        )}
-      </div>
+      </FilterPanel>
 
       <PaginatedTable<OutgoingMovement>
         fetchUrl="/stock-movements/outgoing"
-        searchPlaceholder="Search item, brand, MN, SN, project, site code, or notes..."
+        searchPlaceholder="Search outgoing movements..."
         columns={columns}
         extraParams={{
-          warehouseId: warehouseFilter ? Number(warehouseFilter) : undefined,
-          projectId: projectFilter ? Number(projectFilter) : undefined,
+          warehouseId: warehouseId ? Number(warehouseId) : undefined,
+          projectId: projectId ? Number(projectId) : undefined,
           dateFrom: dateFrom || undefined,
           dateTo: dateTo || undefined,
+          search: search || undefined,
           _refresh: refreshTrigger,
         }}
       />

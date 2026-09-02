@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PaginatedTable, type Column } from '../../components/PaginatedTable.js';
 import { apiClient } from '../../api/client.js';
 import { Eye, Plus } from 'lucide-react';
-import { Button, StatusBadge, PageHeader, Select } from '../../components/ui/index.js';
+import { Button, PageHeader, Select, Input } from '../../components/ui/index.js';
 import { AddIncomingModal } from '../../components/inventory/AddIncomingModal.js';
 import { IncomingDetailModal } from '../../components/inventory/IncomingDetailModal.js';
+import { FilterBar, FilterPanel, type ActiveFilter } from '../../components/filters/index.js';
 
 interface StockMovement {
   id: number;
@@ -44,8 +46,16 @@ interface StockMovement {
   }>;
 }
 
-export const Incoming = () => {
-  const [warehouseFilter, setWarehouseFilter] = useState<string>('');
+export const Incoming: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // URL state
+  const search = searchParams.get('search') || '';
+  const warehouseId = searchParams.get('warehouseId') || '';
+  const dateFrom = searchParams.get('dateFrom') || '';
+  const dateTo = searchParams.get('dateTo') || '';
+
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [warehouses, setWarehouses] = useState<{ id: number; name: string; cityCode?: string | null }[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -64,6 +74,52 @@ export const Incoming = () => {
     };
     fetchWarehouses();
   }, []);
+
+  const updateFilters = (updates: Record<string, string | number | null>) => {
+    const nextParams = new URLSearchParams(searchParams);
+    Object.entries(updates).forEach(([key, val]) => {
+      if (val === null || val === undefined || val === '' || val === 'all') {
+        nextParams.delete(key);
+      } else {
+        nextParams.set(key, String(val));
+      }
+    });
+    if (!('page' in updates)) {
+      nextParams.delete('page');
+    }
+    setSearchParams(nextParams);
+  };
+
+  const handleResetAll = () => {
+    setSearchParams(new URLSearchParams());
+  };
+
+  const activeFilters: ActiveFilter[] = [];
+  if (warehouseId) {
+    const matchedWh = warehouses.find((w) => String(w.id) === warehouseId);
+    activeFilters.push({
+      key: 'warehouseId',
+      label: 'Warehouse',
+      valueDisplay: matchedWh ? (matchedWh.cityCode || matchedWh.name) : `WH #${warehouseId}`,
+      onClear: () => updateFilters({ warehouseId: null }),
+    });
+  }
+  if (dateFrom) {
+    activeFilters.push({
+      key: 'dateFrom',
+      label: 'From',
+      valueDisplay: dateFrom,
+      onClear: () => updateFilters({ dateFrom: null }),
+    });
+  }
+  if (dateTo) {
+    activeFilters.push({
+      key: 'dateTo',
+      label: 'To',
+      valueDisplay: dateTo,
+      onClear: () => updateFilters({ dateTo: null }),
+    });
+  }
 
   const columns: Column<StockMovement>[] = [
     {
@@ -98,8 +154,18 @@ export const Incoming = () => {
           <div>
             <span style={{ fontWeight: 600, color: '#1F2839' }}>{firstItem.name}</span>
             {m.items.length > 1 && (
-              <span style={{ fontSize: '11px', color: '#6B7280', display: 'block' }}>
-                +{m.items.length - 1} other item(s)
+              <span
+                style={{
+                  marginLeft: '6px',
+                  fontSize: '11px',
+                  backgroundColor: '#EFF6FF',
+                  color: '#2250A1',
+                  padding: '2px 6px',
+                  borderRadius: '10px',
+                  fontWeight: 600,
+                }}
+              >
+                +{m.items.length - 1} more
               </span>
             )}
           </div>
@@ -109,48 +175,32 @@ export const Incoming = () => {
     {
       header: 'Brand',
       key: 'brand',
-      render: (m) => m.items[0]?.item?.brand || '-',
+      render: (m) => m.items[0]?.item.brand || '-',
     },
     {
       header: 'MN',
       key: 'modelNumber',
-      render: (m) =>
-        m.items[0]?.item?.modelNumber ? (
-          <code>{m.items[0]?.item?.modelNumber}</code>
-        ) : (
-          '-'
-        ),
+      render: (m) => m.items[0]?.item.modelNumber || '-',
     },
     {
       header: 'SN',
       key: 'serialNumber',
       render: (m) => {
-        const serials = m.items.flatMap((i) => i.movementSerials || []);
+        const firstItem = m.items[0];
+        if (!firstItem || firstItem.item.trackingType !== 'SERIALIZED') return '-';
+        const serials = firstItem.movementSerials || [];
         if (serials.length === 0) return '-';
-
+        if (serials.length === 1) {
+          return (
+            <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#2250A1' }}>
+              {serials[0].itemSerial.serialNumber}
+            </span>
+          );
+        }
         return (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxWidth: '200px' }}>
-            {serials.slice(0, 3).map((s, idx) => (
-              <span
-                key={idx}
-                style={{
-                  fontSize: '11px',
-                  backgroundColor: '#F3F4F6',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  border: '1px solid #E5E7EB',
-                  fontFamily: 'monospace',
-                }}
-              >
-                {s.itemSerial?.serialNumber}
-              </span>
-            ))}
-            {serials.length > 3 && (
-              <span style={{ fontSize: '11px', color: '#6B7280', alignSelf: 'center' }}>
-                +{serials.length - 3} more
-              </span>
-            )}
-          </div>
+          <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#2250A1' }}>
+            {serials[0].itemSerial.serialNumber} (+{serials.length - 1})
+          </span>
         );
       },
     },
@@ -165,28 +215,20 @@ export const Incoming = () => {
     {
       header: 'Unit',
       key: 'unit',
-      render: (m) => m.items[0]?.item?.unit?.symbol || m.items[0]?.item?.unit?.name || '-',
+      render: (m) => {
+        const firstItem = m.items[0]?.item;
+        return firstItem?.unit?.symbol || firstItem?.unit?.name || 'pcs';
+      },
     },
     {
       header: 'Condition',
       key: 'condition',
       render: (m) => {
-        const serials = m.items.flatMap((i) => i.movementSerials || []);
-        if (serials.length > 0) {
-          const firstCond = serials[0]?.itemSerial?.conditionLabel || serials[0]?.itemSerial?.state || 'Standby Good';
-          return <StatusBadge type="condition" status={firstCond} />;
-        }
-        return '-';
+        const firstItem = m.items[0];
+        if (!firstItem || firstItem.item.trackingType !== 'SERIALIZED') return '-';
+        const serials = firstItem.movementSerials || [];
+        return serials[0]?.itemSerial.conditionLabel || 'Standby Good';
       },
-    },
-    {
-      header: 'Reference',
-      key: 'referenceNumber',
-      render: (m) => (
-        <span style={{ fontSize: '13px', color: '#4B5563' }}>
-          {m.referenceNumber || '-'}
-        </span>
-      ),
     },
     {
       header: 'Created By',
@@ -198,18 +240,37 @@ export const Incoming = () => {
       ),
     },
     {
+      header: 'Note',
+      key: 'notes',
+      render: (m) => (
+        <span
+          style={{
+            maxWidth: '120px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            display: 'inline-block',
+            fontSize: '12px',
+            color: '#6B7280',
+          }}
+          title={m.notes || ''}
+        >
+          {m.notes || '-'}
+        </span>
+      ),
+    },
+    {
       header: 'Actions',
       key: 'actions',
       render: (m) => (
-        <div style={{ display: 'flex', gap: '6px' }}>
-          <button
-            className="btn-icon"
-            onClick={() => setSelectedMovementId(m.id)}
-            title="View Incoming Receipt Details"
-          >
-            <Eye size={16} />
-          </button>
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setSelectedMovementId(m.id)}
+          title="View Incoming Details"
+        >
+          <Eye size={15} />
+        </Button>
       ),
     },
   ];
@@ -217,48 +278,88 @@ export const Incoming = () => {
   return (
     <div className="page-container">
       <PageHeader
-        title="Incoming Stock Receipts"
-        description="Transaction history of goods received into warehouse locations."
+        title="Incoming Stock"
+        description="Receive, register, and log new warehouse inventory and equipment"
         actions={
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <Button
+            variant="primary"
+            onClick={() => setIsAddModalOpen(true)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Plus size={16} /> Add Incoming
+          </Button>
+        }
+      />
+
+      <FilterBar
+        searchValue={search}
+        onSearchChange={(val) => updateFilters({ search: val })}
+        searchPlaceholder="Search reference no, item name, brand, MN, SN, notes..."
+        primaryFilter={
+          <div style={{ width: '180px' }}>
             <Select
-              style={{ width: '170px' }}
-              value={warehouseFilter}
-              onChange={(e) => setWarehouseFilter(e.target.value)}
+              value={warehouseId}
+              onChange={(e) => updateFilters({ warehouseId: e.target.value })}
             >
               <option value="">All Warehouses</option>
               {warehouses.map((w) => (
                 <option key={w.id} value={w.id}>
-                  {w.name} {w.cityCode ? `(${w.cityCode})` : ''}
+                  {w.cityCode || w.name} ({w.name})
                 </option>
               ))}
             </Select>
-
-            <Button variant="primary" onClick={() => setIsAddModalOpen(true)}>
-              <Plus size={16} /> Record Incoming
-            </Button>
           </div>
         }
+        hasAdvancedFilters
+        isAdvancedOpen={isAdvancedOpen}
+        onToggleAdvanced={() => setIsAdvancedOpen(!isAdvancedOpen)}
+        activeFilters={activeFilters}
+        onResetAll={handleResetAll}
       />
+
+      <FilterPanel isOpen={isAdvancedOpen}>
+        <div style={{ width: '150px' }}>
+          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4B5563', marginBottom: '4px' }}>
+            From Date
+          </label>
+          <Input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => updateFilters({ dateFrom: e.target.value })}
+          />
+        </div>
+
+        <div style={{ width: '150px' }}>
+          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4B5563', marginBottom: '4px' }}>
+            To Date
+          </label>
+          <Input
+            type="date"
+            value={dateTo}
+            onChange={(e) => updateFilters({ dateTo: e.target.value })}
+          />
+        </div>
+      </FilterPanel>
 
       <PaginatedTable<StockMovement>
-        key={`incoming-${warehouseFilter}-${refreshKey}`}
         fetchUrl="/stock-movements/incoming"
-        searchPlaceholder="Search by item, brand, MN, SN, or reference number..."
-        extraParams={{
-          warehouseId: warehouseFilter || undefined,
-        }}
+        searchPlaceholder="Search incoming movements..."
         columns={columns}
+        extraParams={{
+          warehouseId: warehouseId ? Number(warehouseId) : undefined,
+          startDate: dateFrom || undefined,
+          endDate: dateTo || undefined,
+          search: search || undefined,
+          _refresh: refreshKey,
+        }}
       />
 
-      {/* Add Incoming Modal */}
       <AddIncomingModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        onSuccess={() => setRefreshKey((k) => k + 1)}
+        onSuccess={() => setRefreshKey((prev) => prev + 1)}
       />
 
-      {/* Incoming Detail Modal */}
       <IncomingDetailModal
         isOpen={selectedMovementId !== null}
         movementId={selectedMovementId}

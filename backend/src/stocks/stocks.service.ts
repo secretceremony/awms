@@ -42,6 +42,11 @@ export class StocksService {
 
     const rows: StockRow[] = [];
 
+    const lowStockSetting = await this.prisma.systemSetting.findUnique({
+      where: { key: 'inventory.lowStockThreshold' },
+    });
+    const lowStockThreshold = lowStockSetting ? parseInt(lowStockSetting.value, 10) : 5;
+
     // 1. Bulk Items & Stocks
     if (!trackingFilter || trackingFilter === 'ALL' || trackingFilter === 'BULK') {
       const bulkItems = await this.prisma.item.findMany({
@@ -78,6 +83,13 @@ export class StocksService {
         if (activeStocks.length > 0) {
           for (const stock of activeStocks) {
             const locName = stock.warehouse.cityCode || stock.warehouse.name;
+            const statusLabel =
+              stock.quantity === 0
+                ? 'Out of Stock'
+                : stock.quantity <= lowStockThreshold
+                ? 'Low Stock'
+                : 'Normal';
+
             rows.push({
               id: `bulk-wh-${stock.warehouseId}-item-${item.id}`,
               itemId: item.id,
@@ -93,7 +105,7 @@ export class StocksService {
               unit: item.unit.name,
               unitSymbol: item.unit.symbol || item.unit.name,
               condition: '-',
-              currentStatus: 'In Warehouse',
+              currentStatus: statusLabel,
               notes: '-',
             });
           }

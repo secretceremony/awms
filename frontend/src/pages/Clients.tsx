@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   PageHeader,
   Button,
@@ -9,12 +10,19 @@ import {
 import { PaginatedTable, type Column } from '../components/PaginatedTable.js';
 import { ClientFormModal, type Client } from '../components/client/ClientFormModal.js';
 import { ClientContactsModal } from '../components/client/ClientContactsModal.js';
+import { FilterBar, FilterPanel, type ActiveFilter } from '../components/filters/index.js';
 import { apiClient } from '../api/client.js';
 import { Plus, Edit2, Ban, CheckCircle, Trash2, Users } from 'lucide-react';
 
 export const Clients: React.FC = () => {
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // URL state
+  const search = searchParams.get('search') || '';
+  const statusFilter = searchParams.get('status') || 'all';
+  const typeFilter = searchParams.get('type') || 'all';
+
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Modals state
@@ -43,6 +51,43 @@ export const Clients: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  const updateFilters = (updates: Record<string, string | number | null>) => {
+    const nextParams = new URLSearchParams(searchParams);
+    Object.entries(updates).forEach(([key, val]) => {
+      if (val === null || val === undefined || val === '' || val === 'all') {
+        nextParams.delete(key);
+      } else {
+        nextParams.set(key, String(val));
+      }
+    });
+    if (!('page' in updates)) {
+      nextParams.delete('page');
+    }
+    setSearchParams(nextParams);
+  };
+
+  const handleResetAll = () => {
+    setSearchParams(new URLSearchParams());
+  };
+
+  const activeFilters: ActiveFilter[] = [];
+  if (statusFilter && statusFilter !== 'all') {
+    activeFilters.push({
+      key: 'status',
+      label: 'Status',
+      valueDisplay: statusFilter.toUpperCase(),
+      onClear: () => updateFilters({ status: null }),
+    });
+  }
+  if (typeFilter && typeFilter !== 'all') {
+    activeFilters.push({
+      key: 'type',
+      label: 'Client Type',
+      valueDisplay: typeFilter.toUpperCase(),
+      onClear: () => updateFilters({ type: null }),
+    });
+  }
+
   const handleCreate = () => {
     setSelectedClient(null);
     setIsFormModalOpen(true);
@@ -63,7 +108,7 @@ export const Clients: React.FC = () => {
     setConfirmConfig({
       isOpen: true,
       title: 'Deactivate Client',
-      message: `Are you sure you want to deactivate "${client.name}"? Inactive clients cannot be assigned to new projects.`,
+      message: `Are you sure you want to deactivate "${client.name}"? Deactivation is allowed only if this client has no active projects.`,
       confirmText: 'Deactivate',
       variant: 'danger',
       onConfirm: async () => {
@@ -86,7 +131,7 @@ export const Clients: React.FC = () => {
     setConfirmConfig({
       isOpen: true,
       title: 'Reactivate Client',
-      message: `Reactivate "${client.name}" for new project assignments?`,
+      message: `Reactivate "${client.name}" for new projects and contracts?`,
       confirmText: 'Reactivate',
       variant: 'primary',
       onConfirm: async () => {
@@ -109,13 +154,13 @@ export const Clients: React.FC = () => {
     setConfirmConfig({
       isOpen: true,
       title: 'Delete Client',
-      message: `Are you sure you want to permanently delete "${client.name}"? This action cannot be undone and is only allowed if this client is completely unreferenced.`,
+      message: `Are you sure you want to delete "${client.name}"? Deletion is only allowed if this client has NEVER had any projects or delivery orders.`,
       confirmText: 'Delete Permanently',
       variant: 'danger',
       onConfirm: async () => {
         try {
           setIsProcessing(true);
-          await apiClient.delete(`/clients/${client.id}`);
+          await apiClient.request(`/clients/${client.id}`, { method: 'DELETE' });
           setRefreshTrigger((prev) => prev + 1);
           setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
         } catch (err: any) {
@@ -130,12 +175,9 @@ export const Clients: React.FC = () => {
   const columns: Column<Client>[] = [
     {
       key: 'name',
-      header: 'Company',
+      header: 'Company / Client Name',
       render: (client: Client) => (
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontWeight: 600, color: '#1F2839' }}>{client.name}</span>
-          <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>ID: #{client.id}</span>
-        </div>
+        <span style={{ fontWeight: 600, color: '#1F2839' }}>{client.name}</span>
       ),
     },
     {
@@ -146,72 +188,54 @@ export const Clients: React.FC = () => {
           style={{
             padding: '2px 8px',
             borderRadius: '4px',
-            fontSize: '0.75rem',
             fontWeight: 700,
-            letterSpacing: '0.04em',
-            backgroundColor: client.clientType === 'PHM' ? 'rgba(34, 80, 161, 0.1)' : 'rgba(107, 114, 128, 0.1)',
+            fontSize: '0.75rem',
+            backgroundColor: client.clientType === 'PHM' ? 'rgba(34, 80, 161, 0.1)' : '#F3F4F6',
             color: client.clientType === 'PHM' ? '#2250A1' : '#4B5563',
-            border: `1px solid ${client.clientType === 'PHM' ? 'rgba(34, 80, 161, 0.2)' : 'rgba(107, 114, 128, 0.2)'}`,
+            border: `1px solid ${client.clientType === 'PHM' ? 'rgba(34, 80, 161, 0.2)' : '#E5E7EB'}`,
           }}
         >
-          {client.clientType || 'OTHER'}
+          {client.clientType}
         </span>
       ),
     },
     {
       key: 'contacts',
-      header: 'Contacts',
+      header: 'PIC / Contacts',
       render: (client: Client) => {
-        const count = client._count?.contacts ?? client.contacts?.length ?? 0;
+        const count = client.contacts ? client.contacts.length : 0;
+        const primary = client.contacts && client.contacts.length > 0 ? client.contacts[0] : null;
+
         return (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleOpenContacts(client)}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem' }}
-          >
-            <Users size={14} style={{ color: '#2250A1' }} />
-            <span>{count} Contact{count !== 1 ? 's' : ''}</span>
-          </Button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontWeight: 500, color: '#1F2839', fontSize: '0.85rem' }}>
+                {primary ? primary.name : '—'}
+              </span>
+              <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>
+                {primary ? primary.phone || primary.email : ''}
+              </span>
+            </div>
+
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => handleOpenContacts(client)}
+              style={{
+                fontSize: '0.75rem',
+                padding: '2px 8px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                marginLeft: 'auto',
+              }}
+            >
+              <Users size={12} />
+              <span>{count} PIC{count !== 1 ? 's' : ''}</span>
+            </Button>
+          </div>
         );
       },
-    },
-    {
-      key: 'email',
-      header: 'Email',
-      render: (client: Client) => (
-        <span style={{ color: client.email ? '#374151' : '#9CA3AF' }}>
-          {client.email || '—'}
-        </span>
-      ),
-    },
-    {
-      key: 'phone',
-      header: 'Phone',
-      render: (client: Client) => (
-        <span style={{ color: client.phone ? '#374151' : '#9CA3AF' }}>
-          {client.phone || '—'}
-        </span>
-      ),
-    },
-    {
-      key: 'address',
-      header: 'Address',
-      render: (client: Client) => (
-        <span
-          style={{
-            maxWidth: '200px',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            display: 'inline-block',
-            color: client.address ? '#374151' : '#9CA3AF',
-          }}
-          title={client.address || ''}
-        >
-          {client.address || '—'}
-        </span>
-      ),
     },
     {
       key: 'isActive',
@@ -228,19 +252,12 @@ export const Clients: React.FC = () => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => handleOpenContacts(client)}
-            title="Manage Contacts"
-          >
-            <Users size={14} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
             onClick={() => handleEdit(client)}
             title="Edit Client"
           >
             <Edit2 size={14} />
           </Button>
+
           {client.isActive ? (
             <Button
               variant="ghost"
@@ -262,6 +279,7 @@ export const Clients: React.FC = () => {
               <CheckCircle size={14} />
             </Button>
           )}
+
           <Button
             variant="ghost"
             size="sm"
@@ -280,7 +298,7 @@ export const Clients: React.FC = () => {
     <div className="page-container">
       <PageHeader
         title="Client Management"
-        description="Manage client companies, contacts, and operational logistics details"
+        description="Business clients, contract partner profiles, and designated PIC directories"
         actions={
           <Button variant="primary" onClick={handleCreate}>
             <Plus size={16} /> Add Client
@@ -289,41 +307,58 @@ export const Clients: React.FC = () => {
       />
 
       {actionError && (
-        <div className="alert-error" style={{ marginBottom: '1rem' }}>
+        <div className="alert-error" style={{ marginBottom: '1.25rem' }}>
           {actionError}
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-        <div style={{ width: '180px' }}>
+      <FilterBar
+        searchValue={search}
+        onSearchChange={(val) => updateFilters({ search: val })}
+        searchPlaceholder="Search company name, PIC name, email, or phone..."
+        primaryFilter={
+          <div style={{ width: '160px' }}>
+            <Select
+              value={statusFilter}
+              onChange={(e) => updateFilters({ status: e.target.value })}
+            >
+              <option value="all">All Status</option>
+              <option value="active">Active Only</option>
+              <option value="inactive">Inactive Only</option>
+            </Select>
+          </div>
+        }
+        hasAdvancedFilters
+        isAdvancedOpen={isAdvancedOpen}
+        onToggleAdvanced={() => setIsAdvancedOpen(!isAdvancedOpen)}
+        activeFilters={activeFilters}
+        onResetAll={handleResetAll}
+      />
+
+      <FilterPanel isOpen={isAdvancedOpen}>
+        <div style={{ width: '160px' }}>
+          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4B5563', marginBottom: '4px' }}>
+            Client Type
+          </label>
           <Select
             value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
+            onChange={(e) => updateFilters({ type: e.target.value })}
           >
             <option value="all">All Types</option>
-            <option value="PHM">PHM Only</option>
-            <option value="OTHER">OTHER Only</option>
+            <option value="PHM">PHM</option>
+            <option value="OTHER">OTHER</option>
           </Select>
         </div>
-        <div style={{ width: '160px' }}>
-          <Select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active Only</option>
-            <option value="inactive">Inactive Only</option>
-          </Select>
-        </div>
-      </div>
+      </FilterPanel>
 
       <PaginatedTable<Client>
         fetchUrl="/clients"
-        searchPlaceholder="Search company, contact person, email, or address..."
+        searchPlaceholder="Search clients..."
         columns={columns}
         extraParams={{
-          status: statusFilter,
-          clientType: typeFilter,
+          status: statusFilter !== 'all' ? statusFilter : undefined,
+          type: typeFilter !== 'all' ? typeFilter : undefined,
+          search: search || undefined,
           _refresh: refreshTrigger,
         }}
       />

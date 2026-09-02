@@ -13,7 +13,6 @@ import {
   Settings as SettingsIcon,
   LogOut,
   User,
-  Ruler,
   Briefcase,
   History
 } from 'lucide-react';
@@ -44,7 +43,6 @@ export const DashboardLayout = () => {
     { to: '/warehouses', label: 'Warehouses', icon: Warehouse },
     { to: '/projects', label: 'Projects', icon: Briefcase },
     { to: '/clients', label: 'Clients', icon: Users },
-    { to: '/units', label: 'Units', icon: Ruler },
     { type: 'header', label: 'Deliveries' },
     { to: '/delivery-orders', label: 'Delivery Orders', icon: Truck },
     { to: '/shipping-labels', label: 'Shipping Labels', icon: Tag },

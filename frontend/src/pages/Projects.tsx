@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   PageHeader,
   Button,
@@ -8,11 +9,17 @@ import {
 } from '../components/ui/index.js';
 import { PaginatedTable, type Column } from '../components/PaginatedTable.js';
 import { ProjectFormModal, type Project } from '../components/project/ProjectFormModal.js';
+import { FilterBar, type ActiveFilter } from '../components/filters/index.js';
 import { apiClient } from '../api/client.js';
-import { Plus, Edit2, CheckCircle2, RotateCcw, Trash2, MapPin, Building, User } from 'lucide-react';
+import { Plus, Edit2, CheckCircle2, RotateCcw, Trash2, MapPin, Building } from 'lucide-react';
 
 export const Projects: React.FC = () => {
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // URL state
+  const search = searchParams.get('search') || '';
+  const statusFilter = searchParams.get('status') || 'all';
+
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Form modal state
@@ -37,6 +44,35 @@ export const Projects: React.FC = () => {
   });
   const [isProcessing, setIsProcessing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  const updateFilters = (updates: Record<string, string | number | null>) => {
+    const nextParams = new URLSearchParams(searchParams);
+    Object.entries(updates).forEach(([key, val]) => {
+      if (val === null || val === undefined || val === '' || val === 'all') {
+        nextParams.delete(key);
+      } else {
+        nextParams.set(key, String(val));
+      }
+    });
+    if (!('page' in updates)) {
+      nextParams.delete('page');
+    }
+    setSearchParams(nextParams);
+  };
+
+  const handleResetAll = () => {
+    setSearchParams(new URLSearchParams());
+  };
+
+  const activeFilters: ActiveFilter[] = [];
+  if (statusFilter && statusFilter !== 'all') {
+    activeFilters.push({
+      key: 'status',
+      label: 'Status',
+      valueDisplay: statusFilter.toUpperCase(),
+      onClear: () => updateFilters({ status: null }),
+    });
+  }
 
   const handleCreate = () => {
     setSelectedProject(null);
@@ -102,13 +138,16 @@ export const Projects: React.FC = () => {
     setConfirmConfig({
       isOpen: true,
       title: 'Reactivate Project',
-      message: `Reactivate project "${project.name}" to ACTIVE status? This will allow new Delivery Orders and Outgoing dispatches.`,
+      message: `Reactivate project "${project.name}"? This will allow new outgoing dispatches and editable project details.`,
       confirmText: 'Reactivate Project',
       variant: 'primary',
       onConfirm: async () => {
         try {
           setIsProcessing(true);
-          await apiClient.request(`/projects/${project.id}/reactivate`, { method: 'PATCH' });
+          await apiClient.request(`/projects/${project.id}/status`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status: 'ACTIVE' }),
+          });
           setRefreshTrigger((prev) => prev + 1);
           setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
         } catch (err: any) {
@@ -125,13 +164,13 @@ export const Projects: React.FC = () => {
     setConfirmConfig({
       isOpen: true,
       title: 'Delete Project',
-      message: `Are you sure you want to permanently delete "${project.name}"? This action is only permitted if this project has NEVER been referenced in any transactional records.`,
+      message: `Are you sure you want to permanently delete project "${project.name}"? Deletion is only allowed if this project has NEVER had any dispatches, returns, or inventory assigned.`,
       confirmText: 'Delete Permanently',
       variant: 'danger',
       onConfirm: async () => {
         try {
           setIsProcessing(true);
-          await apiClient.delete(`/projects/${project.id}`);
+          await apiClient.request(`/projects/${project.id}`, { method: 'DELETE' });
           setRefreshTrigger((prev) => prev + 1);
           setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
         } catch (err: any) {
@@ -147,121 +186,100 @@ export const Projects: React.FC = () => {
     {
       key: 'name',
       header: 'Project Name',
-      render: (project: Project) => (
+      render: (p: Project) => (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontWeight: 600, color: '#1F2839' }}>{project.name}</span>
-          <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>ID: #{project.id}</span>
+          <span style={{ fontWeight: 600, color: '#1F2839' }}>{p.name}</span>
+          {p.siteCode && (
+            <span style={{ fontSize: '0.75rem', color: '#0891B2', fontWeight: 600 }}>
+              Site: {p.siteCode}
+            </span>
+          )}
         </div>
-      ),
-    },
-    {
-      key: 'siteCode',
-      header: 'Site Code',
-      render: (project: Project) => (
-        project.siteCode ? (
-          <span
-            style={{
-              padding: '2px 8px',
-              borderRadius: '4px',
-              fontWeight: 700,
-              fontSize: '0.75rem',
-              letterSpacing: '0.04em',
-              backgroundColor: 'rgba(6, 182, 212, 0.08)',
-              color: '#0891B2',
-              border: '1px solid rgba(6, 182, 212, 0.2)',
-            }}
-          >
-            {project.siteCode}
-          </span>
-        ) : (
-          <span style={{ color: '#9CA3AF', fontSize: '0.8rem' }}>—</span>
-        )
       ),
     },
     {
       key: 'client',
       header: 'Client',
-      render: (project: Project) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#1F2839', fontWeight: 500 }}>
-          <Building size={14} style={{ color: '#2250A1', flexShrink: 0 }} />
-          <span>{project.client?.name || '—'}</span>
-        </div>
-      ),
-    },
-    {
-      key: 'clientContact',
-      header: 'Attn / Contact',
-      render: (project: Project) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#4B5563' }}>
-          <User size={14} style={{ color: '#9CA3AF', flexShrink: 0 }} />
-          <span>{project.clientContact?.name || '—'}</span>
+      render: (p: Project) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Building size={14} style={{ color: '#2250A1' }} />
+          <span style={{ fontWeight: 600, color: '#1F2839' }}>
+            {p.client ? p.client.name : '—'}
+          </span>
         </div>
       ),
     },
     {
       key: 'referenceNumber',
       header: 'Reference No.',
-      render: (project: Project) => (
-        project.referenceNumber ? (
-          <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#1F2839' }}>
-            {project.referenceNumber}
-          </span>
-        ) : (
-          <span style={{ color: '#9CA3AF', fontStyle: 'italic', fontSize: '0.8rem' }}>None</span>
-        )
+      render: (p: Project) => (
+        <span
+          style={{
+            padding: '2px 8px',
+            borderRadius: '4px',
+            fontWeight: 600,
+            fontSize: '0.8rem',
+            fontFamily: 'monospace',
+            backgroundColor: p.referenceNumber ? 'rgba(34, 80, 161, 0.08)' : 'transparent',
+            color: p.referenceNumber ? '#2250A1' : '#9CA3AF',
+            border: p.referenceNumber ? '1px solid rgba(34, 80, 161, 0.2)' : 'none',
+          }}
+        >
+          {p.referenceNumber || '—'}
+        </span>
       ),
     },
     {
       key: 'location',
-      header: 'Location',
-      render: (project: Project) => (
+      header: 'Location Address',
+      render: (p: Project) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#4B5563' }}>
-          <MapPin size={14} style={{ color: '#9CA3AF', flexShrink: 0 }} />
-          <span style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {project.location}
-          </span>
+          <MapPin size={14} style={{ color: '#2250A1', flexShrink: 0 }} />
+          <span style={{ fontSize: '0.875rem' }}>{p.location}</span>
         </div>
       ),
     },
     {
-      key: 'timeline',
-      header: 'Timeline',
-      render: (project: Project) => (
-        <div style={{ fontSize: '0.8rem', color: '#4B5563' }}>
-          {project.startedAt ? new Date(project.startedAt).toLocaleDateString() : '—'} &rarr;{' '}
-          {project.endedAt ? new Date(project.endedAt).toLocaleDateString() : 'Ongoing'}
+      key: 'contact',
+      header: 'Primary PIC',
+      render: (p: Project) => (
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={{ fontWeight: 500, color: '#1F2839', fontSize: '0.85rem' }}>
+            {p.clientContact?.name || '—'}
+          </span>
+          <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>
+            {p.clientContact?.phone || p.clientContact?.email || ''}
+          </span>
         </div>
       ),
     },
     {
       key: 'status',
       header: 'Status',
-      render: (project: Project) => (
-        <StatusBadge
-          status={project.status === 'COMPLETED' ? 'ARCHIVED' : 'ACTIVE'}
-        />
-      ),
+      render: (p: Project) => <StatusBadge status={p.status} />,
     },
     {
       key: 'actions',
       header: 'Actions',
-      render: (project: Project) => (
+      render: (p: Project) => (
         <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleEdit(project)}
-            title={project.status === 'COMPLETED' ? 'Completed (Read-only)' : 'Edit Project'}
-            disabled={project.status === 'COMPLETED'}
-          >
-            <Edit2 size={14} />
-          </Button>
-          {project.status === 'ACTIVE' ? (
+          {p.status === 'ACTIVE' && (
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => handleCompleteProject(project)}
-              title="Mark as Completed"
+              onClick={() => handleEdit(p)}
+              title="Edit Project"
+            >
+              <Edit2 size={14} />
+            </Button>
+          )}
+
+          {p.status === 'ACTIVE' ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleCompleteProject(p)}
+              title="Complete Project"
               style={{ color: '#10B981' }}
             >
               <CheckCircle2 size={14} />
@@ -270,17 +288,18 @@ export const Projects: React.FC = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => handleReactivate(project)}
+              onClick={() => handleReactivate(p)}
               title="Reactivate Project"
               style={{ color: '#2250A1' }}
             >
               <RotateCcw size={14} />
             </Button>
           )}
+
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => handleDelete(project)}
+            onClick={() => handleDelete(p)}
             title="Delete Project"
             style={{ color: '#6B7280' }}
           >
@@ -294,8 +313,8 @@ export const Projects: React.FC = () => {
   return (
     <div className="page-container">
       <PageHeader
-        title="Projects"
-        description="Manage project deployments, client site codes, reference numbers, and timeline status"
+        title="Project Management"
+        description="Client operational contracts, site codes, assigned external reference numbers, and active dispatch locations"
         actions={
           <Button variant="primary" onClick={handleCreate}>
             <Plus size={16} /> Add Project
@@ -304,30 +323,38 @@ export const Projects: React.FC = () => {
       />
 
       {actionError && (
-        <div className="alert-error" style={{ marginBottom: '1rem' }}>
+        <div className="alert-error" style={{ marginBottom: '1.25rem' }}>
           {actionError}
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-        <div style={{ width: '180px' }}>
-          <Select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="all">All Status</option>
-            <option value="ACTIVE">Active</option>
-            <option value="COMPLETED">Archived / Completed</option>
-          </Select>
-        </div>
-      </div>
+      <FilterBar
+        searchValue={search}
+        onSearchChange={(val) => updateFilters({ search: val })}
+        searchPlaceholder="Search project name, site code, reference no, or client..."
+        primaryFilter={
+          <div style={{ width: '160px' }}>
+            <Select
+              value={statusFilter}
+              onChange={(e) => updateFilters({ status: e.target.value })}
+            >
+              <option value="all">All Status</option>
+              <option value="ACTIVE">Active Only</option>
+              <option value="COMPLETED">Completed Only</option>
+            </Select>
+          </div>
+        }
+        activeFilters={activeFilters}
+        onResetAll={handleResetAll}
+      />
 
       <PaginatedTable<Project>
         fetchUrl="/projects"
-        searchPlaceholder="Search project name, site code, client, ref no, location..."
+        searchPlaceholder="Search projects..."
         columns={columns}
         extraParams={{
-          status: statusFilter,
+          status: statusFilter !== 'all' ? statusFilter : undefined,
+          search: search || undefined,
           _refresh: refreshTrigger,
         }}
       />

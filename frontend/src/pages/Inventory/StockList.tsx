@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PaginatedTable, type Column } from '../../components/PaginatedTable.js';
 import { apiClient } from '../../api/client.js';
-import { Eye, Plus, Layers, Edit2 } from 'lucide-react';
-import { Button, StatusBadge, PageHeader, Select } from '../../components/ui/index.js';
+import { Eye, Plus, Layers, Edit2, AlertCircle, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Button, PageHeader, Select } from '../../components/ui/index.js';
 import { ItemFormModal, type Item } from '../../components/inventory/ItemFormModal.js';
 import { InitialStockModal } from '../../components/inventory/InitialStockModal.js';
+import { FilterBar, FilterPanel, type ActiveFilter } from '../../components/filters/index.js';
 
 interface StockRow {
   id: string;
@@ -26,10 +27,16 @@ interface StockRow {
   notes: string;
 }
 
-export const StockList = () => {
+export const StockList: React.FC = () => {
   const navigate = useNavigate();
-  const [trackingFilter, setTrackingFilter] = useState<string>('all');
-  const [warehouseFilter, setWarehouseFilter] = useState<string>('');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // URL state
+  const search = searchParams.get('search') || '';
+  const trackingType = searchParams.get('trackingType') || 'all';
+  const warehouseId = searchParams.get('warehouseId') || '';
+
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [warehouses, setWarehouses] = useState<{ id: number; name: string; cityCode?: string | null }[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -50,6 +57,44 @@ export const StockList = () => {
     fetchWarehouses();
   }, []);
 
+  const updateFilters = (updates: Record<string, string | number | null>) => {
+    const nextParams = new URLSearchParams(searchParams);
+    Object.entries(updates).forEach(([key, val]) => {
+      if (val === null || val === undefined || val === '' || val === 'all') {
+        nextParams.delete(key);
+      } else {
+        nextParams.set(key, String(val));
+      }
+    });
+    if (!('page' in updates)) {
+      nextParams.delete('page');
+    }
+    setSearchParams(nextParams);
+  };
+
+  const handleResetAll = () => {
+    setSearchParams(new URLSearchParams());
+  };
+
+  const activeFilters: ActiveFilter[] = [];
+  if (trackingType && trackingType !== 'all') {
+    activeFilters.push({
+      key: 'trackingType',
+      label: 'Tracking',
+      valueDisplay: trackingType.toUpperCase(),
+      onClear: () => updateFilters({ trackingType: null }),
+    });
+  }
+  if (warehouseId) {
+    const matchedWh = warehouses.find((w) => String(w.id) === warehouseId);
+    activeFilters.push({
+      key: 'warehouseId',
+      label: 'Warehouse',
+      valueDisplay: matchedWh ? (matchedWh.cityCode || matchedWh.name) : `WH #${warehouseId}`,
+      onClear: () => updateFilters({ warehouseId: null }),
+    });
+  }
+
   const handleEditItem = async (itemId: number) => {
     try {
       const res: any = await apiClient.get(`/items/${itemId}`);
@@ -59,6 +104,56 @@ export const StockList = () => {
     } catch (err) {
       console.error('Failed to fetch item for edit:', err);
     }
+  };
+
+  const renderStatusBadge = (status: string, _tracking: string, qty: number) => {
+    const s = (status || '').toLowerCase();
+
+    if (s === 'out of stock' || qty === 0) {
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '4px', backgroundColor: '#FEE2E2', color: '#B91C1C', fontWeight: 700, fontSize: '0.75rem' }}>
+          <AlertCircle size={12} /> Out of Stock
+        </span>
+      );
+    }
+
+    if (s === 'low stock') {
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '4px', backgroundColor: '#FEF3C7', color: '#B45309', fontWeight: 700, fontSize: '0.75rem' }}>
+          <AlertTriangle size={12} /> Low Stock
+        </span>
+      );
+    }
+
+    if (s === 'deploy' || s === 'deployed') {
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(6, 182, 212, 0.1)', color: '#0891B2', fontWeight: 700, fontSize: '0.75rem', border: '1px solid rgba(6, 182, 212, 0.2)' }}>
+          Deploy
+        </span>
+      );
+    }
+
+    if (s.includes('repair')) {
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '4px', backgroundColor: '#FEE2E2', color: '#DC2626', fontWeight: 700, fontSize: '0.75rem' }}>
+          Under Repair
+        </span>
+      );
+    }
+
+    if (s.includes('bad')) {
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '4px', backgroundColor: '#FEE2E2', color: '#DC2626', fontWeight: 700, fontSize: '0.75rem' }}>
+          Standby Bad
+        </span>
+      );
+    }
+
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '4px', backgroundColor: '#D1FAE5', color: '#047857', fontWeight: 700, fontSize: '0.75rem' }}>
+        <CheckCircle2 size={12} /> {status === 'Normal' ? 'Normal' : status || 'In Warehouse'}
+      </span>
+    );
   };
 
   const columns: Column<StockRow>[] = [
@@ -99,26 +194,18 @@ export const StockList = () => {
     {
       header: 'MN',
       key: 'modelNumber',
-      render: (r) => (r.modelNumber ? <code>{r.modelNumber}</code> : '-'),
+      render: (r) => r.modelNumber || '-',
     },
     {
       header: 'SN',
       key: 'serialNumber',
       render: (r) =>
         r.serialNumber !== '-' ? (
-          <code
-            style={{
-              backgroundColor: '#F3F4F6',
-              padding: '2px 6px',
-              borderRadius: '4px',
-              border: '1px solid #E5E7EB',
-              fontSize: '12px',
-            }}
-          >
+          <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#2250A1' }}>
             {r.serialNumber}
-          </code>
+          </span>
         ) : (
-          '-'
+          <span style={{ color: '#9CA3AF' }}>-</span>
         ),
     },
     {
@@ -128,40 +215,37 @@ export const StockList = () => {
     },
     {
       header: 'Unit',
-      key: 'unitSymbol',
-      render: (r) => r.unitSymbol || r.unit || '-',
+      key: 'unit',
+      render: (r) => r.unitSymbol || r.unit || 'pcs',
     },
     {
       header: 'Condition',
       key: 'condition',
       render: (r) => (
-        r.condition !== '-' ? (
-          <StatusBadge type="condition" status={r.condition} />
-        ) : (
-          '-'
-        )
+        <span style={{ fontSize: '13px', color: '#4B5563' }}>{r.condition || '-'}</span>
       ),
     },
     {
       header: 'Current Status',
       key: 'currentStatus',
-      render: (r) => {
-        let badgeVariant: 'active' | 'inactive' | 'pending' = 'active';
-        if (r.currentStatus === 'Deploy') badgeVariant = 'pending';
-        else if (r.currentStatus === 'Under Repair' || r.currentStatus === 'Standby Bad') badgeVariant = 'inactive';
-
-        return (
-          <span className={`badge-status badge-${badgeVariant}`}>
-            {r.currentStatus}
-          </span>
-        );
-      },
+      render: (r) => renderStatusBadge(r.currentStatus, r.trackingType, r.quantity),
     },
     {
       header: 'Note',
       key: 'notes',
       render: (r) => (
-        <span style={{ fontSize: '12px', color: '#6B7280', maxWidth: '150px', display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span
+          style={{
+            maxWidth: '120px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            display: 'inline-block',
+            fontSize: '12px',
+            color: '#6B7280',
+          }}
+          title={r.notes !== '-' ? r.notes : ''}
+        >
           {r.notes || '-'}
         </span>
       ),
@@ -170,21 +254,23 @@ export const StockList = () => {
       header: 'Actions',
       key: 'actions',
       render: (r) => (
-        <div style={{ display: 'flex', gap: '6px' }}>
-          <button
-            className="btn-icon"
+        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => navigate(`/inventory/item/${r.itemId}`)}
-            title="View Current Inventory Detail"
+            title="View Item Details"
           >
-            <Eye size={16} />
-          </button>
-          <button
-            className="btn-icon"
+            <Eye size={15} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => handleEditItem(r.itemId)}
-            title="Edit Master Item"
+            title="Edit Item Master"
           >
-            <Edit2 size={16} />
-          </button>
+            <Edit2 size={15} />
+          </Button>
         </div>
       ),
     },
@@ -193,43 +279,24 @@ export const StockList = () => {
   return (
     <div className="page-container">
       <PageHeader
-        title="Inventory Stock List"
-        description="Real-time physical inventory balances and serialized asset locations."
+        title="Stock List"
+        description="Real-time inventory levels, serialized asset tracking, and warehouse allocations"
         actions={
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <Select
-              style={{ width: '150px' }}
-              value={trackingFilter}
-              onChange={(e) => setTrackingFilter(e.target.value)}
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Button
+              variant="secondary"
+              onClick={() => setIsInitialStockModalOpen(true)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
-              <option value="all">All Tracking</option>
-              <option value="BULK">Bulk Only</option>
-              <option value="SERIALIZED">Serialized Only</option>
-            </Select>
-
-            <Select
-              style={{ width: '170px' }}
-              value={warehouseFilter}
-              onChange={(e) => setWarehouseFilter(e.target.value)}
-            >
-              <option value="">All Warehouses</option>
-              {warehouses.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name} {w.cityCode ? `(${w.cityCode})` : ''}
-                </option>
-              ))}
-            </Select>
-
-            <Button variant="secondary" onClick={() => setIsInitialStockModalOpen(true)}>
               <Layers size={16} /> Initial Stock
             </Button>
-
             <Button
               variant="primary"
               onClick={() => {
                 setEditingItem(null);
                 setIsItemModalOpen(true);
               }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
               <Plus size={16} /> Add Item
             </Button>
@@ -237,33 +304,71 @@ export const StockList = () => {
         }
       />
 
-      <PaginatedTable<StockRow>
-        key={`stocks-${trackingFilter}-${warehouseFilter}-${refreshKey}`}
-        fetchUrl="/stocks"
-        searchPlaceholder="Search by item, brand, MN, SN, location, status..."
-        extraParams={{
-          trackingType: trackingFilter !== 'all' ? trackingFilter : undefined,
-          warehouseId: warehouseFilter || undefined,
-        }}
-        columns={columns}
+      <FilterBar
+        searchValue={search}
+        onSearchChange={(val) => updateFilters({ search: val })}
+        searchPlaceholder="Search item name, brand, MN, SN..."
+        primaryFilter={
+          <div style={{ width: '160px' }}>
+            <Select
+              value={trackingType}
+              onChange={(e) => updateFilters({ trackingType: e.target.value })}
+            >
+              <option value="all">All Tracking</option>
+              <option value="bulk">Bulk Only</option>
+              <option value="serialized">Serialized Only</option>
+            </Select>
+          </div>
+        }
+        hasAdvancedFilters
+        isAdvancedOpen={isAdvancedOpen}
+        onToggleAdvanced={() => setIsAdvancedOpen(!isAdvancedOpen)}
+        activeFilters={activeFilters}
+        onResetAll={handleResetAll}
       />
 
-      {/* Item Form Modal (Create / Edit) */}
+      <FilterPanel isOpen={isAdvancedOpen}>
+        <div style={{ width: '200px' }}>
+          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4B5563', marginBottom: '4px' }}>
+            Warehouse Location
+          </label>
+          <Select
+            value={warehouseId}
+            onChange={(e) => updateFilters({ warehouseId: e.target.value })}
+          >
+            <option value="">All Warehouses</option>
+            {warehouses.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.cityCode || w.name} ({w.name})
+              </option>
+            ))}
+          </Select>
+        </div>
+      </FilterPanel>
+
+      <PaginatedTable<StockRow>
+        fetchUrl="/stocks"
+        searchPlaceholder="Search item, brand, MN, SN..."
+        columns={columns}
+        extraParams={{
+          trackingType: trackingType !== 'all' ? trackingType : undefined,
+          warehouseId: warehouseId || undefined,
+          search: search || undefined,
+          _refresh: refreshKey,
+        }}
+      />
+
       <ItemFormModal
         isOpen={isItemModalOpen}
+        onClose={() => setIsItemModalOpen(false)}
         item={editingItem}
-        onClose={() => {
-          setIsItemModalOpen(false);
-          setEditingItem(null);
-        }}
-        onSuccess={() => setRefreshKey((k) => k + 1)}
+        onSuccess={() => setRefreshKey((prev) => prev + 1)}
       />
 
-      {/* Initial Stock Modal */}
       <InitialStockModal
         isOpen={isInitialStockModalOpen}
         onClose={() => setIsInitialStockModalOpen(false)}
-        onSuccess={() => setRefreshKey((k) => k + 1)}
+        onSuccess={() => setRefreshKey((prev) => prev + 1)}
       />
     </div>
   );

@@ -5,6 +5,8 @@ import { LoginDto } from './dto/login.dto.js';
 import bcrypt from 'bcryptjs';
 import { Response } from 'express';
 
+import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
+
 interface UserPayload {
   id: number;
   email: string;
@@ -17,6 +19,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly auditLogsService: AuditLogsService,
   ) {}
 
   async validateUser(loginDto: LoginDto): Promise<UserPayload> {
@@ -66,10 +69,15 @@ export class AuthService {
       maxAge: 8 * 60 * 60 * 1000, // 8 hours
     });
 
+    await this.auditLogsService.logAction(user.id, 'LOGIN', 'users', user.id, {
+      email: user.email,
+      name: user.name,
+    });
+
     return { user };
   }
 
-  logout(response: Response): { message: string } {
+  async logout(user: UserPayload | null, response: Response): Promise<{ message: string }> {
     const isProduction = process.env.NODE_ENV === 'production';
 
     response.clearCookie('access_token', {
@@ -77,6 +85,13 @@ export class AuthService {
       secure: isProduction,
       sameSite: 'strict',
     });
+
+    if (user?.id) {
+      await this.auditLogsService.logAction(user.id, 'LOGOUT', 'users', user.id, {
+        email: user.email,
+        name: user.name,
+      });
+    }
 
     return { message: 'Logged out successfully' };
   }

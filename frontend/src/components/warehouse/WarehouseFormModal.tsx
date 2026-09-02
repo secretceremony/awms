@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, FormField, Input, Button } from '../ui/index.js';
+import { Modal, FormField, Input, Select, Button } from '../ui/index.js';
 import { apiClient } from '../../api/client.js';
 
 export interface Warehouse {
@@ -11,6 +11,13 @@ export interface Warehouse {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface CityOption {
+  id: number;
+  name: string;
+  code: string;
+  isActive: boolean;
 }
 
 export interface WarehouseFormModalProps {
@@ -26,6 +33,7 @@ export const WarehouseFormModal: React.FC<WarehouseFormModalProps> = ({
   warehouse,
   onSuccess,
 }) => {
+  const [cities, setCities] = useState<CityOption[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     city: '',
@@ -36,23 +44,44 @@ export const WarehouseFormModal: React.FC<WarehouseFormModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    if (warehouse) {
-      setFormData({
-        name: warehouse.name,
-        city: warehouse.city,
-        cityCode: warehouse.cityCode,
-        location: warehouse.location,
-      });
-    } else {
-      setFormData({
-        name: '',
-        city: '',
-        cityCode: '',
-        location: '',
-      });
+    const fetchCities = async () => {
+      try {
+        const res: any = await apiClient.get('/cities', { params: { status: 'active', limit: 100 } });
+        setCities(Array.isArray(res) ? res : res?.data || []);
+      } catch (err) {
+        console.error('Failed to load active cities:', err);
+      }
+    };
+
+    if (isOpen) {
+      fetchCities();
+      if (warehouse) {
+        setFormData({
+          name: warehouse.name,
+          city: warehouse.city,
+          cityCode: warehouse.cityCode,
+          location: warehouse.location,
+        });
+      } else {
+        setFormData({
+          name: '',
+          city: '',
+          cityCode: '',
+          location: '',
+        });
+      }
+      setErrorMsg(null);
     }
-    setErrorMsg(null);
   }, [warehouse, isOpen]);
+
+  const handleCitySelect = (cityName: string) => {
+    const matched = cities.find((c) => c.name.toLowerCase() === cityName.toLowerCase());
+    setFormData((prev) => ({
+      ...prev,
+      city: cityName,
+      cityCode: matched ? matched.code : prev.cityCode,
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,7 +123,7 @@ export const WarehouseFormModal: React.FC<WarehouseFormModalProps> = ({
     >
       <form onSubmit={handleSubmit}>
         <div className="modal-body">
-          {errorMsg && <div className="alert-error">{errorMsg}</div>}
+          {errorMsg && <div className="alert-error" style={{ marginBottom: '1rem' }}>{errorMsg}</div>}
 
           <FormField label="Warehouse Name" required>
             <Input
@@ -108,20 +137,26 @@ export const WarehouseFormModal: React.FC<WarehouseFormModalProps> = ({
 
           <div className="form-grid" style={{ marginBottom: '1rem' }}>
             <FormField label="City" required style={{ marginBottom: 0 }}>
-              <Input
-                type="text"
+              <Select
                 required
-                placeholder="e.g. Balikpapan / Jakarta"
                 value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-              />
+                onChange={(e) => handleCitySelect(e.target.value)}
+              >
+                <option value="">Select configured City...</option>
+                {cities.map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.name} ({c.code})
+                  </option>
+                ))}
+              </Select>
             </FormField>
 
-            <FormField label="City Code" style={{ marginBottom: 0 }}>
+            <FormField label="City Code (Derived)" style={{ marginBottom: 0 }}>
               <Input
                 type="text"
                 disabled
-                value={warehouse ? formData.cityCode : 'Auto-generated (e.g. BPN, JKT)'}
+                value={formData.cityCode || (warehouse ? warehouse.cityCode : 'Auto-derived')}
+                style={{ fontFamily: 'monospace', fontWeight: 700, backgroundColor: '#F3F4F6' }}
               />
             </FormField>
           </div>

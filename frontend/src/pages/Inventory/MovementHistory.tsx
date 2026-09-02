@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PaginatedTable, type Column } from '../../components/PaginatedTable.js';
 import { apiClient } from '../../api/client.js';
-import { Eye, Plus, SlidersHorizontal } from 'lucide-react';
+import { Eye, Plus } from 'lucide-react';
 import { Button, StatusBadge, PageHeader, Select, Input } from '../../components/ui/index.js';
 import { MovementDetailModal } from '../../components/history/MovementDetailModal.js';
 import { AdjustmentModal } from '../../components/history/AdjustmentModal.js';
+import { FilterBar, FilterPanel, type ActiveFilter } from '../../components/filters/index.js';
 
 interface StockMovement {
   id: number;
@@ -26,6 +28,7 @@ interface StockMovement {
   project?: {
     id: number;
     name: string;
+    siteCode?: string | null;
   };
   createdBy?: {
     name: string;
@@ -54,11 +57,17 @@ interface StockMovement {
   }>;
 }
 
-export const MovementHistory = () => {
-  const [typeFilter, setTypeFilter] = useState<string>('');
-  const [warehouseFilter, setWarehouseFilter] = useState<string>('');
-  const [dateFrom, setDateFrom] = useState<string>('');
-  const [dateTo, setDateTo] = useState<string>('');
+export const MovementHistory: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // URL state
+  const search = searchParams.get('search') || '';
+  const typeFilter = searchParams.get('type') || 'all';
+  const warehouseFilter = searchParams.get('warehouseId') || '';
+  const dateFrom = searchParams.get('dateFrom') || '';
+  const dateTo = searchParams.get('dateTo') || '';
+
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [warehouses, setWarehouses] = useState<{ id: number; name: string; cityCode?: string | null }[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -77,6 +86,60 @@ export const MovementHistory = () => {
     };
     fetchWarehouses();
   }, []);
+
+  const updateFilters = (updates: Record<string, string | number | null>) => {
+    const nextParams = new URLSearchParams(searchParams);
+    Object.entries(updates).forEach(([key, val]) => {
+      if (val === null || val === undefined || val === '' || val === 'all') {
+        nextParams.delete(key);
+      } else {
+        nextParams.set(key, String(val));
+      }
+    });
+    if (!('page' in updates)) {
+      nextParams.delete('page');
+    }
+    setSearchParams(nextParams);
+  };
+
+  const handleResetAll = () => {
+    setSearchParams(new URLSearchParams());
+  };
+
+  const activeFilters: ActiveFilter[] = [];
+  if (typeFilter && typeFilter !== 'all') {
+    activeFilters.push({
+      key: 'type',
+      label: 'Type',
+      valueDisplay: typeFilter,
+      onClear: () => updateFilters({ type: null }),
+    });
+  }
+  if (warehouseFilter) {
+    const matchedWh = warehouses.find((w) => String(w.id) === warehouseFilter);
+    activeFilters.push({
+      key: 'warehouseId',
+      label: 'Warehouse',
+      valueDisplay: matchedWh ? (matchedWh.cityCode || matchedWh.name) : `WH #${warehouseFilter}`,
+      onClear: () => updateFilters({ warehouseId: null }),
+    });
+  }
+  if (dateFrom) {
+    activeFilters.push({
+      key: 'dateFrom',
+      label: 'From',
+      valueDisplay: dateFrom,
+      onClear: () => updateFilters({ dateFrom: null }),
+    });
+  }
+  if (dateTo) {
+    activeFilters.push({
+      key: 'dateTo',
+      label: 'To',
+      valueDisplay: dateTo,
+      onClear: () => updateFilters({ dateTo: null }),
+    });
+  }
 
   const columns: Column<StockMovement>[] = [
     {
@@ -100,25 +163,38 @@ export const MovementHistory = () => {
       ),
     },
     {
-      header: 'Warehouse',
-      key: 'destinationWarehouse',
+      header: 'Source',
+      key: 'source',
       render: (m) => {
-        const wh = m.destinationWarehouse || m.sourceWarehouse;
-        return (
-          <span style={{ fontWeight: 600, color: '#1F2839' }}>
-            {wh?.cityCode || wh?.name || '-'}
-          </span>
-        );
+        if (m.sourceWarehouse) {
+          return (
+            <span style={{ fontWeight: 600, color: '#1F2839' }}>
+              {m.sourceWarehouse.cityCode || m.sourceWarehouse.name}
+            </span>
+          );
+        }
+        if (m.project && m.movementType === 'RETURN') {
+          return <span style={{ color: '#0891B2', fontWeight: 600 }}>{m.project.siteCode || m.project.name}</span>;
+        }
+        return <span style={{ color: '#9CA3AF' }}>-</span>;
       },
     },
     {
-      header: 'Project',
-      key: 'project',
-      render: (m) => (
-        <span style={{ fontSize: '13px', color: '#4B5563' }}>
-          {m.project?.name || '-'}
-        </span>
-      ),
+      header: 'Destination',
+      key: 'destination',
+      render: (m) => {
+        if (m.destinationWarehouse) {
+          return (
+            <span style={{ fontWeight: 600, color: '#1F2839' }}>
+              {m.destinationWarehouse.cityCode || m.destinationWarehouse.name}
+            </span>
+          );
+        }
+        if (m.project && m.movementType === 'OUTGOING') {
+          return <span style={{ color: '#0891B2', fontWeight: 600 }}>{m.project.siteCode || m.project.name}</span>;
+        }
+        return <span style={{ color: '#9CA3AF' }}>-</span>;
+      },
     },
     {
       header: 'Item',
@@ -130,56 +206,18 @@ export const MovementHistory = () => {
           <div>
             <span style={{ fontWeight: 600, color: '#1F2839' }}>{firstItem.name}</span>
             {m.items.length > 1 && (
-              <span style={{ fontSize: '11px', color: '#6B7280', display: 'block' }}>
-                +{m.items.length - 1} other item(s)
-              </span>
-            )}
-          </div>
-        );
-      },
-    },
-    {
-      header: 'Brand',
-      key: 'brand',
-      render: (m) => m.items[0]?.item?.brand || '-',
-    },
-    {
-      header: 'MN',
-      key: 'modelNumber',
-      render: (m) =>
-        m.items[0]?.item?.modelNumber ? (
-          <code>{m.items[0]?.item?.modelNumber}</code>
-        ) : (
-          '-'
-        ),
-    },
-    {
-      header: 'SN',
-      key: 'serialNumber',
-      render: (m) => {
-        const serials = m.items.flatMap((i) => i.movementSerials || []);
-        if (serials.length === 0) return '-';
-
-        return (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxWidth: '180px' }}>
-            {serials.slice(0, 2).map((s, idx) => (
               <span
-                key={idx}
                 style={{
+                  marginLeft: '6px',
                   fontSize: '11px',
-                  backgroundColor: '#F3F4F6',
+                  backgroundColor: '#EFF6FF',
+                  color: '#2250A1',
                   padding: '2px 6px',
-                  borderRadius: '4px',
-                  border: '1px solid #E5E7EB',
-                  fontFamily: 'monospace',
+                  borderRadius: '10px',
+                  fontWeight: 600,
                 }}
               >
-                {s.itemSerial?.serialNumber}
-              </span>
-            ))}
-            {serials.length > 2 && (
-              <span style={{ fontSize: '11px', color: '#6B7280', alignSelf: 'center' }}>
-                +{serials.length - 2} more
+                +{m.items.length - 1} more
               </span>
             )}
           </div>
@@ -191,22 +229,13 @@ export const MovementHistory = () => {
       key: 'quantity',
       render: (m) => {
         const totalQty = m.items.reduce((acc, curr) => acc + curr.quantity, 0);
-        return <span style={{ fontWeight: 600 }}>{totalQty}</span>;
+        const unit = m.items[0]?.item?.unit;
+        return (
+          <span style={{ fontWeight: 600 }}>
+            {totalQty} {unit?.symbol || unit?.name || 'pcs'}
+          </span>
+        );
       },
-    },
-    {
-      header: 'Unit',
-      key: 'unit',
-      render: (m) => m.items[0]?.item?.unit?.symbol || m.items[0]?.item?.unit?.name || '-',
-    },
-    {
-      header: 'Reference / DO',
-      key: 'referenceNumber',
-      render: (m) => (
-        <span style={{ fontSize: '12px', color: '#4B5563' }}>
-          {m.referenceNumber || '-'}
-        </span>
-      ),
     },
     {
       header: 'Created By',
@@ -221,15 +250,14 @@ export const MovementHistory = () => {
       header: 'Actions',
       key: 'actions',
       render: (m) => (
-        <div style={{ display: 'flex', gap: '6px' }}>
-          <button
-            className="btn-icon"
-            onClick={() => setSelectedMovementId(m.id)}
-            title="View Movement Detail"
-          >
-            <Eye size={16} />
-          </button>
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setSelectedMovementId(m.id)}
+          title="View Movement Details"
+        >
+          <Eye size={15} />
+        </Button>
       ),
     },
   ];
@@ -237,120 +265,110 @@ export const MovementHistory = () => {
   return (
     <div className="page-container">
       <PageHeader
-        title="Stock Movement History"
-        description="Immutable audit ledger tracking all inventory transactions, dispatches, and adjustments."
+        title="Movement History"
+        description="Audit ledger of all stock transactions including receipts, allocations, returns, and adjustments"
         actions={
-          <Button variant="primary" onClick={() => setIsAdjustmentModalOpen(true)}>
-            <Plus size={16} /> Add Adjustment
+          <Button
+            variant="secondary"
+            onClick={() => setIsAdjustmentModalOpen(true)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Plus size={16} /> Adjust Stock
           </Button>
         }
       />
 
-      {/* Filter Bar */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '12px',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          backgroundColor: 'var(--card-bg)',
-          border: '1px solid var(--card-border)',
-          borderRadius: 'var(--border-radius)',
-          padding: '12px 16px',
-          marginBottom: '1rem',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#6B7280', fontSize: '13px' }}>
-          <SlidersHorizontal size={14} /> Filters:
-        </div>
-
-        <Select
-          style={{ width: '160px', height: '36px', fontSize: '13px' }}
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-        >
-          <option value="">All Movement Types</option>
-          <option value="INITIAL">INITIAL</option>
-          <option value="INCOMING">INCOMING</option>
-          <option value="OUTGOING">OUTGOING</option>
-          <option value="RETURN">RETURN</option>
-          <option value="ADJUSTMENT">ADJUSTMENT</option>
-        </Select>
-
-        <Select
-          style={{ width: '170px', height: '36px', fontSize: '13px' }}
-          value={warehouseFilter}
-          onChange={(e) => setWarehouseFilter(e.target.value)}
-        >
-          <option value="">All Warehouses</option>
-          {warehouses.map((w) => (
-            <option key={w.id} value={w.id}>
-              {w.name} {w.cityCode ? `(${w.cityCode})` : ''}
-            </option>
-          ))}
-        </Select>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '12px', color: '#6B7280' }}>From:</span>
-          <Input
-            type="date"
-            style={{ width: '140px', height: '36px', fontSize: '12px' }}
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-          />
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '12px', color: '#6B7280' }}>To:</span>
-          <Input
-            type="date"
-            style={{ width: '140px', height: '36px', fontSize: '12px' }}
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-          />
-        </div>
-
-        {(typeFilter || warehouseFilter || dateFrom || dateTo) && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setTypeFilter('');
-              setWarehouseFilter('');
-              setDateFrom('');
-              setDateTo('');
-            }}
-          >
-            Clear Filters
-          </Button>
-        )}
-      </div>
-
-      <PaginatedTable<StockMovement>
-        key={`movements-${typeFilter}-${warehouseFilter}-${dateFrom}-${dateTo}-${refreshKey}`}
-        fetchUrl="/stock-movements"
-        searchPlaceholder="Search by item, brand, MN, SN, reference, or remarks..."
-        extraParams={{
-          movementType: typeFilter || undefined,
-          warehouseId: warehouseFilter || undefined,
-          dateFrom: dateFrom || undefined,
-          dateTo: dateTo || undefined,
-        }}
-        columns={columns}
+      <FilterBar
+        searchValue={search}
+        onSearchChange={(val) => updateFilters({ search: val })}
+        searchPlaceholder="Search movement number, reference, item name, notes..."
+        primaryFilter={
+          <div style={{ width: '180px' }}>
+            <Select
+              value={typeFilter}
+              onChange={(e) => updateFilters({ type: e.target.value })}
+            >
+              <option value="all">All Movement Types</option>
+              <option value="INITIAL">Initial Stock</option>
+              <option value="INCOMING">Incoming</option>
+              <option value="OUTGOING">Outgoing</option>
+              <option value="RETURN">Return</option>
+              <option value="ADJUSTMENT">Adjustment</option>
+            </Select>
+          </div>
+        }
+        hasAdvancedFilters
+        isAdvancedOpen={isAdvancedOpen}
+        onToggleAdvanced={() => setIsAdvancedOpen(!isAdvancedOpen)}
+        activeFilters={activeFilters}
+        onResetAll={handleResetAll}
       />
 
-      {/* Movement Detail Modal */}
+      <FilterPanel isOpen={isAdvancedOpen}>
+        <div style={{ width: '180px' }}>
+          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4B5563', marginBottom: '4px' }}>
+            Warehouse Location
+          </label>
+          <Select
+            value={warehouseFilter}
+            onChange={(e) => updateFilters({ warehouseId: e.target.value })}
+          >
+            <option value="">All Warehouses</option>
+            {warehouses.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.cityCode || w.name} ({w.name})
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        <div style={{ width: '150px' }}>
+          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4B5563', marginBottom: '4px' }}>
+            From Date
+          </label>
+          <Input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => updateFilters({ dateFrom: e.target.value })}
+          />
+        </div>
+
+        <div style={{ width: '150px' }}>
+          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4B5563', marginBottom: '4px' }}>
+            To Date
+          </label>
+          <Input
+            type="date"
+            value={dateTo}
+            onChange={(e) => updateFilters({ dateTo: e.target.value })}
+          />
+        </div>
+      </FilterPanel>
+
+      <PaginatedTable<StockMovement>
+        fetchUrl="/stock-movements"
+        searchPlaceholder="Search movement history..."
+        columns={columns}
+        extraParams={{
+          movementType: typeFilter !== 'all' ? typeFilter : undefined,
+          warehouseId: warehouseFilter ? Number(warehouseFilter) : undefined,
+          dateFrom: dateFrom || undefined,
+          dateTo: dateTo || undefined,
+          search: search || undefined,
+          _refresh: refreshKey,
+        }}
+      />
+
       <MovementDetailModal
         isOpen={selectedMovementId !== null}
         movementId={selectedMovementId}
         onClose={() => setSelectedMovementId(null)}
       />
 
-      {/* Adjustment Modal */}
       <AdjustmentModal
         isOpen={isAdjustmentModalOpen}
         onClose={() => setIsAdjustmentModalOpen(false)}
-        onSuccess={() => setRefreshKey((k) => k + 1)}
+        onSuccess={() => setRefreshKey((prev) => prev + 1)}
       />
     </div>
   );

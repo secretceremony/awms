@@ -18,6 +18,7 @@ import { ShippingLabelsModule } from './shipping-labels/shipping-labels.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
 import { SettingsModule } from './settings/settings.module';
 import { DashboardModule } from './dashboard/dashboard.module.js';
+import { CitiesModule } from './cities/cities.module.js';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { DashboardModule } from './dashboard/dashboard.module.js';
     AuthModule,
     UsersModule,
     UnitsModule,
+    CitiesModule,
     WarehousesModule,
     CustomersModule,
     ProjectsModule,

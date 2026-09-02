@@ -37,10 +37,11 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  logout(@Res({ passthrough: true }) response: express.Response): {
-    message: string;
-  } {
-    return this.authService.logout(response);
+  async logout(
+    @CurrentUser() user: AuthenticatedUser,
+    @Res({ passthrough: true }) response: express.Response,
+  ): Promise<{ message: string }> {
+    return this.authService.logout(user, response);
   }
 
   @Get('me')

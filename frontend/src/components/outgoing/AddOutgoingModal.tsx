@@ -236,6 +236,11 @@ export const AddOutgoingModal: React.FC<AddOutgoingModalProps> = ({
       return;
     }
 
+    if (!notes.trim()) {
+      setErrorMsg('Manual dispatch reason is required for manual outgoing movements.');
+      return;
+    }
+
     if (selectedItems.length === 0) {
       setErrorMsg('Please select at least one item or serial number for outgoing dispatch');
       return;
@@ -580,10 +585,11 @@ export const AddOutgoingModal: React.FC<AddOutgoingModalProps> = ({
             )}
           </div>
 
-          {/* Notes */}
-          <FormField label="Notes / Operational Remarks (Optional)">
+          {/* Manual Dispatch Reason */}
+          <FormField label="Manual Dispatch Reason" required>
             <Textarea
-              placeholder="e.g. Dispatched for Project Alpha site installation..."
+              required
+              placeholder="e.g. Urgent site replacement, field deployment, scheduled project installation..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />

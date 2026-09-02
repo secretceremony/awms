@@ -109,13 +109,16 @@ export const OutgoingDetailModal: React.FC<OutgoingDetailModalProps> = ({
                 <div style={{ fontWeight: 500, color: '#374151', marginTop: '2px' }}>
                   {movement.createdBy?.name || movement.createdBy?.email || 'Admin'}
                 </div>
+                <div style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: '2px' }}>
+                  Source: <span style={{ fontWeight: 700, color: '#2250A1' }}>Manual</span>
+                </div>
               </div>
             </div>
 
-            {/* Notes if present */}
+            {/* Manual Dispatch Reason */}
             {movement.notes && (
               <div style={{ padding: '0.75rem 1rem', backgroundColor: '#EFF6FF', border: '1px solid #DBEAFE', borderRadius: '6px', fontSize: '0.875rem' }}>
-                <span style={{ fontWeight: 600, color: '#1E40AF' }}>Notes: </span>
+                <span style={{ fontWeight: 600, color: '#1E40AF' }}>Manual Dispatch Reason: </span>
                 <span style={{ color: '#1E3A8A' }}>{movement.notes}</span>
               </div>
             )}

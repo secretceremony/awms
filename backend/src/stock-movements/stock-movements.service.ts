@@ -473,6 +473,10 @@ export class StockMovementsService {
       throw new BadRequestException('At least one item is required for outgoing stock');
     }
 
+    if (!deliveryOrderId && (!notes || !notes.trim())) {
+      throw new BadRequestException('Manual dispatch reason is required for manual outgoing stock movements.');
+    }
+
     // 1. Verify Project
     const project = await this.prisma.project.findUnique({
       where: { id: projectId },
@@ -654,8 +658,10 @@ export class StockMovementsService {
           payload: {
             movementNumber,
             movementType: 'OUTGOING',
+            dispatchSource: deliveryOrderId ? `DO-${deliveryOrderId}` : 'MANUAL',
             sourceWarehouseId: inferredWarehouseId,
             projectId,
+            reason: notes?.trim() || null,
             totalItems: items.length,
           },
         },

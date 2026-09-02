@@ -6,8 +6,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthGuard } from './auth.guard.js';
 
+import { AuditLogsModule } from '../audit-logs/audit-logs.module.js';
+
 @Module({
   imports: [
+    AuditLogsModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({

@@ -59,6 +59,46 @@ async function main() {
     }
     console.log('✓ Seeded Units (Set, Roll, Pcs, Unit, Meter)');
 
+    // 2.1 Seed Cities (Balikpapan: BPN, Jakarta: JKT)
+    const defaultCities = [
+      { name: 'Balikpapan', code: 'BPN' },
+      { name: 'Jakarta', code: 'JKT' },
+    ];
+    for (const c of defaultCities) {
+      await prisma.city.upsert({
+        where: { name: c.name },
+        update: { code: c.code },
+        create: {
+          name: c.name,
+          code: c.code,
+          isActive: true,
+        },
+      });
+    }
+    console.log('✓ Seeded Cities (Balikpapan -> BPN, Jakarta -> JKT)');
+
+    // 2.2 Seed Default System Settings
+    const defaultSettings = [
+      { key: 'inventory.lowStockThreshold', value: '5', description: 'Global threshold for bulk stock low-level indicators' },
+      { key: 'delivery.senderName', value: 'PT Alssa Logistics Indonesia', description: 'Default Sender Company Name' },
+      { key: 'delivery.senderAddress', value: 'Jl. Mulawarman No. 23, Balikpapan, Kalimantan Timur', description: 'Default Sender Dispatch Address' },
+      { key: 'delivery.senderPhone', value: '+62 542 876543', description: 'Default Sender Phone' },
+      { key: 'delivery.labelWidth', value: '100mm', description: 'Default Shipping Label Width' },
+      { key: 'delivery.labelHeight', value: '150mm', description: 'Default Shipping Label Height' },
+    ];
+    for (const s of defaultSettings) {
+      await prisma.systemSetting.upsert({
+        where: { key: s.key },
+        update: {},
+        create: {
+          key: s.key,
+          value: s.value,
+          description: s.description,
+        },
+      });
+    }
+    console.log('✓ Seeded System Settings (Inventory & Delivery Defaults)');
+
     // 3. Seed Warehouses (Balikpapan: BPN, Jakarta: JKT)
     const warehousesData = [
       {
