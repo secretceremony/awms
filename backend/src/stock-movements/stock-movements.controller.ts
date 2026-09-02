@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { StockMovementsService } from './stock-movements.service.js';
 import { CreateStockMovementDto } from './dto/create-stock-movement.dto.js';
+import { CreateAdjustmentDto } from './dto/create-adjustment.dto.js';
 import { PaginationDto } from '../common/dto/pagination.dto.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 
@@ -24,14 +25,32 @@ export class StockMovementsController {
     return this.stockMovementsService.createMovement(user.id, createDto);
   }
 
+  @Post('adjustment')
+  createAdjustment(
+    @Body() adjustmentDto: CreateAdjustmentDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.stockMovementsService.createAdjustment(user.id, adjustmentDto);
+  }
+
   @Get()
   findAll(
     @Query() paginationDto: PaginationDto,
     @Query('type') type?: string,
+    @Query('movementType') movementType?: string,
+    @Query('warehouseId') warehouseId?: number,
+    @Query('projectId') projectId?: number,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
   ) {
     return this.stockMovementsService.findAll({
       ...paginationDto,
       type,
+      movementType,
+      warehouseId,
+      projectId,
+      dateFrom,
+      dateTo,
     });
   }
 
@@ -40,7 +59,6 @@ export class StockMovementsController {
     @Body() createDto: CreateStockMovementDto,
     @CurrentUser() user: any,
   ) {
-    // Force incoming type for this endpoint
     createDto.movementType = 'INCOMING' as any;
     return this.stockMovementsService.createMovement(user.id, createDto);
   }
@@ -63,5 +81,10 @@ export class StockMovementsController {
   @Get('incoming/:id')
   findOneIncoming(@Param('id', ParseIntPipe) id: number) {
     return this.stockMovementsService.findOneIncoming(id);
+  }
+
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.stockMovementsService.findOne(id);
   }
 }

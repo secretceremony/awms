@@ -14,7 +14,8 @@ import {
   LogOut,
   User,
   Ruler,
-  Briefcase
+  Briefcase,
+  History
 } from 'lucide-react';
 import { Button } from './ui/index.js';
 
@@ -37,6 +38,7 @@ export const DashboardLayout = () => {
     { type: 'header', label: 'Inventory' },
     { to: '/inventory', label: 'Stock List', icon: Boxes },
     { to: '/inventory/incoming', label: 'Incoming Stock', icon: ArrowDownLeft },
+    { to: '/inventory/movements', label: 'Movement History', icon: History },
     { to: '/inventory/outgoing', label: 'Outgoing Stock', icon: ArrowUpRight },
     { type: 'header', label: 'Master Data' },
     { to: '/warehouses', label: 'Warehouses', icon: Warehouse },

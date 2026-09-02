@@ -4,7 +4,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma.service.js';
+import { AuditLogsService } from '../audit-logs/audit-logs.service.js';
 import { CreateStockMovementDto } from './dto/create-stock-movement.dto.js';
+import { CreateAdjustmentDto } from './dto/create-adjustment.dto.js';
 import {
   MovementType,
   TrackingType,
@@ -19,27 +21,77 @@ import { PaginationDto } from '../common/dto/pagination.dto.js';
 
 @Injectable()
 export class StockMovementsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLogsService: AuditLogsService,
+  ) {}
 
   async findAll(
-    paginationDto: PaginationDto & { type?: string },
+    paginationDto: PaginationDto & {
+      type?: string;
+      movementType?: string;
+      warehouseId?: number;
+      projectId?: number;
+      dateFrom?: string;
+      dateTo?: string;
+    },
   ): Promise<PaginatedResult<any>> {
     const page = paginationDto.page ?? 1;
     const limit = paginationDto.limit ?? 10;
     const { skip, take } = getSkipAndTake(page, limit);
 
+    const typeFilter = paginationDto.movementType || paginationDto.type;
     const where: any = {};
 
-    if (paginationDto.type) {
-      where.movementType = paginationDto.type as MovementType;
+    if (typeFilter && typeFilter !== 'ALL') {
+      where.movementType = typeFilter as MovementType;
+    }
+
+    if (paginationDto.warehouseId) {
+      const whId = Number(paginationDto.warehouseId);
+      where.OR = [
+        { destinationWarehouseId: whId },
+        { sourceWarehouseId: whId },
+      ];
+    }
+
+    if (paginationDto.projectId) {
+      where.projectId = Number(paginationDto.projectId);
+    }
+
+    if (paginationDto.dateFrom || paginationDto.dateTo) {
+      where.movementDate = {};
+      if (paginationDto.dateFrom) {
+        where.movementDate.gte = new Date(paginationDto.dateFrom);
+      }
+      if (paginationDto.dateTo) {
+        const to = new Date(paginationDto.dateTo);
+        to.setHours(23, 59, 59, 999);
+        where.movementDate.lte = to;
+      }
     }
 
     if (paginationDto.search) {
-      where.OR = [
-        { movementNumber: { contains: paginationDto.search, mode: 'insensitive' } },
-        { referenceNumber: { contains: paginationDto.search, mode: 'insensitive' } },
-        { items: { some: { item: { name: { contains: paginationDto.search, mode: 'insensitive' } } } } },
+      const s = paginationDto.search.trim();
+      const searchConditions: any[] = [
+        { movementNumber: { contains: s, mode: 'insensitive' } },
+        { referenceNumber: { contains: s, mode: 'insensitive' } },
+        { notes: { contains: s, mode: 'insensitive' } },
+        { sourceWarehouse: { name: { contains: s, mode: 'insensitive' } } },
+        { destinationWarehouse: { name: { contains: s, mode: 'insensitive' } } },
+        { project: { name: { contains: s, mode: 'insensitive' } } },
+        { items: { some: { item: { name: { contains: s, mode: 'insensitive' } } } } },
+        { items: { some: { item: { brand: { contains: s, mode: 'insensitive' } } } } },
+        { items: { some: { item: { modelNumber: { contains: s, mode: 'insensitive' } } } } },
+        { items: { some: { movementSerials: { some: { itemSerial: { serialNumber: { contains: s, mode: 'insensitive' } } } } } } },
       ];
+
+      if (where.OR) {
+        where.AND = [{ OR: where.OR }, { OR: searchConditions }];
+        delete where.OR;
+      } else {
+        where.OR = searchConditions;
+      }
     }
 
     const [data, total] = await Promise.all([
@@ -48,25 +100,70 @@ export class StockMovementsService {
         skip,
         take,
         include: {
-          sourceWarehouse: { select: { id: true, name: true, cityCode: true } },
-          destinationWarehouse: { select: { id: true, name: true, cityCode: true } },
-          project: { select: { id: true, name: true, jobNo: true } },
-          createdBy: { select: { id: true, name: true } },
+          sourceWarehouse: { select: { id: true, name: true, cityCode: true, location: true } },
+          destinationWarehouse: { select: { id: true, name: true, cityCode: true, location: true } },
+          project: { select: { id: true, name: true, jobNo: true, location: true } },
+          createdBy: { select: { id: true, name: true, email: true } },
           items: {
             include: {
-              item: { select: { id: true, name: true, brand: true, modelNumber: true, trackingType: true } },
+              item: { select: { id: true, name: true, brand: true, modelNumber: true, trackingType: true, unit: { select: { id: true, name: true, symbol: true } } } },
               movementSerials: {
-                include: { itemSerial: { select: { serialNumber: true } } },
+                include: { itemSerial: { select: { id: true, serialNumber: true, state: true, conditionLabel: true, notes: true } } },
               },
             },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { movementDate: 'desc' },
       }),
       this.prisma.stockMovement.count({ where }),
     ]);
 
     return createPaginationResult(data, total, page, limit);
+  }
+
+  async findOne(id: number) {
+    const movement = await this.prisma.stockMovement.findUnique({
+      where: { id },
+      include: {
+        sourceWarehouse: { select: { id: true, name: true, cityCode: true, location: true } },
+        destinationWarehouse: { select: { id: true, name: true, cityCode: true, location: true } },
+        project: { select: { id: true, name: true, jobNo: true, location: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
+        items: {
+          include: {
+            item: {
+              select: {
+                id: true,
+                name: true,
+                brand: true,
+                modelNumber: true,
+                trackingType: true,
+                unit: { select: { id: true, name: true, symbol: true } },
+              },
+            },
+            movementSerials: {
+              include: {
+                itemSerial: {
+                  select: {
+                    id: true,
+                    serialNumber: true,
+                    state: true,
+                    conditionLabel: true,
+                    notes: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!movement) {
+      throw new NotFoundException(`Stock movement with ID ${id} not found`);
+    }
+
+    return movement;
   }
 
   async findAllIncoming(
@@ -493,6 +590,201 @@ export class StockMovementsService {
       });
 
       return movement;
+    });
+  }
+
+  async createAdjustment(userId: number, dto: CreateAdjustmentDto) {
+    const { warehouseId, itemId, reason, adjustmentQty, serialDetail, movementDate } = dto;
+
+    if (!reason || !reason.trim()) {
+      throw new BadRequestException('Adjustment reason is required');
+    }
+
+    const warehouse = await this.prisma.warehouse.findUnique({ where: { id: warehouseId } });
+    if (!warehouse || !warehouse.isActive) {
+      throw new BadRequestException('Invalid or inactive warehouse');
+    }
+
+    const item = await this.prisma.item.findUnique({
+      where: { id: itemId },
+      include: { unit: true },
+    });
+    if (!item || !item.isActive) {
+      throw new BadRequestException('Invalid or inactive item');
+    }
+
+    const movementNumber = `MV-ADJ-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const dateObj = movementDate ? new Date(movementDate) : new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Bulk Adjustment
+      if (item.trackingType === TrackingType.BULK) {
+        if (adjustmentQty === undefined || adjustmentQty === 0) {
+          throw new BadRequestException('Adjustment quantity cannot be 0');
+        }
+
+        let currentStock = await tx.warehouseStock.findUnique({
+          where: { warehouseId_itemId: { warehouseId, itemId } },
+        });
+
+        const currentQty = currentStock?.quantity || 0;
+        const newQty = currentQty + adjustmentQty;
+
+        if (newQty < 0) {
+          throw new BadRequestException(
+            `Adjustment of ${adjustmentQty} would result in negative stock balance (${newQty}). Current stock is ${currentQty}.`,
+          );
+        }
+
+        if (currentStock) {
+          await tx.warehouseStock.update({
+            where: { id: currentStock.id },
+            data: { quantity: newQty },
+          });
+        } else {
+          await tx.warehouseStock.create({
+            data: { warehouseId, itemId, quantity: newQty },
+          });
+        }
+
+        const signStr = adjustmentQty > 0 ? `+${adjustmentQty}` : `${adjustmentQty}`;
+        const unitLabel = item.unit?.symbol || item.unit?.name || 'pcs';
+
+        const movement = await tx.stockMovement.create({
+          data: {
+            movementNumber,
+            movementType: MovementType.ADJUSTMENT,
+            movementDate: dateObj,
+            destinationWarehouseId: warehouseId,
+            referenceNumber: `ADJ: ${signStr} ${unitLabel}`,
+            notes: reason.trim(),
+            createdById: userId,
+          },
+        });
+
+        await tx.stockMovementItem.create({
+          data: {
+            stockMovementId: movement.id,
+            itemId: item.id,
+            quantity: Math.abs(adjustmentQty),
+          },
+        });
+
+        // Audit Log
+        await tx.auditLog.create({
+          data: {
+            userId,
+            action: 'ADJUSTMENT',
+            entityName: 'Item',
+            entityId: item.id,
+            payload: {
+              movementNumber,
+              trackingType: 'BULK',
+              warehouseId,
+              previousQuantity: currentQty,
+              adjustmentQuantity: adjustmentQty,
+              newQuantity: newQty,
+              reason: reason.trim(),
+            },
+          },
+        });
+
+        return movement;
+      }
+
+      // 2. Serialized Adjustment
+      if (item.trackingType === TrackingType.SERIALIZED) {
+        if (!serialDetail || !serialDetail.serialNumber?.trim()) {
+          throw new BadRequestException('Serial number is required for serialized item adjustment');
+        }
+
+        const sn = serialDetail.serialNumber.trim();
+        const itemSerial = await tx.itemSerial.findUnique({
+          where: { serialNumber: sn },
+        });
+
+        if (!itemSerial || itemSerial.itemId !== item.id) {
+          throw new BadRequestException(`Serial number ${sn} does not exist or does not belong to ${item.name}`);
+        }
+
+        if (itemSerial.currentWarehouseId !== warehouseId) {
+          throw new BadRequestException(
+            `Serial number ${sn} is not located in the selected warehouse`,
+          );
+        }
+
+        const oldCondition = itemSerial.conditionLabel || itemSerial.state;
+        const oldState = itemSerial.state;
+        const newCondition = serialDetail.newCondition || oldCondition;
+        const newState = serialDetail.newState || (
+          newCondition === 'Standby Bad'
+            ? 'STANDBY_BAD'
+            : newCondition === 'Under Repair'
+            ? 'UNDER_REPAIR'
+            : 'STANDBY_GOOD'
+        );
+
+        const updatedSerial = await tx.itemSerial.update({
+          where: { id: itemSerial.id },
+          data: {
+            conditionLabel: newCondition,
+            state: newState,
+            notes: serialDetail.notes?.trim() || itemSerial.notes,
+          },
+        });
+
+        const movement = await tx.stockMovement.create({
+          data: {
+            movementNumber,
+            movementType: MovementType.ADJUSTMENT,
+            movementDate: dateObj,
+            destinationWarehouseId: warehouseId,
+            referenceNumber: `ADJ: SN ${sn} (${oldCondition} -> ${newCondition})`,
+            notes: reason.trim(),
+            createdById: userId,
+          },
+        });
+
+        const movementItem = await tx.stockMovementItem.create({
+          data: {
+            stockMovementId: movement.id,
+            itemId: item.id,
+            quantity: 1,
+          },
+        });
+
+        await tx.stockMovementItemSerial.create({
+          data: {
+            stockMovementItemId: movementItem.id,
+            itemSerialId: updatedSerial.id,
+          },
+        });
+
+        // Audit Log
+        await tx.auditLog.create({
+          data: {
+            userId,
+            action: 'ADJUSTMENT',
+            entityName: 'ItemSerial',
+            entityId: updatedSerial.id,
+            payload: {
+              movementNumber,
+              trackingType: 'SERIALIZED',
+              serialNumber: sn,
+              warehouseId,
+              previousCondition: oldCondition,
+              newCondition,
+              previousState: oldState,
+              newState,
+              reason: reason.trim(),
+            },
+          },
+        });
+
+        return movement;
+      }
+
+      throw new BadRequestException('Unsupported tracking type');
     });
   }
 }

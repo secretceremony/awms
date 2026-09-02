@@ -1,11 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { StockMovementsService } from './stock-movements.service';
 import { PrismaService } from '../prisma.service';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import {
   MovementType,
   TrackingType,
- 
 } from '../../generated/prisma/client';
 
 describe('StockMovementsService', () => {
@@ -17,6 +17,9 @@ describe('StockMovementsService', () => {
       .mockImplementation((callback: (tx: any) => Promise<any>) =>
         callback(mockPrisma),
       ),
+    warehouse: {
+      findUnique: jest.fn(),
+    },
     item: {
       findUnique: jest.fn(),
     },
@@ -56,6 +59,12 @@ describe('StockMovementsService', () => {
         {
           provide: PrismaService,
           useValue: mockPrisma,
+        },
+        {
+          provide: AuditLogsService,
+          useValue: {
+            logAction: jest.fn().mockResolvedValue({ id: 1 }),
+          },
         },
       ],
     }).compile();
@@ -242,6 +251,62 @@ describe('StockMovementsService', () => {
               serialNumbers: ['SN-ABC'],
             },
           ],
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('createAdjustment execution logic', () => {
+    it('should throw BadRequestException if adjustment reason is empty', async () => {
+      await expect(
+        service.createAdjustment(1, {
+          warehouseId: 1,
+          itemId: 10,
+          reason: '   ',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException if bulk adjustment quantity is 0', async () => {
+      mockPrisma.warehouse.findUnique.mockResolvedValue({ id: 1, isActive: true });
+      mockPrisma.item.findUnique.mockResolvedValue({
+        id: 10,
+        name: 'Bulk Item',
+        trackingType: TrackingType.BULK,
+        isActive: true,
+        unit: { symbol: 'pcs' },
+      });
+
+      await expect(
+        service.createAdjustment(1, {
+          warehouseId: 1,
+          itemId: 10,
+          reason: 'Found discrepancy',
+          adjustmentQty: 0,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException if bulk adjustment results in negative stock', async () => {
+      mockPrisma.warehouse.findUnique.mockResolvedValue({ id: 1, isActive: true });
+      mockPrisma.item.findUnique.mockResolvedValue({
+        id: 10,
+        name: 'Bulk Item',
+        trackingType: TrackingType.BULK,
+        isActive: true,
+        unit: { symbol: 'pcs' },
+      });
+      mockPrisma.warehouseStock.findUnique.mockResolvedValue({
+        id: 1,
+        quantity: 5,
+      });
+
+      await expect(
+        service.createAdjustment(1, {
+          warehouseId: 1,
+          itemId: 10,
+          reason: 'Correction',
+          adjustmentQty: -10,
         }),
       ).rejects.toThrow(BadRequestException);
     });

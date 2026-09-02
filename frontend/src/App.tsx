@@ -8,6 +8,7 @@ import { StockList } from './pages/Inventory/StockList.js';
 import { ItemDetail } from './pages/Inventory/ItemDetail.js';
 import { Incoming } from './pages/Inventory/Incoming.js';
 import { IncomingDetail } from './pages/Inventory/IncomingDetail.js';
+import { MovementHistory } from './pages/Inventory/MovementHistory.js';
 import { Outgoing } from './pages/Inventory/Outgoing.js';
 import { Warehouses } from './pages/Warehouses.js';
 import { Projects } from './pages/Projects.js';
@@ -35,6 +36,7 @@ function App() {
 
               <Route path="/inventory/incoming" element={<Incoming />} />
               <Route path="/inventory/incoming/:id" element={<IncomingDetail />} />
+              <Route path="/inventory/movements" element={<MovementHistory />} />
               <Route path="/inventory/outgoing" element={<Outgoing />} />
               <Route path="/warehouses" element={<Warehouses />} />
               <Route path="/projects" element={<Projects />} />
