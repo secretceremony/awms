@@ -16,6 +16,7 @@ import {
   Ruler,
   Briefcase
 } from 'lucide-react';
+import { Button } from './ui/index.js';
 
 export const DashboardLayout = () => {
   const { user, logout } = useAuth();
@@ -57,10 +58,9 @@ export const DashboardLayout = () => {
       {/* Sidebar Navigation */}
       <aside className="sidebar">
         <div className="logo-section">
-          <div className="logo-cube">A</div>
           <div className="logo-text">
-            <h2>ALSSA WMS</h2>
-            <p>Warehouse System</p>
+            <h2>AWMS</h2>
+            <p>Warehouse Management</p>
           </div>
         </div>
 
@@ -96,11 +96,11 @@ export const DashboardLayout = () => {
               <User size={16} />
             </div>
             <div className="user-info">
-              <span className="user-name">{user?.name || 'User'}</span>
+              <span className="user-name">{user?.name || user?.email || 'User'}</span>
               <span className="user-role">
                 {user?.role === 'ADMIN_LOGISTICS'
                   ? 'Logistics Admin'
-                  : user?.role || 'Guest'}
+                  : user?.role || 'Staff'}
               </span>
             </div>
           </div>
@@ -110,7 +110,7 @@ export const DashboardLayout = () => {
             onClick={handleLogout}
             title="Log Out"
           >
-            <LogOut size={18} />
+            <LogOut size={16} />
           </button>
         </div>
       </aside>
@@ -120,14 +120,19 @@ export const DashboardLayout = () => {
         <header className="content-header">
           <div className="header-title-area">
             <div className="breadcrumb" style={{ fontSize: '0.8rem', color: '#6B7280' }}>
-              ALSSA WMS &nbsp;/&nbsp; {currentNav?.label || 'Panel'}
+              AWMS &nbsp;/&nbsp; {currentNav?.label || 'Overview'}
             </div>
-            <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>
-              {currentNav?.label || 'AWMS Panel'}
+            <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#1F2839' }}>
+              {currentNav?.label || 'Dashboard'}
             </h1>
           </div>
-          <div className="header-meta">
-            <span className="badge-status active" style={{ fontSize: '0.75rem' }}>Active Session</span>
+          <div className="header-user-section" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <span style={{ fontSize: '14px', fontWeight: 600, color: '#1F2839' }}>
+              {user?.name || user?.email || 'User'}
+            </span>
+            <Button variant="danger" size="sm" onClick={handleLogout}>
+              <LogOut size={14} /> Logout
+            </Button>
           </div>
         </header>
         <div className="content-body">

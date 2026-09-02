@@ -688,35 +688,22 @@ tr:hover td {
 .sidebar .logo-section {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 1.5rem;
+  padding: 1.25rem 1.5rem;
   border-bottom: 1px solid var(--card-border);
 }
 
-.logo-cube {
-  width: 34px;
-  height: 34px;
-  background-color: var(--accent-blue);
-  border-radius: var(--border-radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  font-size: 1.2rem;
-  color: #FFFFFF;
-}
-
 .logo-text h2 {
-  font-size: 1.05rem;
+  font-size: 1.25rem;
   font-weight: 800;
   margin: 0;
   color: var(--text-primary);
+  letter-spacing: -0.02em;
 }
 
 .logo-text p {
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   color: var(--text-secondary);
-  margin: 0;
+  margin: 2px 0 0 0;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -939,20 +926,6 @@ tr:hover td {
   }
 }
 
-.branding-logo-box {
-  width: 48px;
-  height: 48px;
-  background-color: var(--accent-blue);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  font-size: 1.5rem;
-  color: #fff;
-  margin-bottom: 1.5rem;
-}
-
 .branding-subtitle {
   color: #94A3B8;
   font-size: 0.8rem;
@@ -966,20 +939,6 @@ tr:hover td {
   height: 3px;
   background-color: var(--accent-blue);
   margin-bottom: 1.5rem;
-}
-
-.logo-icon-cube {
-  width: 40px;
-  height: 40px;
-  background-color: var(--accent-blue);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  font-size: 1.3rem;
-  color: #fff;
-  margin-bottom: 1rem;
 }
 
 .login-error-alert {

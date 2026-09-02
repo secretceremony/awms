@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.js';
+import { FormField, Input, Button } from '../components/ui/index.js';
+import logisticsIllustration from '../assets/logistics-illustration.svg';
 
 export const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoadingForm, setIsLoadingForm] = useState(false);
-  
+
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -19,7 +21,7 @@ export const Login = () => {
       await login(email.trim(), password);
       navigate('/');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Invalid credentials');
+      setError(err instanceof Error ? err.message : 'Invalid email or password');
     } finally {
       setIsLoadingForm(false);
     }
@@ -27,36 +29,39 @@ export const Login = () => {
 
   return (
     <div className="login-wrapper">
+      {/* Left Form Area */}
       <div className="login-form-side">
         <div className="login-form-container">
           <div className="login-logo-header">
-            <div className="logo-icon-cube">A</div>
-            <h1>ALSSA WMS</h1>
-            <p>Warehouse Management System</p>
+            <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--accent-navy)', letterSpacing: '-0.02em', margin: 0 }}>
+              AWMS
+            </h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '4px' }}>
+              Enterprise Warehouse Management System
+            </p>
           </div>
 
           {error && (
-            <div className="login-error-alert">
+            <div className="login-error-alert" style={{ marginBottom: '1.25rem' }}>
               <span>{error}</span>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="login-form">
-            <div className="form-group">
-              <label htmlFor="email">Email Address</label>
-              <input
+            <FormField label="Email Address" required>
+              <Input
                 id="email"
                 type="email"
-                placeholder="e.g. admin.logistics@alssa.com"
+                placeholder="name@company.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                autoFocus
               />
-            </div>
+            </FormField>
 
-            <div className="form-group">
-              <label htmlFor="password">Password</label>
-              <input
+            <FormField label="Password" required>
+              <Input
                 id="password"
                 type="password"
                 placeholder="••••••••"
@@ -64,26 +69,41 @@ export const Login = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
-            </div>
+            </FormField>
 
-            <button type="submit" disabled={isLoadingForm} className="btn-submit-login">
-              {isLoadingForm ? 'Authenticating...' : 'Sign In'}
-            </button>
+            <div style={{ marginTop: '0.75rem' }}>
+              <Button
+                type="submit"
+                variant="primary"
+                isLoading={isLoadingForm}
+                style={{ width: '100%', justifyContent: 'center', height: '42px', fontSize: '0.95rem' }}
+              >
+                Sign In to AWMS
+              </Button>
+            </div>
           </form>
 
-          <div className="login-footer-info">
-            <p>Authorized personnel only. Sessions are monitored.</p>
+          <div className="login-footer-info" style={{ marginTop: '2rem' }}>
+            <p style={{ fontSize: '0.8rem', color: '#9CA3AF', margin: 0 }}>
+              Authorized internal access only. All actions are logged and audited.
+            </p>
           </div>
         </div>
       </div>
+
+      {/* Right Visual / Illustration Area */}
       <div className="login-branding-side">
-        <div className="branding-content">
-          <div className="branding-logo-box">A</div>
-          <h2>ALSSA</h2>
-          <p className="branding-subtitle">LOGISTICS &amp; SUPPLY CHAIN</p>
-          <div className="branding-accent-line" />
-          <p className="branding-description">
-            Secure enterprise warehouse administration system. Monitor movements, audit logs, and manage delivery orders dynamically.
+        <div className="branding-content" style={{ textAlign: 'center', maxWidth: '480px' }}>
+          <img
+            src={logisticsIllustration}
+            alt="Logistics and Warehouse System Illustration"
+            style={{ width: '100%', maxHeight: '340px', objectFit: 'contain', marginBottom: '1.5rem' }}
+          />
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#FFFFFF', margin: '0 0 0.5rem 0' }}>
+            Smart Logistics &amp; Inventory Control
+          </h2>
+          <p style={{ color: '#94A3B8', fontSize: '0.9rem', lineHeight: 1.6, margin: 0 }}>
+            Unified real-time stock balances, serialized asset tracking, warehouse routing, and delivery management in one platform.
           </p>
         </div>
       </div>
