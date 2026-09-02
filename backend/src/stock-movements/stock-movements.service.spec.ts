@@ -212,7 +212,7 @@ describe('StockMovementsService', () => {
 
       expect(mockPrisma.itemSerial.update).toHaveBeenCalledWith({
         where: { id: 100 },
-        data: { state: "DEPLOYED", currentWarehouseId: null, currentProjectId: undefined, conditionLabel: undefined },
+        data: { state: "DEPLOY", currentWarehouseId: null, currentProjectId: undefined, conditionLabel: undefined },
       });
     });
 
