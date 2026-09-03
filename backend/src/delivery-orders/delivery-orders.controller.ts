@@ -32,6 +32,11 @@ export class DeliveryOrdersController {
     return this.deliveryOrdersService.findAll(paginationDto);
   }
 
+  @Get('eligible-outgoings')
+  getEligibleOutgoings(@Query('search') search?: string) {
+    return this.deliveryOrdersService.getEligibleOutgoings(search);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.deliveryOrdersService.findOne(id);

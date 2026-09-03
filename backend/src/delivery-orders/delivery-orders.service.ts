@@ -44,6 +44,54 @@ export class DeliveryOrdersService {
     private readonly auditLogsService: AuditLogsService,
   ) {}
 
+  async getEligibleOutgoings(search?: string) {
+    const s = search?.trim();
+    return this.prisma.stockMovement.findMany({
+      where: {
+        movementType: MovementType.OUTGOING,
+        deliveryOrder: null, // Not yet linked to any DO
+        project: {
+          status: ProjectStatus.ACTIVE,
+        },
+        ...(s && {
+          OR: [
+            { movementNumber: { contains: s, mode: 'insensitive' } },
+            { notes: { contains: s, mode: 'insensitive' } },
+            { project: { name: { contains: s, mode: 'insensitive' } } },
+            { project: { siteCode: { contains: s, mode: 'insensitive' } } },
+            { project: { referenceNumber: { contains: s, mode: 'insensitive' } } },
+            { project: { client: { name: { contains: s, mode: 'insensitive' } } } },
+            { sourceWarehouse: { name: { contains: s, mode: 'insensitive' } } },
+            { items: { some: { item: { name: { contains: s, mode: 'insensitive' } } } } },
+            { items: { some: { movementSerials: { some: { itemSerial: { serialNumber: { contains: s, mode: 'insensitive' } } } } } } },
+          ],
+        }),
+      },
+      include: {
+        project: {
+          include: {
+            client: true,
+            clientContact: true,
+          },
+        },
+        sourceWarehouse: true,
+        createdBy: { select: { id: true, name: true, email: true } },
+        items: {
+          include: {
+            item: {
+              include: { unit: true },
+            },
+            movementSerials: {
+              include: { itemSerial: true },
+            },
+          },
+        },
+      },
+      orderBy: { movementDate: 'desc' },
+      take: 50,
+    });
+  }
+
   private async validateAndInferWarehouse(
     projectId: number,
     items: Array<{ itemId: number; quantity: number; serialNumbers?: string[] }>,
@@ -220,8 +268,60 @@ export class DeliveryOrdersService {
       throw new BadRequestException('Activity is required');
     }
 
-    const { project, sourceWarehouseId } =
-      await this.validateAndInferWarehouse(dto.projectId, dto.items);
+    let project: any;
+    let sourceWarehouseId: number;
+
+    if (dto.stockMovementId) {
+      const stockMovement = await this.prisma.stockMovement.findUnique({
+        where: { id: dto.stockMovementId },
+        include: {
+          deliveryOrder: true,
+          project: {
+            include: {
+              client: true,
+              clientContact: true,
+            },
+          },
+          sourceWarehouse: true,
+          items: {
+            include: {
+              item: { include: { unit: true } },
+              movementSerials: { include: { itemSerial: true } },
+            },
+          },
+        },
+      });
+
+      if (!stockMovement || stockMovement.movementType !== MovementType.OUTGOING) {
+        throw new BadRequestException('Selected stock movement is invalid or not an Outgoing transaction.');
+      }
+
+      if (stockMovement.deliveryOrder) {
+        throw new BadRequestException(
+          `This Outgoing stock movement is already linked to Delivery Order #${stockMovement.deliveryOrder.doNumber || stockMovement.deliveryOrder.id}.`,
+        );
+      }
+
+      if (!stockMovement.project || stockMovement.project.status !== ProjectStatus.ACTIVE) {
+        throw new BadRequestException('The project linked to this Outgoing movement is not active.');
+      }
+
+      if (!stockMovement.project.referenceNumber || !stockMovement.project.referenceNumber.trim()) {
+        throw new BadRequestException('This project requires a Reference Number before a Delivery Order can be created.');
+      }
+
+      project = stockMovement.project;
+      const inferredWhId = stockMovement.sourceWarehouseId || stockMovement.sourceWarehouse?.id;
+
+      if (!inferredWhId) {
+        throw new BadRequestException('Source warehouse is missing from the Outgoing transaction.');
+      }
+      sourceWarehouseId = inferredWhId;
+    } else {
+      const validated = await this.validateAndInferWarehouse(dto.projectId, dto.items);
+      project = validated.project;
+      sourceWarehouseId = validated.sourceWarehouseId;
+    }
 
     const dateObj = dto.date ? new Date(dto.date) : new Date();
 
@@ -235,6 +335,7 @@ export class DeliveryOrdersService {
           projectId: project.id,
           clientId: project.clientId,
           sourceWarehouseId,
+          stockMovementId: dto.stockMovementId || null,
           createdById: userId,
         },
       });
@@ -301,6 +402,7 @@ export class DeliveryOrdersService {
         projectId: project.id,
         projectName: project.name,
         warehouseId: sourceWarehouseId,
+        stockMovementId: dto.stockMovementId,
         totalItems: dto.items.length,
       },
     );
@@ -330,8 +432,14 @@ export class DeliveryOrdersService {
       serialNumbers: i.itemSerials?.map((s) => s.serialNumber || s.itemSerial?.serialNumber).filter(Boolean) as string[],
     }));
 
-    const { project, sourceWarehouseId } =
-      await this.validateAndInferWarehouse(targetProjectId, targetItems);
+    let project = existing.project;
+    let sourceWarehouseId = existing.sourceWarehouseId;
+
+    if (!existing.stockMovementId) {
+      const validated = await this.validateAndInferWarehouse(targetProjectId, targetItems);
+      project = validated.project;
+      sourceWarehouseId = validated.sourceWarehouseId;
+    }
 
     await this.prisma.$transaction(async (tx) => {
       // 1. Delete existing items and their serials
@@ -456,23 +564,27 @@ export class DeliveryOrdersService {
       );
     }
 
-    const { project, warehouse, sourceWarehouseId } =
-      await this.validateAndInferWarehouse(
-        deliveryOrder.projectId,
-        deliveryOrder.items.map((i) => ({
-          itemId: i.itemId,
-          quantity: i.quantity,
-          serialNumbers: i.itemSerials?.map((s) => s.serialNumber || s.itemSerial?.serialNumber).filter(Boolean) as string[],
-        })),
+    const project = deliveryOrder.project;
+    if (!project || project.status !== ProjectStatus.ACTIVE) {
+      throw new BadRequestException(
+        'Cannot issue Delivery Order for a non-active or completed project.',
       );
+    }
 
+    if (!project.referenceNumber || !project.referenceNumber.trim()) {
+      throw new BadRequestException(
+        'This project requires a Reference Number before a Delivery Order can be issued.',
+      );
+    }
+
+    const warehouse = deliveryOrder.sourceWarehouse;
     const doDate = new Date(deliveryOrder.date);
     const year = doDate.getFullYear();
     const month = doDate.getMonth() + 1; // 1-12
     const romanMonth = ROMAN_MONTHS[month] || 'I';
 
-    const cityCode = (warehouse.cityCode || 'BPN').toUpperCase();
-    const clientType = (project.client.clientType || 'OTHER').toUpperCase();
+    const cityCode = (warehouse?.cityCode || 'BPN').toUpperCase();
+    const clientType = (project.client?.clientType || 'OTHER').toUpperCase();
 
     return this.prisma.$transaction(async (tx) => {
       // 1. Concurrency-safe Yearly Sequence Generation
@@ -485,111 +597,7 @@ export class DeliveryOrdersService {
       const sequenceStr = String(seqRecord.currentSequence).padStart(3, '0');
       const doNumber = `${sequenceStr}/ALS-${cityCode}/DO-${clientType}/${romanMonth}/${year}`;
 
-      // 2. Perform Stock Mutation & OUTGOING Stock Movement
-      const movementNumber = `MV-OUT-DO-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
-
-      const movement = await tx.stockMovement.create({
-        data: {
-          movementNumber,
-          movementType: MovementType.OUTGOING,
-          movementDate: doDate,
-          sourceWarehouseId,
-          projectId: project.id,
-          referenceNumber: project.referenceNumber,
-          notes: deliveryOrder.notes || deliveryOrder.activity,
-          createdById: userId,
-        },
-      });
-
-      for (const item of deliveryOrder.items) {
-        const movementItem = await tx.stockMovementItem.create({
-          data: {
-            stockMovementId: movement.id,
-            itemId: item.itemId,
-            quantity: item.quantity,
-          },
-        });
-
-        if (item.trackingType === TrackingType.BULK) {
-          const whStock = await tx.warehouseStock.findUnique({
-            where: {
-              warehouseId_itemId: {
-                warehouseId: sourceWarehouseId,
-                itemId: item.itemId,
-              },
-            },
-          });
-
-          if (!whStock || whStock.quantity < item.quantity) {
-            throw new BadRequestException(
-              `Insufficient stock for item ${item.itemName} in warehouse ${warehouse.name}`,
-            );
-          }
-
-          await tx.warehouseStock.update({
-            where: { id: whStock.id },
-            data: { quantity: { decrement: item.quantity } },
-          });
-
-          await tx.projectStock.upsert({
-            where: {
-              projectId_itemId: {
-                projectId: project.id,
-                itemId: item.itemId,
-              },
-            },
-            create: {
-              projectId: project.id,
-              itemId: item.itemId,
-              quantity: item.quantity,
-            },
-            update: {
-              quantity: { increment: item.quantity },
-            },
-          });
-        } else if (item.trackingType === TrackingType.SERIALIZED) {
-          for (const s of item.itemSerials) {
-            const itemSerial = await tx.itemSerial.findUnique({
-              where: { id: s.itemSerialId },
-            });
-
-            if (
-              !itemSerial ||
-              itemSerial.currentWarehouseId !== sourceWarehouseId ||
-              itemSerial.currentProjectId !== null
-            ) {
-              throw new BadRequestException(
-                `Serial number ${s.serialNumber} is not available in warehouse ${warehouse.name}`,
-              );
-            }
-
-            if (itemSerial.state !== 'STANDBY_GOOD') {
-              const condition = itemSerial.conditionLabel || itemSerial.state;
-              throw new BadRequestException(
-                `Serial number ${s.serialNumber} is not available for deployment because its current condition is ${condition}.`,
-              );
-            }
-
-            const updatedSerial = await tx.itemSerial.update({
-              where: { id: itemSerial.id },
-              data: {
-                currentWarehouseId: null,
-                currentProjectId: project.id,
-                state: 'DEPLOY',
-              },
-            });
-
-            await tx.stockMovementItemSerial.create({
-              data: {
-                stockMovementItemId: movementItem.id,
-                itemSerialId: updatedSerial.id,
-              },
-            });
-          }
-        }
-      }
-
-      // 3. Document Snapshots Construction
+      // 2. Document Snapshots Construction
       const fullSnapshot = {
         doNumber,
         date: doDate.toISOString(),
@@ -618,23 +626,25 @@ export class DeliveryOrdersService {
           siteCode: project.siteCode,
           referenceNumber: project.referenceNumber,
         },
-        warehouse: {
-          id: warehouse.id,
-          name: warehouse.name,
-          city: warehouse.city,
-          cityCode: warehouse.cityCode,
-          location: warehouse.location,
-        },
+        warehouse: warehouse
+          ? {
+              id: warehouse.id,
+              name: warehouse.name,
+              city: warehouse.city,
+              cityCode: warehouse.cityCode,
+              location: warehouse.location,
+            }
+          : null,
         items: deliveryOrder.items.map((i, idx) => ({
           itemNo: idx + 1,
           itemId: i.itemId,
-          name: i.itemName || i.item.name,
-          brand: i.brand || i.item.brand,
-          modelNumber: i.modelNumber || i.item.modelNumber,
-          trackingType: i.trackingType || i.item.trackingType,
+          name: i.itemName || i.item?.name,
+          brand: i.brand || i.item?.brand,
+          modelNumber: i.modelNumber || i.item?.modelNumber,
+          trackingType: i.trackingType || i.item?.trackingType,
           quantity: i.quantity,
-          unitName: i.unitName || i.item.unit?.name,
-          unitSymbol: i.unitSymbol || i.item.unit?.symbol,
+          unitName: i.unitName || i.item?.unit?.name,
+          unitSymbol: i.unitSymbol || i.item?.unit?.symbol,
           pic: i.pic,
           remarks: i.remarks,
           serials: i.itemSerials.map((s) => ({
@@ -644,7 +654,7 @@ export class DeliveryOrdersService {
         })),
       };
 
-      // 4. Update Delivery Order to ISSUED
+      // 3. Update Delivery Order to ISSUED (NO STOCK MUTATION IS RUN - Outgoing already mutated stock)
       const updatedDo = await tx.deliveryOrder.update({
         where: { id },
         data: {
@@ -652,9 +662,8 @@ export class DeliveryOrdersService {
           status: OrderStatus.ISSUED,
           issuedAt: new Date(),
           issuedById: userId,
-          stockMovementId: movement.id,
-          clientCompanyName: project.client.name,
-          clientType: project.client.clientType,
+          clientCompanyName: project.client?.name,
+          clientType: project.client?.clientType,
           attnName: project.clientContact?.name || null,
           attnPhone: project.clientContact?.phone || null,
           attnEmail: project.clientContact?.email || null,
@@ -662,13 +671,13 @@ export class DeliveryOrdersService {
           projectLocation: project.location,
           siteCode: project.siteCode,
           referenceNumber: project.referenceNumber,
-          warehouseName: warehouse.name,
-          warehouseCityCode: warehouse.cityCode,
+          warehouseName: warehouse?.name || null,
+          warehouseCityCode: warehouse?.cityCode || null,
           snapshots: fullSnapshot,
         },
       });
 
-      // 5. Audit Log for Issue
+      // 4. Audit Log for Issue
       await tx.auditLog.create({
         data: {
           userId,
@@ -678,8 +687,7 @@ export class DeliveryOrdersService {
           payload: {
             action: 'Issued Delivery Order',
             doNumber,
-            stockMovementId: movement.id,
-            movementNumber,
+            stockMovementId: deliveryOrder.stockMovementId,
             projectId: project.id,
             totalItems: deliveryOrder.items.length,
           },
@@ -781,6 +789,7 @@ export class DeliveryOrdersService {
           sourceWarehouse: { select: { id: true, name: true, cityCode: true, location: true } },
           createdBy: { select: { id: true, name: true, email: true } },
           issuedBy: { select: { id: true, name: true, email: true } },
+          stockMovement: { select: { id: true, movementNumber: true, movementDate: true, notes: true } },
           items: {
             include: {
               item: {
@@ -822,6 +831,7 @@ export class DeliveryOrdersService {
         client: true,
         project: {
           include: {
+            client: true,
             clientContact: true,
           },
         },

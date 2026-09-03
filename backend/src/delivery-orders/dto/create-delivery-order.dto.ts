@@ -37,6 +37,12 @@ export class DeliveryOrderItemDto {
 }
 
 export class CreateDeliveryOrderDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  stockMovementId?: number;
+
   @Type(() => Number)
   @IsInt()
   @IsPositive({ message: 'Valid Project ID is required' })

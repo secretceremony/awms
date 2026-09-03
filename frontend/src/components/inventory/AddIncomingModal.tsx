@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   FormField,
@@ -7,11 +7,10 @@ import {
   Textarea,
   Button,
   SegmentedControl,
-  ConfirmModal,
   QuantityStepper,
   SearchableSelect,
 } from '../ui/index.js';
-import { Plus, Trash2, ClipboardList, RotateCcw, PackageCheck, CheckSquare, Square}  from 'lucide-react';
+import { Plus, Trash2, ClipboardList, RotateCcw, PackageCheck } from 'lucide-react';
 import { apiClient } from '../../api/client.js';
 
 interface ItemOption {
@@ -53,10 +52,21 @@ interface ProjectInventoryItem {
   state?: string;
 }
 
-interface SerialItemEntry {
+export interface SerialItemEntry {
   serialNumber: string;
   conditionLabel: string;
   notes: string;
+}
+
+export interface StagedIncomingItem {
+  itemId: number;
+  itemName: string;
+  brand: string | null;
+  modelNumber: string | null;
+  trackingType: 'BULK' | 'SERIALIZED';
+  unitSymbol: string;
+  quantity: number;
+  serialRows?: SerialItemEntry[];
 }
 
 export interface AddIncomingModalProps {
@@ -77,16 +87,23 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [items, setItems] = useState<ItemOption[]>([]);
 
-  // Regular Incoming form state
+  // Regular Incoming Header state
   const [regularForm, setRegularForm] = useState({
     movementDate: new Date().toISOString().split('T')[0],
     warehouseId: '',
-    itemId: '',
-    quantity: 1,
-    serialRows: [{ serialNumber: '', conditionLabel: 'Standby Good', notes: '' }] as SerialItemEntry[],
     referenceNumber: '',
     notes: '',
   });
+
+  // Staged multi-items for regular incoming
+  const [stagedItems, setStagedItems] = useState<StagedIncomingItem[]>([]);
+
+  // Active item entry inputs (for adding to staged list)
+  const [activeItemId, setActiveItemId] = useState('');
+  const [activeQuantity, setActiveQuantity] = useState(1);
+  const [activeSerialRows, setActiveSerialRows] = useState<SerialItemEntry[]>([
+    { serialNumber: '', conditionLabel: 'Standby Good', notes: '' },
+  ]);
 
   // Project Return form state
   const [returnForm, setReturnForm] = useState({
@@ -107,11 +124,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
     [sn: string]: { selected: boolean; conditionLabel: string; notes: string };
   }>({});
 
-  const [initialRegular, setInitialRegular] = useState(regularForm);
-  const [initialReturn, setInitialReturn] = useState(returnForm);
-  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
-
-  // Multi-paste modal for regular incoming
+  // Multi-paste modal for regular incoming serials
   const [pasteModalOpen, setPasteModalOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const [pasteCondition, setPasteCondition] = useState<string>('Standby Good');
@@ -119,9 +132,6 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
 
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const itemSelectRef = useRef<HTMLSelectElement>(null);
-  const whSelectRef = useRef<HTMLSelectElement>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -142,160 +152,226 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
     if (isOpen) {
       fetchData();
       setSourceType('REGULAR');
-      const rInit = {
+      setRegularForm({
         movementDate: new Date().toISOString().split('T')[0],
         warehouseId: '',
-        itemId: '',
-        quantity: 1,
-        serialRows: [{ serialNumber: '', conditionLabel: 'Standby Good', notes: '' }],
         referenceNumber: '',
         notes: '',
-      };
-      setRegularForm(rInit);
-      setInitialRegular(rInit);
+      });
+      setStagedItems([]);
+      setActiveItemId('');
+      setActiveQuantity(1);
+      setActiveSerialRows([{ serialNumber: '', conditionLabel: 'Standby Good', notes: '' }]);
 
-      const retInit = {
+      setReturnForm({
         movementDate: new Date().toISOString().split('T')[0],
         projectId: '',
         warehouseId: '',
         referenceNumber: '',
         notes: '',
-      };
-      setReturnForm(retInit);
-      setInitialReturn(retInit);
+      });
       setProjectInventory([]);
       setSelectedBulkReturns({});
       setSelectedSerialReturns({});
-      setPasteModalOpen(false);
-      setPasteText('');
-      setPasteCondition('Standby Good');
-      setPasteError(null);
       setErrorMsg(null);
-
-      setTimeout(() => {
-        whSelectRef.current?.focus();
-      }, 50);
     }
   }, [isOpen]);
 
-  // Load project inventory when project selected in Return mode
+  // Load project inventory when project changes for Project Return
   useEffect(() => {
     const fetchProjectInventory = async () => {
-      if (sourceType !== 'RETURN' || !returnForm.projectId) {
+      if (!returnForm.projectId) {
         setProjectInventory([]);
+        setSelectedBulkReturns({});
+        setSelectedSerialReturns({});
         return;
       }
-      setIsLoadingInventory(true);
-      setErrorMsg(null);
-      try {
-        const res: any = await apiClient.get('/stock-movements/project-inventory', {
-          params: { projectId: returnForm.projectId },
-        });
-        const invList: ProjectInventoryItem[] = Array.isArray(res) ? res : res?.data || [];
-        setProjectInventory(invList);
 
-        // Reset return selections; preserve current condition per SN by default
-        setSelectedBulkReturns({});
-        const snInitial: any = {};
-        invList
-          .filter((i) => i.trackingType === 'SERIALIZED' && i.serialNumber)
-          .forEach((s) => {
-            snInitial[s.serialNumber!] = {
+      setIsLoadingInventory(true);
+      try {
+        const res: any = await apiClient.get(`/projects/${returnForm.projectId}/inventory`);
+        const list: ProjectInventoryItem[] = Array.isArray(res) ? res : res?.data || [];
+        setProjectInventory(list);
+
+        const initialSerials: any = {};
+        list.forEach((it) => {
+          if (it.trackingType === 'SERIALIZED' && it.serialNumber) {
+            initialSerials[it.serialNumber] = {
               selected: false,
-              // Rule 14: Default condition preserves each SN's existing/current condition
-              conditionLabel: s.condition || 'Standby Good',
+              conditionLabel: it.condition || 'Standby Good',
               notes: '',
             };
-          });
-        setSelectedSerialReturns(snInitial);
-      } catch (err: any) {
+          }
+        });
+        setSelectedSerialReturns(initialSerials);
+        setSelectedBulkReturns({});
+      } catch (err) {
         console.error('Failed to load project inventory:', err);
-        setErrorMsg(err.message || 'Failed to load project inventory');
       } finally {
         setIsLoadingInventory(false);
       }
     };
 
-    fetchProjectInventory();
-  }, [sourceType, returnForm.projectId]);
-
-  const selectedRegularItem = items.find((i) => String(i.id) === regularForm.itemId);
-  const isRegularSerialized = selectedRegularItem?.trackingType === 'SERIALIZED';
-
-  const isDirty =
-    sourceType === 'REGULAR'
-      ? JSON.stringify(regularForm) !== JSON.stringify(initialRegular)
-      : JSON.stringify(returnForm) !== JSON.stringify(initialReturn) ||
-        Object.keys(selectedBulkReturns).length > 0 ||
-        Object.values(selectedSerialReturns).some((s) => s.selected);
-
-  const handleRequestClose = () => {
-    if (isDirty) {
-      setShowDiscardConfirm(true);
-    } else {
-      onClose();
+    if (sourceType === 'RETURN' && returnForm.projectId) {
+      fetchProjectInventory();
     }
+  }, [returnForm.projectId, sourceType]);
+
+  const selectedActiveItem = items.find((i) => String(i.id) === activeItemId);
+  const isActiveItemSerialized = selectedActiveItem?.trackingType === 'SERIALIZED';
+
+  // --- Staging Regular Item ---
+  const handleAddActiveItemToStaged = () => {
+    if (!activeItemId || !selectedActiveItem) {
+      setErrorMsg('Please select an item to add');
+      return;
+    }
+
+    if (isActiveItemSerialized) {
+      const validSerials = activeSerialRows
+        .map((r) => ({
+          serialNumber: r.serialNumber.trim(),
+          conditionLabel: r.conditionLabel,
+          notes: r.notes.trim(),
+        }))
+        .filter((r) => Boolean(r.serialNumber));
+
+      if (validSerials.length === 0) {
+        setErrorMsg('Please enter at least one valid serial number');
+        return;
+      }
+
+      // Duplicate check within batch
+      const snSet = new Set<string>();
+      for (const s of validSerials) {
+        if (snSet.has(s.serialNumber)) {
+          setErrorMsg(`Duplicate serial number in entry: ${s.serialNumber}`);
+          return;
+        }
+        snSet.add(s.serialNumber);
+      }
+
+      // Check if item already in staged items list
+      const existingIdx = stagedItems.findIndex((si) => si.itemId === selectedActiveItem.id);
+      if (existingIdx >= 0) {
+        const existing = stagedItems[existingIdx];
+        const existingSns = existing.serialRows?.map((sr) => sr.serialNumber) || [];
+        for (const s of validSerials) {
+          if (existingSns.includes(s.serialNumber)) {
+            setErrorMsg(`Serial number "${s.serialNumber}" is already added to this receipt.`);
+            return;
+          }
+        }
+        const updatedRows = [...(existing.serialRows || []), ...validSerials];
+        const updated = [...stagedItems];
+        updated[existingIdx] = {
+          ...existing,
+          quantity: updatedRows.length,
+          serialRows: updatedRows,
+        };
+        setStagedItems(updated);
+      } else {
+        setStagedItems((prev) => [
+          ...prev,
+          {
+            itemId: selectedActiveItem.id,
+            itemName: selectedActiveItem.name,
+            brand: selectedActiveItem.brand || null,
+            modelNumber: selectedActiveItem.modelNumber || null,
+            trackingType: 'SERIALIZED',
+            unitSymbol: selectedActiveItem.unit?.symbol || 'pcs',
+            quantity: validSerials.length,
+            serialRows: validSerials,
+          },
+        ]);
+      }
+    } else {
+      // Bulk item
+      if (activeQuantity <= 0) {
+        setErrorMsg('Quantity must be greater than 0');
+        return;
+      }
+
+      const existingIdx = stagedItems.findIndex((si) => si.itemId === selectedActiveItem.id);
+      if (existingIdx >= 0) {
+        const existing = stagedItems[existingIdx];
+        const updated = [...stagedItems];
+        updated[existingIdx] = {
+          ...existing,
+          quantity: existing.quantity + activeQuantity,
+        };
+        setStagedItems(updated);
+      } else {
+        setStagedItems((prev) => [
+          ...prev,
+          {
+            itemId: selectedActiveItem.id,
+            itemName: selectedActiveItem.name,
+            brand: selectedActiveItem.brand || null,
+            modelNumber: selectedActiveItem.modelNumber || null,
+            trackingType: 'BULK',
+            unitSymbol: selectedActiveItem.unit?.symbol || 'pcs',
+            quantity: activeQuantity,
+          },
+        ]);
+      }
+    }
+
+    // Reset active item inputs
+    setActiveItemId('');
+    setActiveQuantity(1);
+    setActiveSerialRows([{ serialNumber: '', conditionLabel: 'Standby Good', notes: '' }]);
+    setErrorMsg(null);
   };
 
-  // --- Regular Incoming Handlers ---
+  const handleRemoveStagedItem = (index: number) => {
+    setStagedItems((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleAddSerialField = () => {
-    setRegularForm((prev) => ({
+    setActiveSerialRows((prev) => [
       ...prev,
-      serialRows: [...prev.serialRows, { serialNumber: '', conditionLabel: 'Standby Good', notes: '' }],
-    }));
+      { serialNumber: '', conditionLabel: 'Standby Good', notes: '' },
+    ]);
   };
 
-  const handleRemoveSerialField = (index: number) => {
-    setRegularForm((prev) => ({
-      ...prev,
-      serialRows: prev.serialRows.filter((_, i) => i !== index),
-    }));
+  const handleRemoveSerialField = (idx: number) => {
+    setActiveSerialRows((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  const handleSerialChange = (index: number, field: keyof SerialItemEntry, value: string) => {
-    setRegularForm((prev) => {
-      const updated = [...prev.serialRows];
-      updated[index] = { ...updated[index], [field]: value };
-      return { ...prev, serialRows: updated };
-    });
+  const handleSerialChange = (idx: number, field: keyof SerialItemEntry, value: string) => {
+    const updated = [...activeSerialRows];
+    updated[idx] = { ...updated[idx], [field]: value };
+    setActiveSerialRows(updated);
   };
 
   const handleSetAllRegularConditions = (condition: string) => {
-    setRegularForm((prev) => ({
-      ...prev,
-      serialRows: prev.serialRows.map((r) => ({ ...r, conditionLabel: condition })),
-    }));
+    setActiveSerialRows((prev) => prev.map((r) => ({ ...r, conditionLabel: condition })));
   };
 
-  const handleProcessPaste = () => {
+  const handleApplyPasteSerials = () => {
     setPasteError(null);
-    if (!pasteText.trim()) {
-      setPasteError('Please enter some serial numbers');
-      return;
-    }
+    if (!pasteText.trim()) return;
 
-    const lines = pasteText
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0);
+    const rawList = pasteText
+      .split(/[\r\n,]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
 
-    if (lines.length === 0) {
-      setPasteError('No valid serial numbers found');
-      return;
-    }
+    if (rawList.length === 0) return;
 
     const seen = new Set<string>();
     const duplicates: string[] = [];
     const newRows: SerialItemEntry[] = [];
 
-    lines.forEach((line) => {
-      if (seen.has(line)) {
-        duplicates.push(line);
+    rawList.forEach((sn) => {
+      if (seen.has(sn)) {
+        duplicates.push(sn);
       } else {
-        seen.add(line);
+        seen.add(sn);
         newRows.push({
-          serialNumber: line,
-          conditionLabel: pasteCondition || 'Standby Good',
+          serialNumber: sn,
+          conditionLabel: pasteCondition,
           notes: '',
         });
       }
@@ -306,10 +382,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
       return;
     }
 
-    setRegularForm((prev) => ({
-      ...prev,
-      serialRows: newRows,
-    }));
+    setActiveSerialRows(newRows);
     setPasteModalOpen(false);
     setPasteText('');
   };
@@ -381,59 +454,68 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
   };
 
   // --- Submit Handler ---
-  const handleSaveInternal = async (addAnother: boolean) => {
+  const handleSaveInternal = async () => {
     setErrorMsg(null);
     setIsSaving(true);
 
     try {
       if (sourceType === 'REGULAR') {
         if (!regularForm.warehouseId) {
-          throw new Error('Please select a destination warehouse');
-        }
-        if (!regularForm.itemId) {
-          throw new Error('Please select an item');
+          throw new Error('Please select a Destination Warehouse');
         }
 
-        let itemsPayload: any[] = [];
-        if (isRegularSerialized) {
-          const serials = regularForm.serialRows
-            .map((r) => ({
-              serialNumber: r.serialNumber.trim(),
-              conditionLabel: r.conditionLabel,
-              notes: r.notes.trim() || undefined,
-            }))
-            .filter((s) => Boolean(s.serialNumber));
+        let itemsToSubmit = [...stagedItems];
 
-          if (serials.length === 0) {
-            throw new Error('All serial numbers must be specified');
-          }
-
-          const snSet = new Set<string>();
-          for (const s of serials) {
-            if (snSet.has(s.serialNumber)) {
-              throw new Error(`Duplicate serial number in form: ${s.serialNumber}`);
+        // If user filled active item fields without clicking "Add Item", include it
+        if (activeItemId && selectedActiveItem) {
+          if (isActiveItemSerialized) {
+            const valid = activeSerialRows
+              .map((r) => ({
+                serialNumber: r.serialNumber.trim(),
+                conditionLabel: r.conditionLabel,
+                notes: r.notes.trim(),
+              }))
+              .filter((r) => Boolean(r.serialNumber));
+            if (valid.length > 0) {
+              itemsToSubmit.push({
+                itemId: selectedActiveItem.id,
+                itemName: selectedActiveItem.name,
+                brand: selectedActiveItem.brand || null,
+                modelNumber: selectedActiveItem.modelNumber || null,
+                trackingType: 'SERIALIZED',
+                unitSymbol: selectedActiveItem.unit?.symbol || 'pcs',
+                quantity: valid.length,
+                serialRows: valid,
+              });
             }
-            snSet.add(s.serialNumber);
+          } else if (activeQuantity > 0) {
+            itemsToSubmit.push({
+              itemId: selectedActiveItem.id,
+              itemName: selectedActiveItem.name,
+              brand: selectedActiveItem.brand || null,
+              modelNumber: selectedActiveItem.modelNumber || null,
+              trackingType: 'BULK',
+              unitSymbol: selectedActiveItem.unit?.symbol || 'pcs',
+              quantity: activeQuantity,
+            });
           }
-
-          itemsPayload = [
-            {
-              itemId: Number(regularForm.itemId),
-              quantity: serials.length,
-              serialDetails: serials,
-            },
-          ];
-        } else {
-          if (regularForm.quantity <= 0) {
-            throw new Error('Quantity must be greater than 0');
-          }
-          itemsPayload = [
-            {
-              itemId: Number(regularForm.itemId),
-              quantity: Number(regularForm.quantity),
-            },
-          ];
         }
+
+        if (itemsToSubmit.length === 0) {
+          throw new Error('Please add at least one item to the incoming receipt');
+        }
+
+        const itemsPayload = itemsToSubmit.map((si) => ({
+          itemId: si.itemId,
+          quantity: si.quantity,
+          serialDetails: si.trackingType === 'SERIALIZED'
+            ? si.serialRows?.map((sr) => ({
+                serialNumber: sr.serialNumber,
+                conditionLabel: sr.conditionLabel,
+                notes: sr.notes || undefined,
+              }))
+            : undefined,
+        }));
 
         await apiClient.post('/stock-movements/incoming', {
           movementType: 'INCOMING',
@@ -445,24 +527,9 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
         });
 
         onSuccess();
-
-        if (addAnother) {
-          // Rule 13: KEEP Source = External Incoming, Date, Destination Warehouse; RESET Item, Qty/SN, Reference, Notes
-          setRegularForm((prev) => ({
-            ...prev,
-            itemId: '',
-            quantity: 1,
-            serialRows: [{ serialNumber: '', conditionLabel: 'Standby Good', notes: '' }],
-            referenceNumber: '',
-            notes: '',
-          }));
-          setTimeout(() => {
-            itemSelectRef.current?.focus();
-          }, 50);
-        } else {
-          onClose();
-        }
+        onClose();
       } else {
+        // RETURN
         if (!returnForm.projectId) {
           throw new Error('Please select a Source Project');
         }
@@ -525,33 +592,27 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
       }
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'Failed to record incoming movement');
+      setErrorMsg(err.message || 'Failed to record stock movement');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const bulkProjectItems = projectInventory.filter((i) => i.trackingType === 'BULK');
-  const serializedProjectItems = projectInventory.filter(
-    (i) =>
-      i.trackingType === 'SERIALIZED' &&
-      (!snSearch.trim() ||
-        i.serialNumber?.toLowerCase().includes(snSearch.toLowerCase()) ||
-        i.itemName.toLowerCase().includes(snSearch.toLowerCase())),
-  );
+  const totalStagedBulk = stagedItems.reduce((acc, i) => acc + (i.trackingType === 'BULK' ? i.quantity : 0), 0);
+  const totalStagedSerials = stagedItems.reduce((acc, i) => acc + (i.trackingType === 'SERIALIZED' ? i.quantity : 0), 0);
 
   return (
     <>
       <Modal
         isOpen={isOpen}
-        onClose={handleRequestClose}
-        title={sourceType === 'REGULAR' ? 'Record Incoming Stock' : 'Record Project Return / Recheck'}
-        maxWidth="820px"
+        onClose={onClose}
+        title="Record Incoming Stock Movement"
+        maxWidth="840px"
       >
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            handleSaveInternal(false);
+            handleSaveInternal();
           }}
         >
           <div className="modal-body" style={{ maxHeight: '72vh', overflowY: 'auto' }}>
@@ -580,7 +641,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                 options={[
                   {
                     value: 'REGULAR',
-                    label: 'External / Regular Incoming',
+                    label: 'External / Supplier Incoming',
                     icon: <PackageCheck size={16} />,
                   },
                   {
@@ -595,6 +656,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
             {/* A. REGULAR INCOMING FORM */}
             {sourceType === 'REGULAR' && (
               <div>
+                {/* Header Information */}
                 <div className="form-grid" style={{ marginBottom: '1rem' }}>
                   <FormField label="Destination Warehouse *" required style={{ marginBottom: 0 }}>
                     <SearchableSelect
@@ -621,181 +683,228 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                   </FormField>
                 </div>
 
-                <div className="form-grid" style={{ marginBottom: '1rem' }}>
-                  <FormField label="Item Master *" required style={{ marginBottom: 0 }}>
-                    <SearchableSelect
-                      required
-                      placeholder="Search item master..."
-                      searchPlaceholder="Type item name, brand, or model number..."
-                      value={regularForm.itemId}
-                      onChange={(val) => {
-                        const it = items.find((i) => String(i.id) === val);
-                        setRegularForm({
-                          ...regularForm,
-                          itemId: val,
-                          serialRows:
-                            it?.trackingType === 'SERIALIZED'
-                              ? [{ serialNumber: '', conditionLabel: 'Standby Good', notes: '' }]
-                              : [],
-                        });
-                      }}
-                      options={items.map((i) => ({
-                        value: i.id,
-                        label: i.name,
-                        badge: i.trackingType,
-                        sublabel: i.brand ? (i.modelNumber ? `${i.brand} [MN: ${i.modelNumber}]` : i.brand) : (i.modelNumber ? `MN: ${i.modelNumber}` : undefined),
-                      }))}
-                    />
-                  </FormField>
-
-                  {!isRegularSerialized ? (
-                    <FormField label="Quantity *" required style={{ marginBottom: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '4px' }}>
-                        <QuantityStepper
-                          min={1}
-                          value={regularForm.quantity}
-                          onChange={(val) => setRegularForm({ ...regularForm, quantity: val || 1 })}
-                          unitSymbol={selectedRegularItem?.unit?.symbol || 'pcs'}
-                        />
-                      </div>
-                    </FormField>
-                  ) : (
-                    <FormField label="Serial Count" style={{ marginBottom: 0 }}>
-                      <div style={{ paddingTop: '8px', fontWeight: 600, color: '#2250A1' }}>
-                        {regularForm.serialRows.length} Serial Unit(s)
-                      </div>
-                    </FormField>
-                  )}
-                </div>
-
-                {/* Serialized Asset Configuration */}
-                {isRegularSerialized && (
-                  <div
-                    style={{
-                      border: '1px solid #E2E8F0',
-                      borderRadius: '6px',
-                      padding: '0.85rem 1rem',
-                      backgroundColor: '#F8FAFC',
-                      marginBottom: '1rem',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '8px' }}>
-                      <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: '#1E293B' }}>
-                        Serial Numbers &amp; Conditions ({regularForm.serialRows.length})
-                      </h4>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 600 }}>Set all:</span>
-                        <button
-                          type="button"
-                          onClick={() => handleSetAllRegularConditions('Standby Good')}
-                          style={{
-                            padding: '2px 6px',
-                            fontSize: '0.7rem',
-                            fontWeight: 600,
-                            borderRadius: '3px',
-                            border: '1px solid #A7F3D0',
-                            backgroundColor: '#ECFDF5',
-                            color: '#059669',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Good
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleSetAllRegularConditions('Standby Bad')}
-                          style={{
-                            padding: '2px 6px',
-                            fontSize: '0.7rem',
-                            fontWeight: 600,
-                            borderRadius: '3px',
-                            border: '1px solid #FECACA',
-                            backgroundColor: '#FEF2F2',
-                            color: '#DC2626',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Bad
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleSetAllRegularConditions('Under Repair')}
-                          style={{
-                            padding: '2px 6px',
-                            fontSize: '0.7rem',
-                            fontWeight: 600,
-                            borderRadius: '3px',
-                            border: '1px solid #FDE68A',
-                            backgroundColor: '#FFFBEB',
-                            color: '#D97706',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Repair
-                        </button>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => setPasteModalOpen(true)}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', fontSize: '0.75rem' }}
-                        >
-                          <ClipboardList size={13} /> Batch Paste
-                        </Button>
-                      </div>
+                {/* Staged Items List / Receipt Lines */}
+                {stagedItems.length > 0 && (
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '0.825rem', fontWeight: 700, color: '#1E293B' }}>
+                        Receipt Items ({stagedItems.length} line(s) &bull; {totalStagedBulk > 0 ? `${totalStagedBulk} bulk` : ''} {totalStagedSerials > 0 ? `${totalStagedSerials} serials` : ''})
+                      </span>
                     </div>
 
-                    <div style={{ maxHeight: '200px', overflowY: 'auto', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '420px' }}>
-                        {regularForm.serialRows.map((row, idx) => (
-                          <div key={idx} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                            <Input
-                              placeholder={`Serial #${idx + 1}`}
-                              required
-                              value={row.serialNumber}
-                              onChange={(e) => handleSerialChange(idx, 'serialNumber', e.target.value)}
-                              style={{ flex: 2, padding: '4px 8px', fontSize: '0.8rem' }}
-                            />
-                            <Select
-                              value={row.conditionLabel}
-                              onChange={(e) => handleSerialChange(idx, 'conditionLabel', e.target.value)}
-                              style={{ flex: 1.5, padding: '4px 8px', fontSize: '0.8rem' }}
-                            >
-                              <option value="Standby Good">Standby Good</option>
-                              <option value="Standby Bad">Standby Bad</option>
-                              <option value="Under Repair">Under Repair</option>
-                            </Select>
-                            <Input
-                              placeholder="Notes (optional)"
-                              value={row.notes}
-                              onChange={(e) => handleSerialChange(idx, 'notes', e.target.value)}
-                              style={{ flex: 2, padding: '4px 8px', fontSize: '0.8rem' }}
-                            />
-                            {regularForm.serialRows.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveSerialField(idx)}
-                                style={{ border: 'none', background: 'transparent', color: '#EF4444', cursor: 'pointer', padding: '4px' }}
-                              >
-                                <Trash2 size={15} />
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                    <div style={{ border: '1px solid #E2E8F0', borderRadius: '6px', overflow: 'hidden' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                        <thead>
+                          <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0', textAlign: 'left', color: '#64748B' }}>
+                            <th style={{ padding: '6px 10px' }}>Item</th>
+                            <th style={{ padding: '6px 10px' }}>Type</th>
+                            <th style={{ padding: '6px 10px' }}>Quantity / Serials</th>
+                            <th style={{ padding: '6px 10px', width: '40px' }}></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {stagedItems.map((si, idx) => (
+                            <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                              <td style={{ padding: '6px 10px' }}>
+                                <div style={{ fontWeight: 600, color: '#1E293B' }}>{si.itemName}</div>
+                                <div style={{ fontSize: '0.725rem', color: '#64748B' }}>
+                                  {[si.brand, si.modelNumber].filter(Boolean).join(' - ') || 'Generic'}
+                                </div>
+                              </td>
+                              <td style={{ padding: '6px 10px' }}>
+                                <span style={{ fontSize: '0.7rem', padding: '1px 6px', borderRadius: '4px', fontWeight: 600, backgroundColor: si.trackingType === 'SERIALIZED' ? '#F3E8FF' : '#E0F2FE', color: si.trackingType === 'SERIALIZED' ? '#7E22CE' : '#0369A1' }}>
+                                  {si.trackingType}
+                                </span>
+                              </td>
+                              <td style={{ padding: '6px 10px' }}>
+                                <div style={{ fontWeight: 700, color: '#0F766E' }}>
+                                  {si.quantity} {si.unitSymbol}
+                                </div>
+                                {si.trackingType === 'SERIALIZED' && si.serialRows && (
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '3px' }}>
+                                    {si.serialRows.map((sr, sIdx) => (
+                                      <span key={sIdx} style={{ fontSize: '0.7rem', padding: '1px 5px', borderRadius: '3px', fontFamily: 'monospace', backgroundColor: '#F1F5F9', border: '1px solid #CBD5E1' }}>
+                                        {sr.serialNumber} <span style={{ color: sr.conditionLabel === 'Standby Good' ? '#059669' : '#DC2626' }}>({sr.conditionLabel})</span>
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </td>
+                              <td style={{ padding: '6px 10px', textAlign: 'center' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveStagedItem(idx)}
+                                  style={{ border: 'none', background: 'transparent', color: '#EF4444', cursor: 'pointer', padding: '2px' }}
+                                  title="Remove item line"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleAddSerialField}
-                      style={{ marginTop: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', padding: '2px 6px' }}
-                    >
-                      <Plus size={13} /> Add Row
-                    </Button>
                   </div>
                 )}
+
+                {/* Add Item Form Box */}
+                <div style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '12px 14px', marginBottom: '1rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#334155' }}>
+                      {stagedItems.length > 0 ? '+ Add Another Item to Receipt' : 'Add Item to Receipt'}
+                    </span>
+                  </div>
+
+                  <div className="form-grid" style={{ marginBottom: '8px' }}>
+                    <FormField label="Item Master *" style={{ marginBottom: 0 }}>
+                      <SearchableSelect
+                        placeholder="Search item to receive..."
+                        searchPlaceholder="Type name, brand, or model..."
+                        value={activeItemId}
+                        onChange={(val) => {
+                          setActiveItemId(val);
+                          const it = items.find((i) => String(i.id) === val);
+                          if (it?.trackingType === 'SERIALIZED') {
+                            setActiveSerialRows([{ serialNumber: '', conditionLabel: 'Standby Good', notes: '' }]);
+                          }
+                        }}
+                        options={items.map((i) => ({
+                          value: i.id,
+                          label: i.name,
+                          badge: i.trackingType,
+                          sublabel: i.brand ? (i.modelNumber ? `${i.brand} [MN: ${i.modelNumber}]` : i.brand) : (i.modelNumber ? `MN: ${i.modelNumber}` : undefined),
+                        }))}
+                      />
+                    </FormField>
+
+                    {!isActiveItemSerialized ? (
+                      <FormField label="Quantity *" style={{ marginBottom: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '4px' }}>
+                          <QuantityStepper
+                            min={1}
+                            value={activeQuantity}
+                            onChange={(val) => setActiveQuantity(val || 1)}
+                            unitSymbol={selectedActiveItem?.unit?.symbol || 'pcs'}
+                          />
+                        </div>
+                      </FormField>
+                    ) : (
+                      <FormField label="Serial Units Count" style={{ marginBottom: 0 }}>
+                        <div style={{ paddingTop: '8px', fontWeight: 600, color: '#2250A1' }}>
+                          {activeSerialRows.length} Serial Unit(s)
+                        </div>
+                      </FormField>
+                    )}
+                  </div>
+
+                  {/* Serial Entry Rows if active item is SERIALIZED */}
+                  {isActiveItemSerialized && (
+                    <div style={{ border: '1px solid #CBD5E1', borderRadius: '6px', padding: '10px', backgroundColor: '#FFFFFF', marginTop: '8px', marginBottom: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
+                        <span style={{ fontSize: '0.775rem', fontWeight: 700, color: '#1E293B' }}>
+                          Serial Numbers &amp; Condition Configuration
+                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '0.7rem', color: '#64748B', fontWeight: 600 }}>Set all:</span>
+                          <button
+                            type="button"
+                            onClick={() => handleSetAllRegularConditions('Standby Good')}
+                            style={{ padding: '1px 5px', fontSize: '0.7rem', fontWeight: 600, borderRadius: '3px', border: '1px solid #A7F3D0', backgroundColor: '#ECFDF5', color: '#059669', cursor: 'pointer' }}
+                          >
+                            Good
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSetAllRegularConditions('Standby Bad')}
+                            style={{ padding: '1px 5px', fontSize: '0.7rem', fontWeight: 600, borderRadius: '3px', border: '1px solid #FECACA', backgroundColor: '#FEF2F2', color: '#DC2626', cursor: 'pointer' }}
+                          >
+                            Bad
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSetAllRegularConditions('Under Repair')}
+                            style={{ padding: '1px 5px', fontSize: '0.7rem', fontWeight: 600, borderRadius: '3px', border: '1px solid #FDE68A', backgroundColor: '#FFFBEB', color: '#D97706', cursor: 'pointer' }}
+                          >
+                            Repair
+                          </button>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setPasteModalOpen(true)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', fontSize: '0.75rem' }}
+                          >
+                            <ClipboardList size={13} /> Batch Paste
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div style={{ maxHeight: '180px', overflowY: 'auto' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {activeSerialRows.map((row, idx) => (
+                            <div key={idx} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                              <Input
+                                placeholder={`Serial #${idx + 1}`}
+                                value={row.serialNumber}
+                                onChange={(e) => handleSerialChange(idx, 'serialNumber', e.target.value)}
+                                style={{ flex: 2, padding: '4px 8px', fontSize: '0.8rem' }}
+                              />
+                              <Select
+                                value={row.conditionLabel}
+                                onChange={(e) => handleSerialChange(idx, 'conditionLabel', e.target.value)}
+                                style={{ flex: 1.5, padding: '4px 8px', fontSize: '0.8rem' }}
+                              >
+                                <option value="Standby Good">Standby Good</option>
+                                <option value="Standby Bad">Standby Bad</option>
+                                <option value="Under Repair">Under Repair</option>
+                              </Select>
+                              <Input
+                                placeholder="Notes (optional)"
+                                value={row.notes}
+                                onChange={(e) => handleSerialChange(idx, 'notes', e.target.value)}
+                                style={{ flex: 2, padding: '4px 8px', fontSize: '0.8rem' }}
+                              />
+                              {activeSerialRows.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveSerialField(idx)}
+                                  style={{ border: 'none', background: 'transparent', color: '#EF4444', cursor: 'pointer', padding: '4px' }}
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleAddSerialField}
+                        style={{ marginTop: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', padding: '2px 6px' }}
+                      >
+                        <Plus size={13} /> Add Row
+                      </Button>
+                    </div>
+                  )}
+
+                  {activeItemId && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleAddActiveItemToStaged}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem' }}
+                      >
+                        <Plus size={14} /> Add Line to Receipt
+                      </Button>
+                    </div>
+                  )}
+                </div>
 
                 <div className="form-grid">
                   <FormField label="Reference (PO / Contract / Waybill)">
@@ -806,9 +915,9 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                     />
                   </FormField>
 
-                  <FormField label="Notes / Remarks">
+                  <FormField label="Notes / Purpose">
                     <Input
-                      placeholder="e.g. Received in good condition..."
+                      placeholder="e.g. Stock replenishment, new procurement..."
                       value={regularForm.notes}
                       onChange={(e) => setRegularForm({ ...regularForm, notes: e.target.value })}
                     />
@@ -824,14 +933,14 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                   <FormField label="Source Project *" required style={{ marginBottom: 0 }}>
                     <SearchableSelect
                       required
-                      placeholder="Search source project..."
-                      searchPlaceholder="Type project name, site code, or client..."
+                      placeholder="Select Project returning assets..."
+                      searchPlaceholder="Type project name..."
                       value={returnForm.projectId}
                       onChange={(val) => setReturnForm({ ...returnForm, projectId: val })}
                       options={projects.map((p) => ({
                         value: p.id,
                         label: p.name,
-                        badge: p.siteCode ? `Site: ${p.siteCode}` : undefined,
+                        badge: p.siteCode || undefined,
                         sublabel: p.client?.name ? `Client: ${p.client.name}` : undefined,
                       }))}
                     />
@@ -840,7 +949,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                   <FormField label="Destination Warehouse *" required style={{ marginBottom: 0 }}>
                     <SearchableSelect
                       required
-                      placeholder="Search destination warehouse..."
+                      placeholder="Select Warehouse to receive returned items..."
                       searchPlaceholder="Type warehouse name or city code..."
                       value={returnForm.warehouseId}
                       onChange={(val) => setReturnForm({ ...returnForm, warehouseId: val })}
@@ -854,7 +963,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                 </div>
 
                 <div className="form-grid" style={{ marginBottom: '1rem' }}>
-                  <FormField label="Movement Date" required style={{ marginBottom: 0 }}>
+                  <FormField label="Movement Date *" required style={{ marginBottom: 0 }}>
                     <Input
                       type="date"
                       required
@@ -863,288 +972,251 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                     />
                   </FormField>
 
-                  <FormField label="DO / Return Reference" style={{ marginBottom: 0 }}>
+                  <FormField label="Reference Number" style={{ marginBottom: 0 }}>
                     <Input
-                      placeholder="e.g. DO-PHM-2026-001, RET-09..."
+                      placeholder="e.g. RET-PHM-001..."
                       value={returnForm.referenceNumber}
                       onChange={(e) => setReturnForm({ ...returnForm, referenceNumber: e.target.value })}
                     />
                   </FormField>
                 </div>
 
-                {/* Project Inventory Section */}
-                <div style={{ marginBottom: '1rem' }}>
-                  {!returnForm.projectId ? (
-                    <div style={{ padding: '1.5rem', textAlign: 'center', backgroundColor: '#F9FAFB', border: '1px dashed #D1D5DB', borderRadius: '6px', color: '#6B7280', fontSize: '0.85rem' }}>
-                      Select a Source Project above to view its deployed inventory.
+                {/* Project Assets Picker */}
+                {returnForm.projectId && (
+                  <div style={{ marginTop: '1rem', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '1rem', backgroundColor: '#F8FAFC' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                      <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: '#1E293B' }}>
+                        Project Inventory to Return
+                      </h4>
+                      <Input
+                        placeholder="Search serial number or item..."
+                        value={snSearch}
+                        onChange={(e) => setSnSearch(e.target.value)}
+                        style={{ width: '220px', padding: '4px 8px', fontSize: '0.75rem' }}
+                      />
                     </div>
-                  ) : isLoadingInventory ? (
-                    <div style={{ padding: '1.5rem', textAlign: 'center', color: '#6B7280', fontSize: '0.85rem' }}>
-                      Loading project inventory...
-                    </div>
-                  ) : projectInventory.length === 0 ? (
-                    <div style={{ padding: '1.5rem', textAlign: 'center', backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '6px', color: '#B91C1C', fontSize: '0.85rem' }}>
-                      No inventory currently deployed at this project.
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      {/* Bulk Items at Project */}
-                      {bulkProjectItems.length > 0 && (
-                        <div style={{ border: '1px solid #E2E8F0', borderRadius: '6px', overflow: 'hidden' }}>
-                          <div style={{ padding: '6px 12px', backgroundColor: '#F8FAFC', fontWeight: 600, fontSize: '0.8rem', color: '#334155' }}>
-                            Bulk Stock ({bulkProjectItems.length} items)
-                          </div>
-                          <table className="data-table" style={{ margin: 0, fontSize: '0.85rem' }}>
-                            <thead>
-                              <tr>
-                                <th>Item Description</th>
-                                <th>At Project</th>
-                                <th style={{ width: '130px' }}>Return Qty</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {bulkProjectItems.map((b) => (
-                                <tr key={b.id}>
-                                  <td>
-                                    <div style={{ fontWeight: 600, color: '#1E293B' }}>{b.itemName}</div>
-                                    <div style={{ fontSize: '0.75rem', color: '#64748B' }}>
-                                      {b.brand && `${b.brand} `} {b.modelNumber && `| MN: ${b.modelNumber}`}
-                                    </div>
-                                  </td>
-                                  <td style={{ fontWeight: 600 }}>
-                                    {b.availableQty} {b.unitSymbol}
-                                  </td>
-                                  <td>
-                                    <QuantityStepper
-                                      min={0}
-                                      max={b.availableQty}
-                                      value={selectedBulkReturns[b.itemId] || 0}
-                                      onChange={(val) => handleBulkReturnQtyChange(b.itemId, val, b.availableQty)}
-                                      size="sm"
-                                    />
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
 
-                      {/* Serialized Items at Project */}
-                      {serializedProjectItems.length > 0 && (
-                        <div style={{ border: '1px solid #E2E8F0', borderRadius: '6px', overflow: 'hidden' }}>
-                          <div
-                            style={{
-                              padding: '6px 12px',
-                              backgroundColor: '#F8FAFC',
-                              borderBottom: '1px solid #E2E8F0',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                            }}
-                          >
-                            <span style={{ fontWeight: 600, fontSize: '0.8rem', color: '#334155' }}>
-                              Serialized Assets ({serializedProjectItems.length} units deployed)
-                            </span>
-                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                              <Input
-                                placeholder="Filter SN..."
-                                value={snSearch}
-                                onChange={(e) => setSnSearch(e.target.value)}
-                                style={{ width: '130px', padding: '2px 6px', fontSize: '0.75rem' }}
-                              />
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                size="sm"
-                                onClick={handleSelectAllSerials}
-                                style={{ padding: '2px 8px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                              >
-                                <CheckSquare size={12} /> Select All
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleDeselectAllSerials}
-                                style={{ padding: '2px 8px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                              >
-                                <Square size={12} /> Deselect All
-                              </Button>
+                    {isLoadingInventory ? (
+                      <div style={{ textAlign: 'center', padding: '2rem', color: '#64748B' }}>
+                        Loading project inventory...
+                      </div>
+                    ) : projectInventory.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '2rem', color: '#64748B', backgroundColor: '#FFFFFF', borderRadius: '6px', border: '1px dashed #CBD5E1' }}>
+                        No inventory currently deployed at this project site.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        {/* Bulk Return Items */}
+                        {projectInventory.filter((i) => i.trackingType === 'BULK').length > 0 && (
+                          <div>
+                            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>
+                              Bulk Materials
+                            </div>
+                            <div style={{ border: '1px solid #E2E8F0', borderRadius: '6px', backgroundColor: '#FFFFFF', overflow: 'hidden' }}>
+                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                                <thead>
+                                  <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0', textAlign: 'left', color: '#64748B' }}>
+                                    <th style={{ padding: '6px 10px' }}>Item</th>
+                                    <th style={{ padding: '6px 10px' }}>At Project</th>
+                                    <th style={{ padding: '6px 10px', width: '140px' }}>Return Qty</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {projectInventory
+                                    .filter((i) => i.trackingType === 'BULK')
+                                    .map((bItem) => {
+                                      const currentReturnQty = selectedBulkReturns[bItem.itemId] || 0;
+                                      return (
+                                        <tr key={bItem.itemId} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                                          <td style={{ padding: '6px 10px' }}>
+                                            <div style={{ fontWeight: 600 }}>{bItem.itemName}</div>
+                                            <div style={{ fontSize: '0.725rem', color: '#64748B' }}>
+                                              {[bItem.brand, bItem.modelNumber].filter(Boolean).join(' - ')}
+                                            </div>
+                                          </td>
+                                          <td style={{ padding: '6px 10px', fontWeight: 600 }}>
+                                            {bItem.availableQty} {bItem.unitSymbol}
+                                          </td>
+                                          <td style={{ padding: '6px 10px' }}>
+                                            <QuantityStepper
+                                              min={0}
+                                              max={bItem.availableQty}
+                                              value={currentReturnQty}
+                                              onChange={(val) => handleBulkReturnQtyChange(bItem.itemId, val, bItem.availableQty)}
+                                              unitSymbol={bItem.unitSymbol}
+                                            />
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                </tbody>
+                              </table>
                             </div>
                           </div>
+                        )}
 
-                          <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                            <table className="data-table" style={{ margin: 0, fontSize: '0.85rem' }}>
-                              <thead>
-                                <tr style={{ position: 'sticky', top: 0, backgroundColor: '#F1F5F9', zIndex: 1 }}>
-                                  <th style={{ width: '35px' }}></th>
-                                  <th>Item / SN</th>
-                                  <th style={{ width: '160px' }}>Returned Condition *</th>
-                                  <th style={{ width: '180px' }}>Notes</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {serializedProjectItems.map((s) => {
-                                  const sn = s.serialNumber!;
-                                  const stateEntry = selectedSerialReturns[sn] || {
-                                    selected: false,
-                                    conditionLabel: s.condition || 'Standby Good',
-                                    notes: '',
-                                  };
+                        {/* Serialized Return Items */}
+                        {projectInventory.filter((i) => i.trackingType === 'SERIALIZED').length > 0 && (
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569' }}>
+                                Serialized Assets
+                              </span>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                  type="button"
+                                  onClick={handleSelectAllSerials}
+                                  style={{ border: 'none', background: 'none', color: '#2250A1', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+                                >
+                                  Select All
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleDeselectAllSerials}
+                                  style={{ border: 'none', background: 'none', color: '#64748B', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+                                >
+                                  Deselect All
+                                </button>
+                              </div>
+                            </div>
 
-                                  return (
-                                    <tr
-                                      key={s.id}
-                                      style={{
-                                        backgroundColor: stateEntry.selected ? '#F5F3FF' : undefined,
-                                      }}
-                                    >
-                                      <td>
-                                        <input
-                                          type="checkbox"
-                                          checked={stateEntry.selected}
-                                          onChange={() => handleSerialSelectToggle(sn)}
-                                          style={{ cursor: 'pointer' }}
-                                        />
-                                      </td>
-                                      <td>
-                                        <div style={{ fontWeight: 600, color: '#1E293B' }}>{s.itemName}</div>
-                                        <span
-                                          style={{
-                                            fontFamily: 'monospace',
-                                            fontWeight: 700,
-                                            color: '#7C3AED',
-                                            fontSize: '0.8rem',
-                                          }}
-                                        >
-                                          {sn}
-                                        </span>
-                                      </td>
-                                      <td>
-                                        <Select
-                                          disabled={!stateEntry.selected}
-                                          value={stateEntry.conditionLabel}
-                                          onChange={(e) =>
-                                            handleSerialReturnConditionChange(sn, e.target.value)
-                                          }
-                                          style={{ padding: '4px 8px', fontSize: '0.8rem' }}
-                                        >
-                                          <option value="Standby Good">Standby Good</option>
-                                          <option value="Standby Bad">Standby Bad</option>
-                                          <option value="Under Repair">Under Repair</option>
-                                        </Select>
-                                      </td>
-                                      <td>
-                                        <Input
-                                          disabled={!stateEntry.selected}
-                                          placeholder="Inspection note..."
-                                          value={stateEntry.notes}
-                                          onChange={(e) =>
-                                            handleSerialReturnNotesChange(sn, e.target.value)
-                                          }
-                                          style={{ padding: '4px 8px', fontSize: '0.8rem' }}
-                                        />
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
+                            <div style={{ border: '1px solid #E2E8F0', borderRadius: '6px', backgroundColor: '#FFFFFF', maxHeight: '240px', overflowY: 'auto' }}>
+                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                                <thead>
+                                  <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0', textAlign: 'left', color: '#64748B' }}>
+                                    <th style={{ padding: '6px 10px', width: '30px' }}></th>
+                                    <th style={{ padding: '6px 10px' }}>Serial Number</th>
+                                    <th style={{ padding: '6px 10px' }}>Item</th>
+                                    <th style={{ padding: '6px 10px', width: '150px' }}>Returned Condition</th>
+                                    <th style={{ padding: '6px 10px' }}>Notes</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {projectInventory
+                                    .filter((i) => i.trackingType === 'SERIALIZED')
+                                    .filter((i) =>
+                                      snSearch
+                                        ? i.serialNumber?.toLowerCase().includes(snSearch.toLowerCase()) ||
+                                          i.itemName.toLowerCase().includes(snSearch.toLowerCase())
+                                        : true,
+                                    )
+                                    .map((sItem) => {
+                                      const sn = sItem.serialNumber!;
+                                      const isSelected = selectedSerialReturns[sn]?.selected || false;
+                                      const cond = selectedSerialReturns[sn]?.conditionLabel || 'Standby Good';
+                                      const notes = selectedSerialReturns[sn]?.notes || '';
+
+                                      return (
+                                        <tr key={sn} style={{ borderBottom: '1px solid #F1F5F9', backgroundColor: isSelected ? '#EFF6FF' : undefined }}>
+                                          <td style={{ padding: '6px 10px', textAlign: 'center' }}>
+                                            <input
+                                              type="checkbox"
+                                              checked={isSelected}
+                                              onChange={() => handleSerialSelectToggle(sn)}
+                                              style={{ cursor: 'pointer' }}
+                                            />
+                                          </td>
+                                          <td style={{ padding: '6px 10px', fontFamily: 'monospace', fontWeight: 700, color: '#1E293B' }}>
+                                            {sn}
+                                          </td>
+                                          <td style={{ padding: '6px 10px' }}>
+                                            <div>{sItem.itemName}</div>
+                                            <div style={{ fontSize: '0.725rem', color: '#64748B' }}>
+                                              {[sItem.brand, sItem.modelNumber].filter(Boolean).join(' - ')}
+                                            </div>
+                                          </td>
+                                          <td style={{ padding: '6px 10px' }}>
+                                            <Select
+                                              value={cond}
+                                              disabled={!isSelected}
+                                              onChange={(e) => handleSerialReturnConditionChange(sn, e.target.value)}
+                                              style={{ fontSize: '0.75rem', padding: '3px 6px' }}
+                                            >
+                                              <option value="Standby Good">Standby Good</option>
+                                              <option value="Standby Bad">Standby Bad</option>
+                                              <option value="Under Repair">Under Repair</option>
+                                            </Select>
+                                          </td>
+                                          <td style={{ padding: '6px 10px' }}>
+                                            <Input
+                                              placeholder="Condition note"
+                                              disabled={!isSelected}
+                                              value={notes}
+                                              onChange={(e) => handleSerialReturnNotesChange(sn, e.target.value)}
+                                              style={{ fontSize: '0.75rem', padding: '3px 6px' }}
+                                            />
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                </tbody>
+                              </table>
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <FormField label="Notes / Reason for Return" style={{ marginBottom: 0 }}>
-                  <Textarea
-                    placeholder="e.g. Project completion return, equipment demob, recheck needed..."
-                    value={returnForm.notes}
-                    onChange={(e) => setReturnForm({ ...returnForm, notes: e.target.value })}
-                  />
-                </FormField>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
 
-          <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Button variant="secondary" type="button" onClick={handleRequestClose} disabled={isSaving}>
+          <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: '12px 16px', borderTop: '1px solid #E2E8F0' }}>
+            <Button type="button" variant="secondary" onClick={onClose}>
               Cancel
             </Button>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              {sourceType === 'REGULAR' && (
-                <Button
-                  variant="secondary"
-                  type="button"
-                  onClick={() => handleSaveInternal(true)}
-                  isLoading={isSaving}
-                >
-                  Save &amp; Add Another
-                </Button>
-              )}
-              <Button variant="primary" type="submit" isLoading={isSaving}>
-                {sourceType === 'REGULAR' ? 'Record Incoming' : 'Record Project Return'}
-              </Button>
-            </div>
+            <Button type="submit" variant="primary" disabled={isSaving}>
+              {isSaving ? 'Recording Movement...' : 'Confirm Incoming Receipt'}
+            </Button>
           </div>
         </form>
       </Modal>
 
-      {/* Multi-SN Paste Modal for Regular Incoming */}
+      {/* Batch Paste Serials Modal */}
       <Modal
         isOpen={pasteModalOpen}
         onClose={() => setPasteModalOpen(false)}
-        title="Multi-SN Batch Paste"
+        title="Batch Paste Serial Numbers"
         maxWidth="500px"
       >
         <div className="modal-body">
           {pasteError && <div className="alert-error" style={{ marginBottom: '1rem' }}>{pasteError}</div>}
-          <FormField label="Condition for Pasted Units" required>
+          <p style={{ fontSize: '0.8rem', color: '#64748B', marginTop: 0 }}>
+            Paste multiple serial numbers separated by newlines or commas.
+          </p>
+
+          <FormField label="Serial Numbers *">
+            <Textarea
+              rows={6}
+              placeholder="SN001&#10;SN002&#10;SN003"
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              style={{ fontFamily: 'monospace' }}
+            />
+          </FormField>
+
+          <FormField label="Default Initial Condition">
             <Select
               value={pasteCondition}
               onChange={(e) => setPasteCondition(e.target.value)}
             >
-              <option value="Standby Good">Standby Good (Ready for deployment)</option>
-              <option value="Standby Bad">Standby Bad (Defective / Damaged)</option>
-              <option value="Under Repair">Under Repair (Needs maintenance)</option>
+              <option value="Standby Good">Standby Good</option>
+              <option value="Standby Bad">Standby Bad</option>
+              <option value="Under Repair">Under Repair</option>
             </Select>
           </FormField>
-
-          <FormField label="Paste Serial Numbers (One per line)" required>
-            <Textarea
-              rows={8}
-              placeholder={`SN-001\nSN-002\nSN-003`}
-              value={pasteText}
-              onChange={(e) => setPasteText(e.target.value)}
-            />
-          </FormField>
         </div>
-        <div className="modal-footer">
-          <Button variant="secondary" type="button" onClick={() => setPasteModalOpen(false)}>
+
+        <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+          <Button type="button" variant="secondary" onClick={() => setPasteModalOpen(false)}>
             Cancel
           </Button>
-          <Button variant="primary" type="button" onClick={handleProcessPaste}>
-            Import Serials
+          <Button type="button" variant="primary" onClick={handleApplyPasteSerials}>
+            Apply Serials
           </Button>
         </div>
       </Modal>
-
-      <ConfirmModal
-        isOpen={showDiscardConfirm}
-        onClose={() => setShowDiscardConfirm(false)}
-        onConfirm={() => {
-          setShowDiscardConfirm(false);
-          onClose();
-        }}
-        title="Discard Unsaved Changes?"
-        message="You have unsaved changes in this form. Are you sure you want to discard them?"
-        confirmLabel="Discard Changes"
-        variant="danger"
-      />
     </>
   );
 };
-
-export default AddIncomingModal;

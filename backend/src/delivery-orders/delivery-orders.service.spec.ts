@@ -337,8 +337,6 @@ describe('DeliveryOrdersService', () => {
         id: 999,
         movementNumber: 'MV-OUT-DO-1234',
       });
-      mockPrisma.stockMovementItem.create.mockResolvedValue({ id: 888 });
-
       mockPrisma.deliveryOrder.update.mockResolvedValue({
         ...mockDoDraft,
         doNumber: '001/ALS-BPN/DO-PHM/IX/2026',
@@ -349,12 +347,15 @@ describe('DeliveryOrdersService', () => {
       const issued = await service.issueDeliveryOrder(77, 1);
 
       expect(issued.doNumber).toBe('001/ALS-BPN/DO-PHM/IX/2026');
-      expect(mockPrisma.warehouseStock.update).toHaveBeenCalledWith({
-        where: { id: 501 },
-        data: { quantity: { decrement: 10 } },
-      });
-      expect(mockPrisma.projectStock.upsert).toHaveBeenCalled();
-      expect(mockPrisma.stockMovement.create).toHaveBeenCalled();
+      expect(mockPrisma.deliveryOrder.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 77 },
+          data: expect.objectContaining({
+            doNumber: '001/ALS-BPN/DO-PHM/IX/2026',
+            status: OrderStatus.ISSUED,
+          }),
+        }),
+      );
       expect(mockPrisma.auditLog.create).toHaveBeenCalled();
     });
   });

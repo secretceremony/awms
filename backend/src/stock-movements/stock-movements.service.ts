@@ -249,7 +249,7 @@ export class StockMovementsService {
               client: { select: { id: true, name: true, clientType: true } },
             },
           },
-          deliveryOrder: { select: { id: true, doNumber: true } },
+          deliveryOrder: { select: { id: true, doNumber: true, status: true } },
           createdBy: { select: { id: true, name: true, email: true } },
           items: {
             include: {
@@ -285,7 +285,7 @@ export class StockMovementsService {
             clientContact: { select: { id: true, name: true, phone: true, email: true } },
           },
         },
-        deliveryOrder: { select: { id: true, doNumber: true } },
+        deliveryOrder: { select: { id: true, doNumber: true, status: true } },
         createdBy: { select: { id: true, name: true, email: true } },
         items: {
           include: {
@@ -462,7 +462,7 @@ export class StockMovementsService {
             clientContact: { select: { id: true, name: true, email: true, phone: true } },
           },
         },
-        deliveryOrder: { select: { id: true, doNumber: true } },
+        deliveryOrder: { select: { id: true, doNumber: true, status: true } },
         createdBy: { select: { id: true, name: true, email: true } },
         items: {
           include: {

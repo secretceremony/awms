@@ -102,22 +102,46 @@ export const ShippingLabelPrintView: React.FC<ShippingLabelPrintViewProps> = ({
         </div>
       </div>
 
-      {/* Fragile Banner if applicable */}
+      {/* Fragile Warning Box */}
       {label.isFragile && (
         <div
           style={{
-            backgroundColor: '#000000',
-            color: '#FFFFFF',
+            border: '2.5px solid #DC2626',
+            backgroundColor: '#FEF2F2',
+            color: '#DC2626',
             textAlign: 'center',
-            fontWeight: 900,
-            fontSize: '9.5pt',
-            letterSpacing: '1.5px',
-            padding: '2.5px 0',
+            padding: '4px 8px',
             marginBottom: '4px',
-            textTransform: 'uppercase',
+            borderRadius: '2px',
+            WebkitPrintColorAdjust: 'exact',
+            printColorAdjust: 'exact',
           }}
         >
-          ⚠️ FRAGILE / HANDLE WITH CARE ⚠️
+          <div
+            style={{
+              fontWeight: 900,
+              fontSize: '11pt',
+              letterSpacing: '2.5px',
+              textTransform: 'uppercase',
+              lineHeight: 1.1,
+              color: '#DC2626',
+            }}
+          >
+            FRAGILE
+          </div>
+          <div
+            style={{
+              fontWeight: 800,
+              fontSize: '7pt',
+              letterSpacing: '1.2px',
+              textTransform: 'uppercase',
+              lineHeight: 1.1,
+              marginTop: '1px',
+              color: '#B91C1C',
+            }}
+          >
+            HANDLE WITH CARE
+          </div>
         </div>
       )}
 

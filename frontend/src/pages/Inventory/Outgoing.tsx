@@ -9,6 +9,7 @@ import {
 import { PaginatedTable, type Column } from '../../components/PaginatedTable.js';
 import { AddOutgoingModal } from '../../components/outgoing/AddOutgoingModal.js';
 import { OutgoingDetailModal } from '../../components/outgoing/OutgoingDetailModal.js';
+import { DeliveryOrderFormModal } from '../../components/delivery/DeliveryOrderFormModal.js';
 import { ExcelImportModal } from '../../components/common/ExcelImportModal.js';
 import { FilterBar, FilterPanel, type ActiveFilter } from '../../components/filters/index.js';
 import { apiClient } from '../../api/client.js';
@@ -92,6 +93,8 @@ export const Outgoing: React.FC = () => {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedMovementId, setSelectedMovementId] = useState<number | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isCreateDoOpen, setIsCreateDoOpen] = useState(false);
+  const [createDoMovementId, setCreateDoMovementId] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchDropdowns = async () => {
@@ -226,26 +229,57 @@ export const Outgoing: React.FC = () => {
       ),
     },
     {
-      key: 'dispatchSource',
-      header: 'Dispatch Source',
-      render: (m: OutgoingMovement & { deliveryOrder?: { id: number; doNumber: string } }) => {
-        const doNumber = (m as any).deliveryOrder?.doNumber;
-        const isDo = !!doNumber;
+      key: 'deliveryOrder',
+      header: 'Delivery Order',
+      render: (m: OutgoingMovement & { deliveryOrder?: { id: number; doNumber: string; status: string } }) => {
+        const doInfo = (m as any).deliveryOrder;
+        if (doInfo && (doInfo.doNumber || doInfo.id)) {
+          return (
+            <span
+              style={{
+                padding: '2px 8px',
+                borderRadius: '4px',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                fontFamily: 'monospace',
+                backgroundColor: 'rgba(34, 80, 161, 0.1)',
+                color: '#2250A1',
+                border: '1px solid rgba(34, 80, 161, 0.2)',
+              }}
+            >
+              {doInfo.doNumber || `DO #${doInfo.id}`}
+            </span>
+          );
+        }
+
         return (
-          <span
-            style={{
-              padding: '2px 8px',
-              borderRadius: '4px',
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              fontFamily: isDo ? 'monospace' : 'inherit',
-              backgroundColor: isDo ? 'rgba(34, 80, 161, 0.1)' : '#F3F4F6',
-              color: isDo ? '#2250A1' : '#4B5563',
-              border: `1px solid ${isDo ? 'rgba(34, 80, 161, 0.2)' : '#E5E7EB'}`,
-            }}
-          >
-            {isDo ? doNumber : 'Manual'}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span
+              style={{
+                padding: '2px 6px',
+                borderRadius: '4px',
+                fontSize: '0.7rem',
+                fontWeight: 600,
+                backgroundColor: '#F3F4F6',
+                color: '#6B7280',
+                border: '1px solid #E5E7EB',
+              }}
+            >
+              Not Created
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setCreateDoMovementId(m.id);
+                setIsCreateDoOpen(true);
+              }}
+              style={{ padding: '2px 6px', fontSize: '0.7rem', color: '#2250A1', fontWeight: 600 }}
+              title="Create Delivery Order from this Outgoing"
+            >
+              + Create DO
+            </Button>
+          </div>
         );
       },
     },
@@ -461,6 +495,20 @@ export const Outgoing: React.FC = () => {
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
         movementId={selectedMovementId}
+        onCreateDo={(mId) => {
+          setCreateDoMovementId(mId);
+          setIsCreateDoOpen(true);
+        }}
+      />
+
+      <DeliveryOrderFormModal
+        isOpen={isCreateDoOpen}
+        onClose={() => {
+          setIsCreateDoOpen(false);
+          setCreateDoMovementId(null);
+        }}
+        initialStockMovementId={createDoMovementId}
+        onSuccess={() => setRefreshTrigger((prev) => prev + 1)}
       />
     </div>
   );

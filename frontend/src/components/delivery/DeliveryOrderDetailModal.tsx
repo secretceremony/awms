@@ -92,7 +92,7 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
     setConfirmConfig({
       isOpen: true,
       title: 'Issue Delivery Order',
-      message: `Are you sure you want to issue this Delivery Order? This will generate the official DO number, decrement source warehouse stock, relocate serialized assets to the project, and create an OUTGOING stock movement. This action is irreversible.`,
+      message: `Are you sure you want to issue this Delivery Order? This will generate the official DO number and finalize the document snapshot. This action is irreversible.`,
       confirmText: 'Issue Delivery Order',
       variant: 'primary',
       onConfirm: async () => {
@@ -279,6 +279,33 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
                 </div>
               </div>
             </div>
+
+            {/* Related Outgoing Movement Link */}
+            {deliveryOrder.stockMovement && (
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '8px 12px',
+                  backgroundColor: '#EFF6FF',
+                  border: '1px solid #BFDBFE',
+                  borderRadius: '6px',
+                  fontSize: '0.825rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FileText size={16} color="#2250A1" />
+                  <span>
+                    Linked to Outgoing Movement:{' '}
+                    <strong style={{ fontFamily: 'monospace', color: '#1E40AF' }}>
+                      {deliveryOrder.stockMovement.movementNumber}
+                    </strong>{' '}
+                    ({new Date(deliveryOrder.stockMovement.movementDate).toLocaleDateString('en-GB')})
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Notes if present */}
             {deliveryOrder.notes && (

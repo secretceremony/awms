@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button } from '../ui/index.js';
 import { apiClient } from '../../api/client.js';
-import { Warehouse, Building, User, Calendar } from 'lucide-react';
+import { Warehouse, Building, User, Calendar, FileText, Plus } from 'lucide-react';
 
 export interface OutgoingDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   movementId: number | null;
+  onCreateDo?: (movementId: number) => void;
 }
 
 export const OutgoingDetailModal: React.FC<OutgoingDetailModalProps> = ({
   isOpen,
   onClose,
   movementId,
+  onCreateDo,
 }) => {
   const [movement, setMovement] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -40,6 +42,8 @@ export const OutgoingDetailModal: React.FC<OutgoingDetailModalProps> = ({
   }, [isOpen, movementId]);
 
   if (!isOpen) return null;
+
+  const hasDo = Boolean(movement?.deliveryOrder?.id);
 
   return (
     <Modal
@@ -109,10 +113,50 @@ export const OutgoingDetailModal: React.FC<OutgoingDetailModalProps> = ({
                 <div style={{ fontWeight: 500, color: '#374151', marginTop: '2px' }}>
                   {movement.createdBy?.name || movement.createdBy?.email || 'Admin'}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: '2px' }}>
-                  Source: <span style={{ fontWeight: 700, color: '#2250A1', fontFamily: movement.deliveryOrder?.doNumber ? 'monospace' : 'inherit' }}>{movement.deliveryOrder?.doNumber || 'Manual'}</span>
+              </div>
+            </div>
+
+            {/* Delivery Order Link Status Card */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '10px 14px',
+                backgroundColor: hasDo ? '#EFF6FF' : '#F8FAFC',
+                border: hasDo ? '1px solid #BFDBFE' : '1px solid #E2E8F0',
+                borderRadius: '6px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FileText size={18} color={hasDo ? '#2250A1' : '#64748B'} />
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: '#64748B', display: 'block' }}>Delivery Order Document</span>
+                  {hasDo ? (
+                    <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#2250A1', fontSize: '0.9rem' }}>
+                      {movement.deliveryOrder.doNumber || `DO #${movement.deliveryOrder.id} (Draft)`}
+                    </span>
+                  ) : (
+                    <span style={{ fontWeight: 600, color: '#64748B', fontSize: '0.85rem' }}>
+                      Not Created
+                    </span>
+                  )}
                 </div>
               </div>
+
+              {!hasDo && onCreateDo && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    onClose();
+                    onCreateDo(movement.id);
+                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}
+                >
+                  <Plus size={14} /> Create Delivery Order
+                </Button>
+              )}
             </div>
 
             {/* Dispatch Purpose */}
