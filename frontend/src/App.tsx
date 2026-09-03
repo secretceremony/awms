@@ -17,11 +17,13 @@ import { Orders } from './pages/Delivery/Orders.js';
 import { Labels } from './pages/Delivery/Labels.js';
 import { Logs } from './pages/Logs.js';
 import { Settings } from './pages/Settings.js';
+import { PageTitleUpdater } from './components/common/PageTitleUpdater.js';
 
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <PageTitleUpdater />
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
