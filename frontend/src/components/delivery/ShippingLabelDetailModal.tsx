@@ -290,10 +290,20 @@ export const ShippingLabelDetailModal: React.FC<ShippingLabelDetailModalProps> =
           <div className="label-card">
             {/* Header / Logo */}
             <div className="header-row">
-              <div>
-                <div className="company-title">{shippingLabel.senderName || 'PT ALSSA CORPORINDO'}</div>
-                <div style={{ fontSize: '7.5pt', color: '#333333' }}>
-                  {shippingLabel.senderAddress || 'Balikpapan Hub, Kalimantan Timur'} | Telp: {shippingLabel.senderPhone || '-'}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <img
+                  src="/alssa-logo.svg"
+                  alt="PT ALSSA Corporindo"
+                  style={{ height: '26px', maxWidth: '120px', objectFit: 'contain' }}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLElement).style.display = 'none';
+                  }}
+                />
+                <div>
+                  <div className="company-title">{shippingLabel.senderName || 'PT ALSSA CORPORINDO'}</div>
+                  <div style={{ fontSize: '7.5pt', color: '#333333' }}>
+                    {shippingLabel.senderAddress || 'Rukan Tanjung Mas Raya, Jl. Raya Lenteng Agung Blok B1 No. 3, Jakarta Selatan'} {shippingLabel.senderPhone ? `| Telp: ${shippingLabel.senderPhone}` : ''}
+                  </div>
                 </div>
               </div>
               <div style={{ textAlign: 'right', fontWeight: 'bold', fontSize: '8.5pt' }}>
@@ -360,7 +370,7 @@ export const ShippingLabelDetailModal: React.FC<ShippingLabelDetailModalProps> =
             )}
 
             <div style={{ fontSize: '7pt', color: '#555555', marginTop: '6px', display: 'flex', justifyContent: 'space-between' }}>
-              <span>AWMS Logistics System</span>
+              <span>PT ALSSA Corporindo</span>
               <span>Doc #{shippingLabel.id}</span>
             </div>
           </div>

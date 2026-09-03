@@ -12,6 +12,8 @@ import {
 import { apiClient } from '../../api/client.js';
 import { Truck, FileText, Building } from 'lucide-react';
 import { ProjectSnapshotCard } from '../common/ProjectSnapshotCard.js';
+import { getCompanyIdentity } from '../../config/company.js';
+
 
 export interface ShippingLabel {
   id: number;
@@ -174,6 +176,9 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
       const refNo = matchedDo.referenceNumber || matchedDo.project?.referenceNumber || '';
       const doNum = matchedDo.doNumber || '';
 
+      const cityCode = matchedDo.warehouseCityCode || matchedDo.sourceWarehouse?.cityCode || matchedDo.snapshots?.warehouse?.cityCode;
+      const identity = getCompanyIdentity(cityCode);
+
       setFormData((prev) => ({
         ...prev,
         recipientName: clientName,
@@ -181,6 +186,9 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
         destination: dest,
         referenceNumber: refNo,
         doNumber: doNum,
+        senderName: identity.companyName,
+        senderAddress: identity.address,
+        senderPhone: identity.phone,
       }));
     }
   };

@@ -13,8 +13,14 @@ agents.md
 PROGRESS.md
 .local-docs/
 
+# Untracked local assets & signatures
+.local-assets/
+TTD_Ibu.png
+*.local.png
+
 # Local AI agent skills and configuration
 .agents/
 .claude/
 .windsurf/
+
 

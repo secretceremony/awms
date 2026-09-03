@@ -31,16 +31,17 @@ async function main() {
       where: { email: adminEmail },
       update: {
         password: hashedPassword,
+        name: 'Pungki Surjanti',
       },
       create: {
         email: adminEmail,
-        name: 'Logistics Administrator',
+        name: 'Pungki Surjanti',
         password: hashedPassword,
         role: 'ADMIN_LOGISTICS',
         isActive: true,
       },
     });
-    console.log('✓ Seeded Admin Logistics user successfully');
+    console.log('✓ Seeded Admin Logistics user (Pungki Surjanti) successfully');
 
     // 2. Seed Default Units (Normalized lowercase symbols)
     const defaultUnits = [
@@ -85,9 +86,9 @@ async function main() {
     // 2.2 Seed Default System Settings
     const defaultSettings = [
       { key: 'inventory.lowStockThreshold', value: '5', description: 'Global threshold for bulk stock low-level indicators' },
-      { key: 'delivery.senderName', value: 'PT Alssa Logistics Indonesia', description: 'Default Sender Company Name' },
-      { key: 'delivery.senderAddress', value: 'Jl. Mulawarman No. 23, Balikpapan, Kalimantan Timur', description: 'Default Sender Dispatch Address' },
-      { key: 'delivery.senderPhone', value: '+62 542 876543', description: 'Default Sender Phone' },
+      { key: 'delivery.senderName', value: 'PT ALSSA Corporindo', description: 'Default Sender Company Name' },
+      { key: 'delivery.senderAddress', value: 'Rukan Tanjung Mas Raya, Jalan Raya Lenteng Agung Blok B1 No. 3, Tanjung Barat, Jagakarsa, Jakarta Selatan 12530', description: 'Default Sender Dispatch Address' },
+      { key: 'delivery.senderPhone', value: '+6221 8010035', description: 'Default Sender Phone' },
       { key: 'delivery.labelWidth', value: '100mm', description: 'Default Shipping Label Width' },
       { key: 'delivery.labelHeight', value: '150mm', description: 'Default Shipping Label Height' },
     ];

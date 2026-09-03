@@ -1,4 +1,5 @@
 import React from 'react';
+import { getCompanyIdentity } from '../../config/company.js';
 
 export interface DeliveryOrderPrintViewProps {
   deliveryOrder: any;
@@ -21,6 +22,8 @@ export const DeliveryOrderPrintView: React.FC<DeliveryOrderPrintViewProps> = ({
   const activity = deliveryOrder.activity || snapshot.activity || 'General Dispatch';
   const warehouseName = deliveryOrder.warehouseName || snapshot.warehouse?.name || deliveryOrder.sourceWarehouse?.name || '—';
   const cityCode = deliveryOrder.warehouseCityCode || snapshot.warehouse?.cityCode || deliveryOrder.sourceWarehouse?.cityCode || '—';
+
+  const companyIdentity = getCompanyIdentity(cityCode || warehouseName);
 
   const rawItems = snapshot.items || deliveryOrder.items || [];
   const items = rawItems.map((i: any, idx: number) => {
@@ -75,51 +78,43 @@ export const DeliveryOrderPrintView: React.FC<DeliveryOrderPrintViewProps> = ({
         }}
       >
         {/* Logo & Company Name */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {/* Neutral Corporate Logistics Placeholder Logo */}
-          <div
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', maxWidth: '65%' }}>
+          <img
+            src={companyIdentity.logoUrl}
+            alt={companyIdentity.companyName}
             style={{
-              width: '38px',
-              height: '38px',
-              backgroundColor: '#2250A1',
-              borderRadius: '4px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#FFFFFF',
+              height: '34px',
+              maxWidth: '160px',
+              objectFit: 'contain',
               flexShrink: 0,
             }}
-          >
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-              <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-              <line x1="12" y1="22.08" x2="12" y2="12" />
-            </svg>
-          </div>
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
 
           <div>
             <div
               style={{
-                fontSize: '15pt',
+                fontSize: '13pt',
                 fontWeight: 'bold',
                 color: '#1F2839',
                 letterSpacing: '0.5px',
                 lineHeight: 1.1,
               }}
             >
-              PT ALSSA Corporindo
+              {companyIdentity.companyName}
             </div>
-            <div style={{ fontSize: '8pt', color: '#555555', marginTop: '2px' }}>
-              Logistics & Supply Chain Operations
+            <div
+              style={{
+                fontSize: '7.5pt',
+                color: '#555555',
+                marginTop: '2px',
+                lineHeight: 1.25,
+              }}
+            >
+              <strong style={{ color: '#334155' }}>{companyIdentity.officeName}: </strong>
+              {companyIdentity.address}
             </div>
           </div>
         </div>
@@ -390,7 +385,7 @@ export const DeliveryOrderPrintView: React.FC<DeliveryOrderPrintViewProps> = ({
             border: '1px solid #94A3B8',
             borderRadius: '3px',
             padding: '8px 12px',
-            minHeight: '72px',
+            minHeight: '80px',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
@@ -400,7 +395,21 @@ export const DeliveryOrderPrintView: React.FC<DeliveryOrderPrintViewProps> = ({
           <div style={{ fontWeight: 'bold', fontSize: '8.5pt', color: '#334155' }}>
             Prepared By
           </div>
-          <div style={{ marginTop: '36px' }}>
+          <div>
+            <div style={{ minHeight: '38px', display: 'flex', alignItems: 'flex-end', marginBottom: '2px' }}>
+              <img
+                src="/api/users/signature"
+                alt="Signature"
+                style={{
+                  maxHeight: '38px',
+                  maxWidth: '120px',
+                  objectFit: 'contain',
+                }}
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            </div>
             <div
               style={{
                 borderBottom: '1px solid #334155',
@@ -410,10 +419,10 @@ export const DeliveryOrderPrintView: React.FC<DeliveryOrderPrintViewProps> = ({
                 color: '#000000',
               }}
             >
-              {deliveryOrder.createdBy?.name || 'Logistics Admin'}
+              {deliveryOrder.createdBy?.name || 'Pungki Surjanti'}
             </div>
             <div style={{ fontSize: '7.5pt', color: '#64748B', marginTop: '2px' }}>
-              Logistics Operations
+              Logistics Admin
             </div>
           </div>
         </div>
