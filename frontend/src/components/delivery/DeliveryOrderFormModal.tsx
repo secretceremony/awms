@@ -3,11 +3,11 @@ import {
   Modal,
   FormField,
   Input,
-  Select,
   Textarea,
   Button,
   ConfirmModal,
   QuantityStepper,
+  SearchableSelect,
 } from '../ui/index.js';
 import { apiClient } from '../../api/client.js';
 import {
@@ -456,20 +456,21 @@ export const DeliveryOrderFormModal: React.FC<DeliveryOrderFormModalProps> = ({
             {step === 1 && (
               <div>
                 <div className="form-grid" style={{ marginBottom: '1rem' }}>
-                  <FormField label="Destination Project *" style={{ marginBottom: 0 }}>
-                    <Select
+                  <FormField label="Destination Project *" required style={{ marginBottom: 0 }}>
+                    <SearchableSelect
                       disabled={Boolean(deliveryOrderId)}
                       required
+                      placeholder="Search destination project..."
+                      searchPlaceholder="Type project name, site code, or client..."
                       value={selectedProjectId}
-                      onChange={(e) => setSelectedProjectId(e.target.value)}
-                    >
-                      <option value="">Select Destination Project...</option>
-                      {projects.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} {p.siteCode ? `[${p.siteCode}]` : ''} &mdash; {p.client?.name || 'No Client'}
-                        </option>
-                      ))}
-                    </Select>
+                      onChange={(val) => setSelectedProjectId(val)}
+                      options={projects.map((p) => ({
+                        value: p.id,
+                        label: p.name,
+                        badge: p.siteCode ? `Site: ${p.siteCode}` : undefined,
+                        sublabel: p.client?.name ? `Client: ${p.client.name}` : undefined,
+                      }))}
+                    />
                   </FormField>
 
                   <FormField label="Document Date *" style={{ marginBottom: 0 }}>

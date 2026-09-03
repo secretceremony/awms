@@ -9,6 +9,7 @@ import {
   SegmentedControl,
   ConfirmModal,
   QuantityStepper,
+  SearchableSelect,
 } from '../ui/index.js';
 import { Plus, Trash2, ClipboardList, RotateCcw, PackageCheck, CheckSquare, Square}  from 'lucide-react';
 import { apiClient } from '../../api/client.js';
@@ -595,23 +596,22 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
             {sourceType === 'REGULAR' && (
               <div>
                 <div className="form-grid" style={{ marginBottom: '1rem' }}>
-                  <FormField label="Destination Warehouse" required style={{ marginBottom: 0 }}>
-                    <Select
-                      ref={whSelectRef}
+                  <FormField label="Destination Warehouse *" required style={{ marginBottom: 0 }}>
+                    <SearchableSelect
                       required
+                      placeholder="Search destination warehouse..."
+                      searchPlaceholder="Type warehouse name or city code..."
                       value={regularForm.warehouseId}
-                      onChange={(e) => setRegularForm({ ...regularForm, warehouseId: e.target.value })}
-                    >
-                      <option value="">Select Warehouse...</option>
-                      {warehouses.map((w) => (
-                        <option key={w.id} value={w.id}>
-                          {w.name} {w.cityCode ? `[${w.cityCode}]` : ''}
-                        </option>
-                      ))}
-                    </Select>
+                      onChange={(val) => setRegularForm({ ...regularForm, warehouseId: val })}
+                      options={warehouses.map((w) => ({
+                        value: w.id,
+                        label: w.name,
+                        badge: w.cityCode || undefined,
+                      }))}
+                    />
                   </FormField>
 
-                  <FormField label="Movement Date" required style={{ marginBottom: 0 }}>
+                  <FormField label="Movement Date *" required style={{ marginBottom: 0 }}>
                     <Input
                       type="date"
                       required
@@ -622,31 +622,30 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                 </div>
 
                 <div className="form-grid" style={{ marginBottom: '1rem' }}>
-                  <FormField label="Item Master" required style={{ marginBottom: 0 }}>
-                    <Select
-                      ref={itemSelectRef}
+                  <FormField label="Item Master *" required style={{ marginBottom: 0 }}>
+                    <SearchableSelect
                       required
+                      placeholder="Search item master..."
+                      searchPlaceholder="Type item name, brand, or model number..."
                       value={regularForm.itemId}
-                      onChange={(e) => {
-                        const newId = e.target.value;
-                        const it = items.find((i) => String(i.id) === newId);
+                      onChange={(val) => {
+                        const it = items.find((i) => String(i.id) === val);
                         setRegularForm({
                           ...regularForm,
-                          itemId: newId,
+                          itemId: val,
                           serialRows:
                             it?.trackingType === 'SERIALIZED'
                               ? [{ serialNumber: '', conditionLabel: 'Standby Good', notes: '' }]
                               : [],
                         });
                       }}
-                    >
-                      <option value="">Select Item...</option>
-                      {items.map((i) => (
-                        <option key={i.id} value={i.id}>
-                          {i.name} {i.brand ? `(${i.brand})` : ''} — {i.trackingType}
-                        </option>
-                      ))}
-                    </Select>
+                      options={items.map((i) => ({
+                        value: i.id,
+                        label: i.name,
+                        badge: i.trackingType,
+                        sublabel: i.brand ? (i.modelNumber ? `${i.brand} [MN: ${i.modelNumber}]` : i.brand) : (i.modelNumber ? `MN: ${i.modelNumber}` : undefined),
+                      }))}
+                    />
                   </FormField>
 
                   {!isRegularSerialized ? (
@@ -820,34 +819,35 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
             {sourceType === 'RETURN' && (
               <div>
                 <div className="form-grid" style={{ marginBottom: '1rem' }}>
-                  <FormField label="Source Project" required style={{ marginBottom: 0 }}>
-                    <Select
+                  <FormField label="Source Project *" required style={{ marginBottom: 0 }}>
+                    <SearchableSelect
                       required
+                      placeholder="Search source project..."
+                      searchPlaceholder="Type project name, site code, or client..."
                       value={returnForm.projectId}
-                      onChange={(e) => setReturnForm({ ...returnForm, projectId: e.target.value })}
-                    >
-                      <option value="">Select Project...</option>
-                      {projects.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} {p.siteCode ? `[${p.siteCode}]` : ''} ({p.status})
-                        </option>
-                      ))}
-                    </Select>
+                      onChange={(val) => setReturnForm({ ...returnForm, projectId: val })}
+                      options={projects.map((p) => ({
+                        value: p.id,
+                        label: p.name,
+                        badge: p.siteCode ? `Site: ${p.siteCode}` : undefined,
+                        sublabel: p.client?.name ? `Client: ${p.client.name}` : undefined,
+                      }))}
+                    />
                   </FormField>
 
-                  <FormField label="Destination Warehouse" required style={{ marginBottom: 0 }}>
-                    <Select
+                  <FormField label="Destination Warehouse *" required style={{ marginBottom: 0 }}>
+                    <SearchableSelect
                       required
+                      placeholder="Search destination warehouse..."
+                      searchPlaceholder="Type warehouse name or city code..."
                       value={returnForm.warehouseId}
-                      onChange={(e) => setReturnForm({ ...returnForm, warehouseId: e.target.value })}
-                    >
-                      <option value="">Select Destination Warehouse...</option>
-                      {warehouses.map((w) => (
-                        <option key={w.id} value={w.id}>
-                          {w.name} {w.cityCode ? `[${w.cityCode}]` : ''}
-                        </option>
-                      ))}
-                    </Select>
+                      onChange={(val) => setReturnForm({ ...returnForm, warehouseId: val })}
+                      options={warehouses.map((w) => ({
+                        value: w.id,
+                        label: w.name,
+                        badge: w.cityCode || undefined,
+                      }))}
+                    />
                   </FormField>
                 </div>
 

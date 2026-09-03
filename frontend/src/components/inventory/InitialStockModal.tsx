@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, FormField, Input, Select, Textarea, Button, ConfirmModal, QuantityStepper } from '../ui/index.js';
+import { Modal, FormField, Input, Select, Textarea, Button, ConfirmModal, QuantityStepper, SearchableSelect } from '../ui/index.js';
 import { Plus, Trash2, ClipboardList } from 'lucide-react';
 import { apiClient } from '../../api/client.js';
 
@@ -303,23 +303,22 @@ export const InitialStockModal: React.FC<InitialStockModalProps> = ({
 
             {/* Field Order 1: Warehouse * & Movement Date */}
             <div className="form-grid" style={{ marginBottom: '1rem' }}>
-              <FormField label="Destination Warehouse" required style={{ marginBottom: 0 }}>
-                <Select
-                  ref={whSelectRef}
+              <FormField label="Destination Warehouse *" required style={{ marginBottom: 0 }}>
+                <SearchableSelect
                   required
+                  placeholder="Search destination warehouse..."
+                  searchPlaceholder="Type warehouse name or city code..."
                   value={formData.warehouseId}
-                  onChange={(e) => setFormData({ ...formData, warehouseId: e.target.value })}
-                >
-                  <option value="">Select Warehouse...</option>
-                  {warehouses.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.name} {w.cityCode ? `[${w.cityCode}]` : ''}
-                    </option>
-                  ))}
-                </Select>
+                  onChange={(val) => setFormData({ ...formData, warehouseId: val })}
+                  options={warehouses.map((w) => ({
+                    value: w.id,
+                    label: w.name,
+                    badge: w.cityCode || undefined,
+                  }))}
+                />
               </FormField>
 
-              <FormField label="Movement Date" required style={{ marginBottom: 0 }}>
+              <FormField label="Movement Date *" required style={{ marginBottom: 0 }}>
                 <Input
                   type="date"
                   required
@@ -331,31 +330,30 @@ export const InitialStockModal: React.FC<InitialStockModalProps> = ({
 
             {/* Field Order 2: Item * & Quantity */}
             <div className="form-grid" style={{ marginBottom: '1rem' }}>
-              <FormField label="Item Master" required style={{ marginBottom: 0 }}>
-                <Select
-                  ref={itemSelectRef}
+              <FormField label="Item Master *" required style={{ marginBottom: 0 }}>
+                <SearchableSelect
                   required
+                  placeholder="Search item master..."
+                  searchPlaceholder="Type item name, brand, or model number..."
                   value={formData.itemId}
-                  onChange={(e) => {
-                    const newId = e.target.value;
-                    const it = items.find((i) => String(i.id) === newId);
+                  onChange={(val) => {
+                    const it = items.find((i) => String(i.id) === val);
                     setFormData({
                       ...formData,
-                      itemId: newId,
+                      itemId: val,
                       serialRows:
                         it?.trackingType === 'SERIALIZED'
                           ? [{ serialNumber: '', conditionLabel: 'Standby Good', notes: '' }]
                           : [],
                     });
                   }}
-                >
-                  <option value="">Select Item...</option>
-                  {items.map((i) => (
-                    <option key={i.id} value={i.id}>
-                      {i.name} {i.brand ? `(${i.brand})` : ''} — {i.trackingType}
-                    </option>
-                  ))}
-                </Select>
+                  options={items.map((i) => ({
+                    value: i.id,
+                    label: i.name,
+                    badge: i.trackingType,
+                    sublabel: i.brand ? (i.modelNumber ? `${i.brand} [MN: ${i.modelNumber}]` : i.brand) : (i.modelNumber ? `MN: ${i.modelNumber}` : undefined),
+                  }))}
+                />
               </FormField>
 
               {!isSerialized ? (

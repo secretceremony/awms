@@ -8,6 +8,7 @@ import {
   Button,
   NumberInput,
   ConfirmModal,
+  SearchableSelect,
 } from '../ui/index.js';
 import { apiClient } from '../../api/client.js';
 import { CheckSquare, Square } from 'lucide-react';
@@ -319,23 +320,23 @@ export const AdjustmentModal: React.FC<AdjustmentModalProps> = ({
             )}
 
             <div className="form-grid" style={{ marginBottom: '1rem' }}>
-              <FormField label="Warehouse Hub" required style={{ marginBottom: 0 }}>
-                <Select
+              <FormField label="Warehouse Hub *" required style={{ marginBottom: 0 }}>
+                <SearchableSelect
                   disabled={lockContext && Boolean(initialWarehouseId)}
                   required
+                  placeholder="Search warehouse hub..."
+                  searchPlaceholder="Type warehouse name or city code..."
                   value={formData.warehouseId}
-                  onChange={(e) => setFormData({ ...formData, warehouseId: e.target.value })}
-                >
-                  <option value="">Select Warehouse...</option>
-                  {warehouses.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.name} {w.cityCode ? `[${w.cityCode}]` : ''}
-                    </option>
-                  ))}
-                </Select>
+                  onChange={(val) => setFormData({ ...formData, warehouseId: val })}
+                  options={warehouses.map((w) => ({
+                    value: w.id,
+                    label: w.name,
+                    badge: w.cityCode || undefined,
+                  }))}
+                />
               </FormField>
 
-              <FormField label="Adjustment Date" required style={{ marginBottom: 0 }}>
+              <FormField label="Adjustment Date *" required style={{ marginBottom: 0 }}>
                 <Input
                   type="date"
                   required
@@ -345,20 +346,21 @@ export const AdjustmentModal: React.FC<AdjustmentModalProps> = ({
               </FormField>
             </div>
 
-            <FormField label="Item Master" required>
-              <Select
+            <FormField label="Item Master *" required>
+              <SearchableSelect
                 disabled={lockContext && Boolean(initialItemId)}
                 required
+                placeholder="Search item master..."
+                searchPlaceholder="Type item name, brand, or model number..."
                 value={formData.itemId}
-                onChange={(e) => setFormData({ ...formData, itemId: e.target.value })}
-              >
-                <option value="">Select Item...</option>
-                {items.map((i) => (
-                  <option key={i.id} value={i.id}>
-                    {i.name} {i.brand ? `(${i.brand})` : ''} — {i.trackingType}
-                  </option>
-                ))}
-              </Select>
+                onChange={(val) => setFormData({ ...formData, itemId: val })}
+                options={items.map((i) => ({
+                  value: i.id,
+                  label: i.name,
+                  badge: i.trackingType,
+                  sublabel: i.brand ? (i.modelNumber ? `${i.brand} [MN: ${i.modelNumber}]` : i.brand) : (i.modelNumber ? `MN: ${i.modelNumber}` : undefined),
+                }))}
+              />
             </FormField>
 
             {/* Context status card */}

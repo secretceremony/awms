@@ -15,4 +15,6 @@ export * from './LoadingState.js';
 export * from './ErrorState.js';
 export * from './SegmentedControl.js';
 export * from './QuantityStepper.js';
+export * from './SearchableSelect.js';
+
 
