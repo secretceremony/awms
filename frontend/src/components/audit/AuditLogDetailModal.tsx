@@ -32,15 +32,21 @@ export const formatActionLabel = (rawAction: string): { text: string; color: str
 
   if (a.includes('LOGIN')) return { text: 'Logged In', color: '#2563EB' };
   if (a.includes('LOGOUT')) return { text: 'Logged Out', color: '#6B7280' };
+  if (a.includes('ISSUE_DELIVERY_ORDER') || a.includes('ISSUE_DO')) return { text: 'Issued Delivery Order', color: '#059669' };
+  if (a.includes('CANCEL_DELIVERY_ORDER') || a.includes('CANCEL_DO')) return { text: 'Cancelled Delivery Order', color: '#DC2626' };
+  if (a.includes('DELIVERY_ORDER') || a.includes('DO')) return { text: 'Created DO Draft', color: '#2250A1' };
+  if (a.includes('SHIPPING_LABEL')) return { text: 'Created Shipping Label', color: '#0891B2' };
   if (a.includes('DEACTIVATE')) return { text: 'Deactivated', color: '#DC2626' };
   if (a.includes('REACTIVATE')) return { text: 'Reactivated', color: '#059669' };
   if (a.includes('CREATE')) return { text: 'Created', color: '#059669' };
   if (a.includes('DELETE')) return { text: 'Deleted', color: '#DC2626' };
   if (a.includes('UPDATE_STATUS')) return { text: 'Updated Status', color: '#D97706' };
   if (a.includes('UPDATE')) return { text: 'Updated', color: '#D97706' };
+  if (a.includes('INITIAL')) return { text: 'Initial Stock Recorded', color: '#059669' };
+  if (a.includes('RETURN')) return { text: 'Recorded Return', color: '#0D9488' };
   if (a.includes('OUTGOING')) return { text: 'Outgoing Dispatch', color: '#2250A1' };
   if (a.includes('INCOMING')) return { text: 'Incoming Stock', color: '#0891B2' };
-  if (a.includes('ADJUSTMENT')) return { text: 'Adjusted Stock', color: '#7C3AED' };
+  if (a.includes('ADJUSTMENT') || a.includes('ADJUST')) return { text: 'Adjusted Stock', color: '#7C3AED' };
 
   return { text: rawAction.replace(/_/g, ' '), color: '#4B5563' };
 };
@@ -52,6 +58,8 @@ export const getEntityRoute = (entityName: string, entityId: number | null): str
   if (e.includes('warehouse')) return `/warehouses`;
   if (e.includes('client') || e.includes('customer')) return `/clients`;
   if (e.includes('item')) return `/inventory/item/${entityId}`;
+  if (e.includes('delivery_order') || e.includes('deliveryorder')) return `/delivery-orders`;
+  if (e.includes('shipping_label') || e.includes('shippinglabel')) return `/shipping-labels`;
   if (e.includes('stock_movement') || e.includes('movement')) return `/inventory/movements`;
   return null;
 };
