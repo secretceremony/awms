@@ -411,7 +411,7 @@ export const Orders: React.FC = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => handleView(item.id)}
+              onClick={() => window.open(`/delivery-orders/${item.id}/print`, '_blank')}
               title="Print Delivery Order"
               style={{ color: '#2250A1' }}
             >

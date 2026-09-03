@@ -15,6 +15,7 @@ import { Projects } from './pages/Projects.js';
 import { Clients } from './pages/Clients.js';
 import { Orders } from './pages/Delivery/Orders.js';
 import { Labels } from './pages/Delivery/Labels.js';
+import { DeliveryOrderPrintPage } from './pages/Delivery/Print.js';
 import { Logs } from './pages/Logs.js';
 import { Settings } from './pages/Settings.js';
 import { PageTitleUpdater } from './components/common/PageTitleUpdater.js';
@@ -30,6 +31,9 @@ function App() {
 
           {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
+            {/* Standalone Print Page Route */}
+            <Route path="/delivery-orders/:id/print" element={<DeliveryOrderPrintPage />} />
+
             <Route element={<DashboardLayout />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/inventory" element={<StockList />} />

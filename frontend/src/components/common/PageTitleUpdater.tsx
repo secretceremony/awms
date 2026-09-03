@@ -30,6 +30,9 @@ function getPageTitle(pathname: string): string {
   if (pathname.startsWith('/inventory/incoming/')) {
     return 'Incoming Detail | AWMS';
   }
+  if (pathname.includes('/delivery-orders/') && pathname.endsWith('/print')) {
+    return 'Delivery Order Print | AWMS';
+  }
 
   // Generic fallback
   return 'AWMS';

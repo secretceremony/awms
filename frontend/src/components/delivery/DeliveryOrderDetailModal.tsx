@@ -8,10 +8,14 @@ import {
   FileText,
   Warehouse as WarehouseIcon,
   Printer,
+  Download,
+  Loader2,
   Edit2,
   Trash2,
   Send,
 } from 'lucide-react';
+import { generateDoPdfFilename, downloadDeliveryOrderPdf } from '../../utils/deliveryOrderPdf.js';
+
 
 export interface DeliveryOrderDetailModalProps {
   isOpen: boolean;
@@ -51,6 +55,8 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
   });
   const [isProcessing, setIsProcessing] = useState(false);
   const [showIssueSuccess, setShowIssueSuccess] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   const printContainerRef = useRef<HTMLDivElement>(null);
 
@@ -131,70 +137,31 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
     });
   };
 
-  const handlePrint = async () => {
+  const handlePrint = () => {
     if (!deliveryOrder) return;
+    window.open(`/delivery-orders/${deliveryOrder.id}/print`, '_blank');
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!deliveryOrder || !printContainerRef.current) return;
+    setIsDownloadingPdf(true);
+    setPdfError(null);
     try {
-      await apiClient.post(`/delivery-orders/${deliveryOrder.id}/print`);
-    } catch (err) {
-      console.warn('Failed to log print audit:', err);
-    }
-
-    const printContents = printContainerRef.current?.innerHTML;
-    if (!printContents) return;
-
-    const printWindow = window.open('', '_blank', 'width=1100,height=750');
-    if (printWindow) {
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Delivery Order - ${deliveryOrder.doNumber || 'Draft'}</title>
-            <style>
-              @page {
-                size: A4 landscape;
-                margin: 10mm 15mm 12mm 15mm;
-              }
-              * {
-                box-sizing: border-box;
-              }
-              body {
-                font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
-                color: #000000;
-                background-color: #FFFFFF;
-                margin: 0;
-                padding: 0;
-                font-size: 9pt;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-              }
-              table {
-                width: 100%;
-                border-collapse: collapse;
-              }
-              .print-do-table th {
-                background-color: #EBF3FA !important;
-                color: #1E293B !important;
-                font-weight: bold;
-                border: 1px solid #475569 !important;
-              }
-              .print-do-table td {
-                border: 1px solid #64748B !important;
-              }
-            </style>
-          </head>
-          <body>
-            ${printContents}
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
-      printWindow.focus();
-      setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
-      }, 350);
+      const filename = generateDoPdfFilename(deliveryOrder.doNumber, deliveryOrder.id);
+      await downloadDeliveryOrderPdf(printContainerRef.current, filename);
+      try {
+        await apiClient.post(`/delivery-orders/${deliveryOrder.id}/print`);
+      } catch (err) {
+        console.warn('Failed to log print audit:', err);
+      }
+    } catch (err: any) {
+      console.error('PDF Generation Error:', err);
+      setPdfError(err.message || 'Failed to generate PDF file. Please try browser Print.');
+    } finally {
+      setIsDownloadingPdf(false);
     }
   };
+
 
   const clientName = deliveryOrder?.clientCompanyName || deliveryOrder?.client?.name || '—';
   const clientType = deliveryOrder?.clientType || deliveryOrder?.client?.clientType || 'OTHER';
@@ -452,13 +419,36 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
           )}
 
           {isIssued && (
-            <Button
-              variant="primary"
-              onClick={handlePrint}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              <Printer size={15} /> Print Delivery Order (A4)
-            </Button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              {pdfError && (
+                <span style={{ fontSize: '0.8rem', color: '#DC2626', marginRight: '4px' }}>
+                  {pdfError}
+                </span>
+              )}
+              <Button
+                variant="secondary"
+                onClick={handlePrint}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Printer size={15} /> Print (A4)
+              </Button>
+              <Button
+                variant="primary"
+                disabled={isDownloadingPdf}
+                onClick={handleDownloadPdf}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                {isDownloadingPdf ? (
+                  <>
+                    <Loader2 className="animate-spin" size={15} /> Preparing PDF...
+                  </>
+                ) : (
+                  <>
+                    <Download size={15} /> Download PDF
+                  </>
+                )}
+              </Button>
+            </div>
           )}
 
           <Button variant="secondary" onClick={onClose}>
@@ -539,17 +529,26 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
               }}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
-              <Printer size={15} /> Save / Print PDF
+              <Printer size={15} /> Print Now
             </Button>
             <Button
               variant="primary"
-              onClick={() => {
+              disabled={isDownloadingPdf}
+              onClick={async () => {
+                await handleDownloadPdf();
                 setShowIssueSuccess(false);
-                handlePrint();
               }}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
-              <Printer size={15} /> Print Now
+              {isDownloadingPdf ? (
+                <>
+                  <Loader2 className="animate-spin" size={15} /> Preparing PDF...
+                </>
+              ) : (
+                <>
+                  <Download size={15} /> Download PDF
+                </>
+              )}
             </Button>
           </div>
         </div>

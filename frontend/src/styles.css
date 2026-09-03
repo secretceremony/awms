@@ -1352,6 +1352,55 @@ tr:hover td {
   box-shadow: 0 0 0 3px rgba(34, 80, 161, 0.1);
 }
 
+/* Print Page Screen Container */
+.print-page-wrapper {
+  min-height: 100vh;
+  background-color: #F1F5F9;
+  display: flex;
+  flex-direction: column;
+}
+
+.print-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 0.75rem 1.5rem;
+  background-color: #FFFFFF;
+  border-bottom: 1px solid #E2E8F0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.print-document-container {
+  flex: 1;
+  padding: 2rem 1.5rem;
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.print-sheet-a4-landscape {
+  width: 297mm;
+  min-height: 210mm;
+  background-color: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 4px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  padding: 10mm 15mm 12mm 15mm;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1024px) {
+  .print-document-container {
+    padding: 1rem 0.5rem;
+  }
+}
+
 /* Print Styles for Delivery Order A4 Landscape */
 @media print {
   @page {
@@ -1380,6 +1429,26 @@ tr:hover td {
 
   .print-only {
     display: block !important;
+  }
+
+  .print-page-wrapper {
+    background: transparent !important;
+    min-height: auto !important;
+  }
+
+  .print-document-container {
+    padding: 0 !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  .print-sheet-a4-landscape {
+    width: 100% !important;
+    min-height: auto !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
   }
 
   .print-do-page {
@@ -1423,3 +1492,4 @@ tr:hover td {
     page-break-inside: avoid;
   }
 }
+
