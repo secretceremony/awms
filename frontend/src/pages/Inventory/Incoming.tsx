@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PaginatedTable, type Column } from '../../components/PaginatedTable.js';
 import { apiClient } from '../../api/client.js';
-import { Eye, Plus, RotateCcw, PackageCheck } from 'lucide-react';
-import { Button, PageHeader, Select, Input } from '../../components/ui/index.js';
+import { Eye, Plus } from 'lucide-react';
+import { Button, PageHeader, Select, Input, StatusBadge } from '../../components/ui/index.js';
 import { AddIncomingModal } from '../../components/inventory/AddIncomingModal.js';
 import { IncomingDetailModal } from '../../components/inventory/IncomingDetailModal.js';
 import { FilterBar, FilterPanel, type ActiveFilter } from '../../components/filters/index.js';
@@ -174,30 +174,7 @@ export const Incoming: React.FC = () => {
     {
       header: 'Type',
       key: 'movementType',
-      render: (m) => {
-        const isReturn = m.movementType === 'RETURN';
-        return (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '3px 8px',
-              borderRadius: '12px',
-              fontSize: '11px',
-              fontWeight: 700,
-              backgroundColor: isReturn ? '#F5F3FF' : '#EFF6FF',
-              color: isReturn ? '#7C3AED' : '#2250A1',
-              border: `1px solid ${isReturn ? '#DDD6FE' : '#BFDBFE'}`,
-              textTransform: 'uppercase',
-              letterSpacing: '0.3px',
-            }}
-          >
-            {isReturn ? <RotateCcw size={12} /> : <PackageCheck size={12} />}
-            {isReturn ? 'Return' : 'Incoming'}
-          </span>
-        );
-      },
+      render: (m) => <StatusBadge status={m.movementType} />,
     },
     {
       header: 'Warehouse',

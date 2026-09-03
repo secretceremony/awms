@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PaginatedTable, type Column } from '../../components/PaginatedTable.js';
 import { apiClient } from '../../api/client.js';
-import { Eye, Plus } from 'lucide-react';
+import { Eye, Plus, Download, Loader2 } from 'lucide-react';
 import { Button, StatusBadge, PageHeader, Select, Input } from '../../components/ui/index.js';
 import { MovementDetailModal } from '../../components/history/MovementDetailModal.js';
 import { AdjustmentModal } from '../../components/history/AdjustmentModal.js';
 import { FilterBar, FilterPanel, type ActiveFilter } from '../../components/filters/index.js';
+import { downloadAllDataWorkbook } from '../../utils/exportWorkbook.js';
+
 
 interface StockMovement {
   id: number;
@@ -74,6 +76,19 @@ export const MovementHistory: React.FC = () => {
   // Modals
   const [selectedMovementId, setSelectedMovementId] = useState<number | null>(null);
   const [isAdjustmentModalOpen, setIsAdjustmentModalOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportAll = async () => {
+    setIsExporting(true);
+    try {
+      await downloadAllDataWorkbook();
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Export failed');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   useEffect(() => {
     const fetchWarehouses = async () => {
@@ -158,9 +173,7 @@ export const MovementHistory: React.FC = () => {
     {
       header: 'Type',
       key: 'movementType',
-      render: (m) => (
-        <StatusBadge type="condition" status={m.movementType} label={m.movementType} />
-      ),
+      render: (m) => <StatusBadge status={m.movementType} />,
     },
     {
       header: 'Source',
@@ -271,11 +284,14 @@ export const MovementHistory: React.FC = () => {
           <div style={{ display: 'flex', gap: '8px' }}>
             <Button
               variant="secondary"
-              disabled
-              title="Excel/PDF table export is coming soon"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', opacity: 0.6, cursor: 'not-allowed' }}
+              size="sm"
+              disabled={isExporting}
+              onClick={handleExportAll}
+              title="Export all data to Excel workbook (.xlsx)"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
-              Export (Coming Soon)
+              {isExporting ? <Loader2 className="animate-spin" size={15} /> : <Download size={15} />}
+              {isExporting ? 'Exporting...' : 'Export All (.xlsx)'}
             </Button>
             <Button
               variant="secondary"

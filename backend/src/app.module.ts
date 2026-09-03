@@ -19,6 +19,7 @@ import { AuditLogsModule } from './audit-logs/audit-logs.module';
 import { SettingsModule } from './settings/settings.module';
 import { DashboardModule } from './dashboard/dashboard.module.js';
 import { CitiesModule } from './cities/cities.module.js';
+import { ExportsModule } from './exports/exports.module.js';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { CitiesModule } from './cities/cities.module.js';
     AuditLogsModule,
     SettingsModule,
     DashboardModule,
+    ExportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

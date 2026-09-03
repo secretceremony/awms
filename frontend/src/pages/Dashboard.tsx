@@ -120,13 +120,13 @@ export const Dashboard: React.FC = () => {
   const getMovementTypeBadge = (type: string) => {
     switch (type) {
       case 'INCOMING':
-        return { label: 'Incoming', bg: '#EFF6FF', color: '#2250A1', icon: ArrowDownLeft };
+        return { label: 'Incoming', bg: '#ECFDF5', color: '#059669', icon: ArrowDownLeft };
       case 'OUTGOING':
-        return { label: 'Outgoing', bg: '#FFFBEB', color: '#D97706', icon: ArrowUpRight };
+        return { label: 'Outgoing', bg: '#EFF6FF', color: '#2250A1', icon: ArrowUpRight };
       case 'RETURN':
         return { label: 'Return', bg: '#F5F3FF', color: '#7C3AED', icon: RotateCcw };
       case 'ADJUSTMENT':
-        return { label: 'Adjust', bg: '#FEF2F2', color: '#DC2626', icon: SlidersHorizontal };
+        return { label: 'Adjust', bg: '#FFFBEB', color: '#D97706', icon: SlidersHorizontal };
       default:
         return { label: 'Initial', bg: '#F3F4F6', color: '#4B5563', icon: Boxes };
     }

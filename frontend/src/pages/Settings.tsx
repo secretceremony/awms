@@ -4,22 +4,22 @@ import { PageHeader } from '../components/ui/index.js';
 import { CitySettings } from '../components/settings/CitySettings.js';
 import { UnitSettings } from '../components/settings/UnitSettings.js';
 import { InventorySettings } from '../components/settings/InventorySettings.js';
-import { DeliverySettings } from '../components/settings/DeliverySettings.js';
+import { DataExportSettings } from '../components/settings/DataExportSettings.js';
 import { CompanySettings } from '../components/settings/CompanySettings.js';
-import { MapPin, Ruler, Boxes, Truck, Building2 } from 'lucide-react';
+import { MapPin, Ruler, Boxes, FileSpreadsheet, Building2 } from 'lucide-react';
 
-type SettingsTab = 'company' | 'cities' | 'units' | 'inventory' | 'delivery';
+type SettingsTab = 'company' | 'cities' | 'units' | 'inventory' | 'export';
 
 export const Settings: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = (searchParams.get('tab') as SettingsTab) || 'company';
   const [activeTab, setActiveTab] = useState<SettingsTab>(
-    ['company', 'cities', 'units', 'inventory', 'delivery'].includes(initialTab) ? initialTab : 'company',
+    ['company', 'cities', 'units', 'inventory', 'export'].includes(initialTab) ? initialTab : 'company',
   );
 
   useEffect(() => {
     const tabParam = searchParams.get('tab') as SettingsTab;
-    if (tabParam && ['company', 'cities', 'units', 'inventory', 'delivery'].includes(tabParam)) {
+    if (tabParam && ['company', 'cities', 'units', 'inventory', 'export'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [searchParams]);
@@ -34,14 +34,14 @@ export const Settings: React.FC = () => {
     { id: 'cities', label: 'Cities', icon: MapPin },
     { id: 'units', label: 'Units', icon: Ruler },
     { id: 'inventory', label: 'Inventory', icon: Boxes },
-    { id: 'delivery', label: 'Delivery', icon: Truck },
+    { id: 'export', label: 'Data Export', icon: FileSpreadsheet },
   ];
 
   return (
     <div className="page-container">
       <PageHeader
         title="System Settings"
-        description="Configure company identities, office addresses, reference cities, units of measurement, inventory thresholds, and delivery defaults"
+        description="Configure company identities, office addresses, reference cities, units of measurement, inventory thresholds, and data exports"
       />
 
       {/* Settings Navigation Tabs */}
@@ -92,7 +92,7 @@ export const Settings: React.FC = () => {
         {activeTab === 'cities' && <CitySettings />}
         {activeTab === 'units' && <UnitSettings />}
         {activeTab === 'inventory' && <InventorySettings />}
-        {activeTab === 'delivery' && <DeliverySettings />}
+        {activeTab === 'export' && <DataExportSettings />}
       </div>
     </div>
   );

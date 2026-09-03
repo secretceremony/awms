@@ -3,7 +3,7 @@ import { apiClient } from '../api/client.js';
 import { Search, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
 
 export interface Column<T> {
-  header: string;
+  header: ReactNode;
   key: string;
   render?: (item: T) => ReactNode;
 }
@@ -17,6 +17,7 @@ interface PaginatedTableProps<T> {
   rowClassName?: (item: T) => string;
   onRowClick?: (item: T) => void;
   emptyMessage?: string;
+  onDataLoaded?: (data: T[]) => void;
 }
 
 export function PaginatedTable<T>({
@@ -28,6 +29,7 @@ export function PaginatedTable<T>({
   rowClassName,
   onRowClick,
   emptyMessage = 'No records found matching your filters.',
+  onDataLoaded,
 }: PaginatedTableProps<T>) {
   const [data, setData] = useState<T[]>([]);
   const [page, setPage] = useState(1);
@@ -69,11 +71,14 @@ export function PaginatedTable<T>({
         setData(result.data);
         setTotal(result.meta.total);
         setTotalPages(result.meta.totalPages);
+        onDataLoaded?.(result.data);
       } else {
         const rawResult = result as unknown;
-        setData(Array.isArray(rawResult) ? (rawResult as T[]) : []);
-        setTotal(Array.isArray(rawResult) ? rawResult.length : 0);
+        const arr = Array.isArray(rawResult) ? (rawResult as T[]) : [];
+        setData(arr);
+        setTotal(arr.length);
         setTotalPages(1);
+        onDataLoaded?.(arr);
       }
     } catch (e: unknown) {
       console.error(e);

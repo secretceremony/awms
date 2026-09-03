@@ -380,11 +380,63 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
               </div>
             </div>
 
-            {/* Sender Details (Auto-defaults from Settings) */}
+            {/* Sender Details (Auto-defaults from PT ALSSA Corporindo Identity) */}
             <div style={{ border: '1px solid #E2E8F0', borderRadius: '6px', padding: '12px 14px', backgroundColor: '#F8FAFC', marginBottom: '1rem' }}>
-              <h4 style={{ margin: '0 0 10px 0', fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
-                Sender Details (From Settings)
-              </h4>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600, color: '#1E293B' }}>
+                  Sender Dispatch Office (PT ALSSA Corporindo)
+                </h4>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const idt = getCompanyIdentity('BPN');
+                      setFormData((prev) => ({
+                        ...prev,
+                        senderName: idt.companyName,
+                        senderAddress: idt.address,
+                        senderPhone: idt.phone,
+                      }));
+                    }}
+                    style={{
+                      fontSize: '0.75rem',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      border: '1px solid #CBD5E1',
+                      backgroundColor: '#FFFFFF',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      color: '#334155',
+                    }}
+                  >
+                    Set Balikpapan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const idt = getCompanyIdentity('JKT');
+                      setFormData((prev) => ({
+                        ...prev,
+                        senderName: idt.companyName,
+                        senderAddress: idt.address,
+                        senderPhone: idt.phone,
+                      }));
+                    }}
+                    style={{
+                      fontSize: '0.75rem',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      border: '1px solid #CBD5E1',
+                      backgroundColor: '#FFFFFF',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      color: '#334155',
+                    }}
+                  >
+                    Set Jakarta
+                  </button>
+                </div>
+              </div>
 
               <div className="form-grid">
                 <FormField label="Sender Company Name">

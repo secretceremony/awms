@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PaginatedTable, type Column } from '../../components/PaginatedTable.js';
 import { apiClient } from '../../api/client.js';
-import { Eye, Plus, Layers, Edit2, SlidersHorizontal } from 'lucide-react';
+import { Eye, Plus, Layers, Edit2, SlidersHorizontal, Download, Loader2 } from 'lucide-react';
 import { Button, PageHeader, Select, StatusBadge, SegmentedControl } from '../../components/ui/index.js';
 import { ItemFormModal, type Item } from '../../components/inventory/ItemFormModal.js';
 import { InitialStockModal } from '../../components/inventory/InitialStockModal.js';
 import { AdjustmentModal } from '../../components/history/AdjustmentModal.js';
 import { FilterBar, FilterPanel, type ActiveFilter } from '../../components/filters/index.js';
+import { downloadAllDataWorkbook } from '../../utils/exportWorkbook.js';
+
 
 interface StockRow {
   id: string;
@@ -69,6 +71,19 @@ export const StockList: React.FC = () => {
     itemId: null,
     warehouseId: null,
   });
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportAll = async () => {
+    setIsExporting(true);
+    try {
+      await downloadAllDataWorkbook();
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Export failed');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   useEffect(() => {
     const fetchWarehouses = async () => {
@@ -377,11 +392,13 @@ export const StockList: React.FC = () => {
             <Button
               variant="secondary"
               size="sm"
-              disabled
-              title="Excel/PDF table export is coming soon"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', opacity: 0.6, cursor: 'not-allowed' }}
+              disabled={isExporting}
+              onClick={handleExportAll}
+              title="Export all data to Excel workbook (.xlsx)"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
-              Export (Coming Soon)
+              {isExporting ? <Loader2 className="animate-spin" size={15} /> : <Download size={15} />}
+              {isExporting ? 'Exporting...' : 'Export All (.xlsx)'}
             </Button>
             <Button
               variant="secondary"

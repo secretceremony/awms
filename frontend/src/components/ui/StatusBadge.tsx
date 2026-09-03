@@ -35,7 +35,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   }
 
   // 2. Semantic Color Mapping
-  let colorVariant: 'green' | 'yellow' | 'red' | 'blue' | 'gray' = 'gray';
+  let colorVariant: 'green' | 'yellow' | 'red' | 'blue' | 'purple' | 'gray' = 'gray';
   let displayLabel = customLabel || str;
 
   if (typeof status === 'boolean') {
@@ -48,25 +48,35 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     lower === 'normal' ||
     lower === 'in_stock' ||
     lower === 'in stock' ||
-    lower === 'good'
+    lower === 'good' ||
+    lower === 'incoming'
   ) {
     colorVariant = 'green';
     if (!customLabel) {
       if (lower.includes('standby')) displayLabel = 'Standby Good';
       else if (lower === 'normal') displayLabel = 'Normal Stock';
+      else if (lower === 'incoming') displayLabel = 'Incoming';
       else displayLabel = 'Active';
+    }
+  } else if (lower === 'return') {
+    // RETURN IS PURPLE / TEAL (DISTINCT FROM NORMAL INCOMING)
+    colorVariant = 'purple';
+    if (!customLabel) {
+      displayLabel = 'Return';
     }
   } else if (
     lower === 'draft' ||
     lower === 'low stock' ||
     lower === 'low_stock' ||
     lower === 'warning' ||
-    lower === 'pending'
+    lower === 'pending' ||
+    lower === 'adjustment'
   ) {
     colorVariant = 'yellow';
     if (!customLabel) {
       if (lower.includes('low')) displayLabel = 'Low Stock';
       else if (lower === 'draft') displayLabel = 'Draft';
+      else if (lower === 'adjustment') displayLabel = 'Adjustment';
       else displayLabel = str;
     }
   } else if (
@@ -94,25 +104,30 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     lower === 'deployed' ||
     lower === 'issued' ||
     lower === 'shipped' ||
-    lower === 'delivered'
+    lower === 'delivered' ||
+    lower === 'outgoing'
   ) {
-    // DEPLOY MUST BE BLUE (currently in field/at project)
+    // DEPLOY & OUTGOING ARE BLUE
     colorVariant = 'blue';
     if (!customLabel) {
       if (lower === 'deploy' || lower === 'deployed') displayLabel = 'Deploy';
       else if (lower === 'issued') displayLabel = 'Issued';
+      else if (lower === 'outgoing') displayLabel = 'Outgoing';
       else displayLabel = str;
     }
   } else if (
     lower === 'completed' ||
     lower === 'inactive' ||
     lower === 'closed' ||
-    lower === 'archived'
+    lower === 'archived' ||
+    lower === 'initial'
   ) {
-    // COMPLETED MUST BE GRAY
+    // COMPLETED & INITIAL ARE NEUTRAL GRAY
     colorVariant = 'gray';
     if (!customLabel) {
-      displayLabel = lower === 'completed' ? 'Completed' : 'Inactive';
+      if (lower === 'initial') displayLabel = 'Initial';
+      else if (lower === 'completed') displayLabel = 'Completed';
+      else displayLabel = 'Inactive';
     }
   }
 

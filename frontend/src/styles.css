@@ -556,6 +556,12 @@ p {
   border: 1px solid #E5E7EB;
 }
 
+.badge-purple {
+  background-color: #F5F3FF;
+  color: #7C3AED;
+  border: 1px solid #DDD6FE;
+}
+
 .tracking-bulk {
   background-color: #F0F9FF;
   color: #0284C7;
