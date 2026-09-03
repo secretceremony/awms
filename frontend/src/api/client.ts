@@ -1,4 +1,5 @@
-const BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const RAW_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || '/api';
+const BASE_URL = RAW_BASE_URL.replace(/\/+$/, '');
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | undefined>;
@@ -17,7 +18,10 @@ export const apiClient = {
     const { params, headers, ...rest } = options;
     
     // Construct query parameters
-    let url = `${BASE_URL}${path}`;
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    let url = cleanPath.startsWith('/api/') && BASE_URL === '/api'
+      ? cleanPath
+      : `${BASE_URL}${cleanPath}`;
     if (params) {
       const searchParams = new URLSearchParams();
       Object.entries(params).forEach(([key, val]) => {
