@@ -56,14 +56,22 @@ export class ItemsController {
     );
   }
 
-  @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.itemsService.findOne(id);
-  }
-
   @Get(':id/balances')
   getItemBalances(@Param('id', ParseIntPipe) id: number) {
     return this.itemsService.getItemBalances(id);
+  }
+
+  @Get(':id/serials')
+  getItemSerials(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() paginationDto: PaginationDto,
+  ) {
+    return this.itemsService.getItemSerials(id, paginationDto);
+  }
+
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.itemsService.findOne(id);
   }
 
   @Patch(':id')
@@ -73,14 +81,6 @@ export class ItemsController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.itemsService.update(id, updateItemDto, user.id);
-  }
-
-  @Get(':id/serials')
-  getItemSerials(
-    @Param('id', ParseIntPipe) id: number,
-    @Query() paginationDto: PaginationDto,
-  ) {
-    return this.itemsService.getItemSerials(id, paginationDto);
   }
 
   @Delete(':id/deactivate')
