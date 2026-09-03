@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Button, StatusBadge, ConfirmModal } from '../ui/index.js';
 import { DeliveryOrderPrintView } from './DeliveryOrderPrintView.js';
 import { apiClient } from '../../api/client.js';
+import { formatDateTime } from '../../utils/datetime.js';
 import {
   Calendar,
   Building,
@@ -219,10 +220,10 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
 
               <div>
                 <div style={{ fontSize: '0.75rem', color: '#6B7280', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Calendar size={13} /> DO Date
+                  <Calendar size={13} /> DO Date &amp; Time
                 </div>
                 <div style={{ fontWeight: 600, color: '#1F2839', marginTop: '2px' }}>
-                  {new Date(deliveryOrder.date).toLocaleDateString()}
+                  {formatDateTime(deliveryOrder.date, cityCode || warehouseName)}
                 </div>
               </div>
 

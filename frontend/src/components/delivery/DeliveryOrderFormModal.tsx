@@ -8,6 +8,7 @@ import {
   ConfirmModal,
 } from '../ui/index.js';
 import { apiClient } from '../../api/client.js';
+import { toDateTimeLocalInput } from '../../utils/datetime.js';
 import {
   AlertCircle,
   ArrowRight,
@@ -109,7 +110,7 @@ export const DeliveryOrderFormModal: React.FC<DeliveryOrderFormModalProps> = ({
   const [selectedOutgoing, setSelectedOutgoing] = useState<EligibleOutgoing | null>(null);
 
   // Step 2: Document details
-  const [doDate, setDoDate] = useState(new Date().toISOString().split('T')[0]);
+  const [doDate, setDoDate] = useState(toDateTimeLocalInput());
   const [activity, setActivity] = useState('General Dispatch');
   const [notes, setNotes] = useState('');
   const [selectedItems, setSelectedItems] = useState<SelectedDoItem[]>([]);
@@ -150,7 +151,7 @@ export const DeliveryOrderFormModal: React.FC<DeliveryOrderFormModalProps> = ({
       const loadDo = async () => {
         try {
           const data: any = await apiClient.get(`/delivery-orders/${deliveryOrderId}`);
-          setDoDate(data.date ? data.date.split('T')[0] : new Date().toISOString().split('T')[0]);
+          setDoDate(toDateTimeLocalInput(data.date));
           setActivity(data.activity || 'General Dispatch');
           setNotes(data.notes || '');
 
@@ -589,9 +590,9 @@ export const DeliveryOrderFormModal: React.FC<DeliveryOrderFormModalProps> = ({
 
                 {/* Document Metadata Form */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <FormField label="Delivery Order Date *" required>
+                  <FormField label="Delivery Order Date & Time *" required>
                     <Input
-                      type="date"
+                      type="datetime-local"
                       value={doDate}
                       onChange={(e) => setDoDate(e.target.value)}
                       required

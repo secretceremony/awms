@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getCompanyIdentity } from '../../config/company.js';
 import { apiClient } from '../../api/client.js';
+import { formatDateTime } from '../../utils/datetime.js';
 
 export interface DeliveryOrderPrintViewProps {
   deliveryOrder: any;
@@ -163,8 +164,8 @@ export const DeliveryOrderPrintView: React.FC<DeliveryOrderPrintViewProps> = ({
             </span>
           </div>
           <div>
-            <span style={{ color: '#555555', fontWeight: 'bold' }}>Date: </span>
-            <span style={{ fontWeight: '600' }}>{formattedDate}</span>
+            <span style={{ color: '#555555', fontWeight: 'bold' }}>Date &amp; Time: </span>
+            <span style={{ fontWeight: '600' }}>{formatDateTime(deliveryOrder.date, cityCode || warehouseName)}</span>
           </div>
         </div>
       </div>
@@ -439,7 +440,7 @@ export const DeliveryOrderPrintView: React.FC<DeliveryOrderPrintViewProps> = ({
                 color: '#000000',
               }}
             >
-              {deliveryOrder.createdBy?.name || 'Pungki Surjanti'}
+              {deliveryOrder.createdBy?.name || 'Roberta Pungki'}
             </div>
             <div style={{ fontSize: '7.5pt', color: '#64748B', marginTop: '2px' }}>
               Logistics Admin

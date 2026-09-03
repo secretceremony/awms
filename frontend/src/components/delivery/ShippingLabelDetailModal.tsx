@@ -25,6 +25,11 @@ export const ShippingLabelDetailModal: React.FC<ShippingLabelDetailModalProps> =
 
   if (!shippingLabel) return null;
 
+  const isA5 = shippingLabel.labelWidth >= 200 || shippingLabel.labelHeight >= 140;
+  const pageSizeStr = isA5 ? '210mm 148mm' : '148mm 105mm';
+  const widthMm = isA5 ? '210mm' : '148mm';
+  const heightMm = isA5 ? '148mm' : '105mm';
+
   const handlePrint = async () => {
     try {
       await apiClient.post(`/shipping-labels/${shippingLabel.id}/print`);
@@ -44,7 +49,7 @@ export const ShippingLabelDetailModal: React.FC<ShippingLabelDetailModalProps> =
             <title>Shipping Label - ${shippingLabel.recipientName}</title>
             <style>
               @page {
-                size: 150mm 100mm landscape;
+                size: ${pageSizeStr} landscape;
                 margin: 0;
               }
               * {
@@ -59,8 +64,8 @@ export const ShippingLabelDetailModal: React.FC<ShippingLabelDetailModalProps> =
                 print-color-adjust: exact;
               }
               .shipping-label-container {
-                width: 150mm !important;
-                height: 100mm !important;
+                width: ${widthMm} !important;
+                height: ${heightMm} !important;
                 margin: 0 auto;
                 page-break-after: always;
                 break-after: page;
@@ -87,7 +92,7 @@ export const ShippingLabelDetailModal: React.FC<ShippingLabelDetailModalProps> =
     setIsPdfGenerating(true);
     try {
       const filename = generateShippingLabelFilename(shippingLabel);
-      await downloadShippingLabelPdf(printContainerRef.current, filename);
+      await downloadShippingLabelPdf(printContainerRef.current, filename, isA5 ? 'A5' : 'A6');
     } catch (err) {
       console.error('Failed to generate shipping label PDF:', err);
       alert('Failed to generate PDF. Please try printing directly.');

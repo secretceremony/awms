@@ -794,10 +794,20 @@ export class ImportsService {
       }
     });
 
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, email: true },
+    });
+
+    const importedAt = new Date().toISOString();
+    const importedBy = user?.name || 'Roberta Pungki';
+
     // Record audit log
     await this.auditLogsService.logAction(userId, 'IMPORT' as any, 'stock_movements', 0, {
       importType,
       filename,
+      importedAt,
+      importedBy,
       totalRows: rows.length,
       successfulRows: successCount,
       failedRows: 0,
@@ -807,6 +817,9 @@ export class ImportsService {
     return {
       success: true,
       importType,
+      filename,
+      importedAt,
+      importedBy,
       totalRows: rows.length,
       successfulRows: successCount,
       failedRows: 0,

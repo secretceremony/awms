@@ -2,6 +2,14 @@ import { Controller, Get, Query, ParseIntPipe, BadRequestException, Res, UseGuar
 import type { Response } from 'express';
 import { ExportsService } from './exports.service.js';
 import { RolesGuard } from '../common/guards/roles.guard.js';
+import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+
+interface AuthenticatedUser {
+  id: number;
+  email: string;
+  name: string;
+  role: string;
+}
 
 @Controller('exports')
 @UseGuards(RolesGuard)
@@ -9,14 +17,17 @@ export class ExportsController {
   constructor(private readonly exportsService: ExportsService) {}
 
   @Get('workbook')
-  async exportWorkbook(@Res() res: Response) {
-    const workbook = await this.exportsService.generateWorkbook();
+  async exportWorkbook(@Res() res: Response, @CurrentUser() user?: AuthenticatedUser) {
+    const generatedBy = user?.name || 'Roberta Pungki';
+    const workbook = await this.exportsService.generateWorkbook(generatedBy);
 
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
-    const filename = `AWMS_Data_Export_${year}-${month}-${day}.xlsx`;
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const filename = `AWMS_Data_Export_${year}-${month}-${day}_${hours}${minutes}.xlsx`;
 
     res.setHeader(
       'Content-Type',
@@ -36,6 +47,7 @@ export class ExportsController {
     @Query('month', ParseIntPipe) month: number,
     @Query('year', ParseIntPipe) year: number,
     @Res() res: Response,
+    @CurrentUser() user?: AuthenticatedUser,
   ) {
     if (!month || month < 1 || month > 12) {
       throw new BadRequestException('Month must be between 1 and 12');
@@ -44,9 +56,17 @@ export class ExportsController {
       throw new BadRequestException('Invalid year');
     }
 
-    const workbook = await this.exportsService.generateMonthlyReport(month, year);
+    const generatedBy = user?.name || 'Roberta Pungki';
+    const workbook = await this.exportsService.generateMonthlyReport(month, year, generatedBy);
     const monthStr = String(month).padStart(2, '0');
-    const filename = `AWMS_Monthly_Report_${year}-${monthStr}.xlsx`;
+    
+    const now = new Date();
+    const yearNow = now.getFullYear();
+    const monthNow = String(now.getMonth() + 1).padStart(2, '0');
+    const dayNow = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const filename = `AWMS_Monthly_Report_${year}-${monthStr}_${yearNow}-${monthNow}-${dayNow}_${hours}${minutes}.xlsx`;
 
     res.setHeader(
       'Content-Type',

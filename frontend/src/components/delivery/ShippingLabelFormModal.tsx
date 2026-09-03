@@ -10,10 +10,10 @@ import {
   ConfirmModal,
 } from '../ui/index.js';
 import { apiClient } from '../../api/client.js';
-import { Truck, FileText, Building } from 'lucide-react';
+import { Truck, FileText, Maximize2 } from 'lucide-react';
 import { ProjectSnapshotCard } from '../common/ProjectSnapshotCard.js';
 import { getCompanyIdentity } from '../../config/company.js';
-
+import { toDateTimeLocalInput } from '../../utils/datetime.js';
 
 export interface ShippingLabel {
   id: number;
@@ -62,21 +62,22 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
   const [sourceType, setSourceType] = useState<'DO' | 'STANDALONE'>('DO');
   const [issuedDos, setIssuedDos] = useState<any[]>([]);
   const [selectedDoId, setSelectedDoId] = useState('');
+  const [labelSizeChoice, setLabelSizeChoice] = useState<'A6' | 'A5'>('A6');
 
   const [formData, setFormData] = useState({
-    shipDate: new Date().toISOString().split('T')[0],
+    shipDate: toDateTimeLocalInput(),
     recipientName: '',
     attnName: '',
     destination: '',
     referenceNumber: '',
     doNumber: '',
-    senderName: '',
+    senderName: 'PT ALSSA Corporindo',
     senderAddress: '',
     senderPhone: '',
     isFragile: false,
     handlingNote: '',
-    labelWidth: 100,
-    labelHeight: 150,
+    labelWidth: 148,
+    labelHeight: 105,
     notes: '',
   });
 
@@ -87,36 +88,34 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
 
   const recipientInputRef = useRef<HTMLInputElement>(null);
 
-  // Load Settings and Issued DOs on open
+  // Load Issued DOs on open
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [settingsRes, dosRes]: any = await Promise.all([
-          apiClient.get('/settings'),
-          apiClient.get('/delivery-orders', { params: { status: 'ISSUED', limit: 100 } }),
-        ]);
-
-        const deliverySettings = settingsRes?.delivery || {};
+        const dosRes: any = await apiClient.get('/delivery-orders', { params: { status: 'ISSUED', limit: 100 } });
         const doList = Array.isArray(dosRes) ? dosRes : dosRes?.data || [];
         setIssuedDos(doList);
 
         if (shippingLabel) {
           setSourceType(shippingLabel.sourceType);
           setSelectedDoId(shippingLabel.deliveryOrderId ? String(shippingLabel.deliveryOrderId) : '');
+          const isA5 = shippingLabel.labelWidth >= 200 || shippingLabel.labelHeight >= 140;
+          setLabelSizeChoice(isA5 ? 'A5' : 'A6');
+
           const init = {
-            shipDate: shippingLabel.shipDate ? shippingLabel.shipDate.split('T')[0] : new Date().toISOString().split('T')[0],
+            shipDate: toDateTimeLocalInput(shippingLabel.shipDate),
             recipientName: shippingLabel.recipientName,
             attnName: shippingLabel.attnName || '',
             destination: shippingLabel.destination,
             referenceNumber: shippingLabel.referenceNumber || '',
             doNumber: shippingLabel.doNumber || '',
-            senderName: shippingLabel.senderName || deliverySettings.senderName || '',
-            senderAddress: shippingLabel.senderAddress || deliverySettings.senderAddress || '',
-            senderPhone: shippingLabel.senderPhone || deliverySettings.senderPhone || '',
+            senderName: shippingLabel.senderName || 'PT ALSSA Corporindo',
+            senderAddress: shippingLabel.senderAddress || '',
+            senderPhone: shippingLabel.senderPhone || '',
             isFragile: shippingLabel.isFragile,
             handlingNote: shippingLabel.handlingNote || '',
-            labelWidth: shippingLabel.labelWidth || 100,
-            labelHeight: shippingLabel.labelHeight || 150,
+            labelWidth: isA5 ? 210 : 148,
+            labelHeight: isA5 ? 148 : 105,
             notes: shippingLabel.notes || '',
           };
           setFormData(init);
@@ -124,81 +123,99 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
         } else {
           setSourceType('DO');
           setSelectedDoId('');
-          const parseNum = (str?: string, def = 100) => {
-            if (!str) return def;
-            const n = parseInt(str.replace(/\D/g, ''), 10);
-            return isNaN(n) ? def : n;
-          };
+          setLabelSizeChoice('A6');
+          const defaultIdentity = getCompanyIdentity('BPN');
 
           const init = {
-            shipDate: new Date().toISOString().split('T')[0],
+            shipDate: toDateTimeLocalInput(),
             recipientName: '',
             attnName: '',
             destination: '',
             referenceNumber: '',
             doNumber: '',
-            senderName: deliverySettings.senderName || 'PT ALSSA Corporindo',
-            senderAddress: deliverySettings.senderAddress || 'Balikpapan Hub, Kalimantan Timur',
-            senderPhone: deliverySettings.senderPhone || '+62 542 876543',
+            senderName: defaultIdentity.companyName,
+            senderAddress: defaultIdentity.address,
+            senderPhone: defaultIdentity.phone,
             isFragile: false,
             handlingNote: '',
-            labelWidth: parseNum(deliverySettings.labelWidth, 100),
-            labelHeight: parseNum(deliverySettings.labelHeight, 150),
+            labelWidth: 148,
+            labelHeight: 105,
             notes: '',
           };
           setFormData(init);
           setInitialData(init);
         }
       } catch (err) {
-        console.error('Failed to load settings or DOs for shipping label:', err);
+        console.error('Failed to load issued DOs:', err);
       }
     };
 
     if (isOpen) {
       fetchData();
       setErrorMsg(null);
-      setTimeout(() => {
-        recipientInputRef.current?.focus();
-      }, 100);
     }
   }, [isOpen, shippingLabel]);
 
-  // When an issued DO is selected in "DO" mode, auto-fill fields
-  const handleDoSelect = (doIdStr: string) => {
+  // Handle DO Selection Autofill
+  const handleSelectDo = async (doIdStr: string) => {
     setSelectedDoId(doIdStr);
-    if (!doIdStr) return;
+    if (!doIdStr) {
+      setFormData((prev) => ({
+        ...prev,
+        recipientName: '',
+        attnName: '',
+        destination: '',
+        referenceNumber: '',
+        doNumber: '',
+      }));
+      return;
+    }
 
-    const matchedDo = issuedDos.find((d) => String(d.id) === doIdStr);
-    if (matchedDo) {
-      const clientName = matchedDo.client?.name || matchedDo.clientCompanyName || '';
-      const attn = matchedDo.attnName || matchedDo.project?.clientContact?.name || '';
-      const dest = `${matchedDo.project?.siteCode ? `[${matchedDo.project.siteCode}] ` : ''}${matchedDo.projectLocation || matchedDo.project?.location || matchedDo.project?.name || ''}`;
-      const refNo = matchedDo.referenceNumber || matchedDo.project?.referenceNumber || '';
-      const doNum = matchedDo.doNumber || '';
+    try {
+      const doDetail: any = await apiClient.get(`/delivery-orders/${doIdStr}`);
+      const snapshot = doDetail.snapshots || {};
 
-      const cityCode = matchedDo.warehouseCityCode || matchedDo.sourceWarehouse?.cityCode || matchedDo.snapshots?.warehouse?.cityCode;
-      const identity = getCompanyIdentity(cityCode);
+      const clientName = doDetail.clientCompanyName || snapshot.client?.name || doDetail.client?.name || '';
+      const attnName = doDetail.attnName || snapshot.attn?.name || doDetail.project?.clientContact?.name || '';
+      const destination = doDetail.projectLocation || snapshot.project?.location || doDetail.project?.location || '';
+      const refNumber = doDetail.referenceNumber || snapshot.project?.referenceNumber || doDetail.project?.referenceNumber || '';
+      const doNumber = doDetail.doNumber || '';
+
+      const whCityCode = doDetail.warehouseCityCode || snapshot.warehouse?.cityCode || doDetail.sourceWarehouse?.cityCode || 'BPN';
+      const senderIdentity = getCompanyIdentity(whCityCode);
 
       setFormData((prev) => ({
         ...prev,
         recipientName: clientName,
-        attnName: attn,
-        destination: dest,
-        referenceNumber: refNo,
-        doNumber: doNum,
-        senderName: identity.companyName,
-        senderAddress: identity.address,
-        senderPhone: identity.phone,
+        attnName: attnName,
+        destination: destination,
+        referenceNumber: refNumber,
+        doNumber: doNumber,
+        senderName: senderIdentity.companyName,
+        senderAddress: senderIdentity.address,
+        senderPhone: senderIdentity.phone,
       }));
+    } catch (err) {
+      console.error('Failed to fetch DO details for autofill:', err);
     }
   };
 
-  const selectedDoObj = issuedDos.find((d) => String(d.id) === selectedDoId);
+  // Handle Label Size Selection
+  const handleSizeChange = (size: 'A6' | 'A5') => {
+    setLabelSizeChoice(size);
+    if (size === 'A5') {
+      setFormData((prev) => ({ ...prev, labelWidth: 210, labelHeight: 148 }));
+    } else {
+      setFormData((prev) => ({ ...prev, labelWidth: 148, labelHeight: 105 }));
+    }
+  };
 
-  const isDirty = JSON.stringify(formData) !== JSON.stringify(initialData);
+  const hasUnsavedChanges = () => {
+    return JSON.stringify(formData) !== JSON.stringify(initialData);
+  };
 
   const handleRequestClose = () => {
-    if (isDirty) {
+    if (hasUnsavedChanges()) {
       setShowDiscardConfirm(true);
     } else {
       onClose();
@@ -207,40 +224,40 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg(null);
+
     if (!formData.recipientName.trim()) {
-      setErrorMsg('Recipient / Company is required');
+      setErrorMsg('Recipient Company Name is required.');
       return;
     }
     if (!formData.destination.trim()) {
-      setErrorMsg('Destination / Site is required');
+      setErrorMsg('Destination Site Address is required.');
       return;
     }
 
     setIsSaving(true);
-    setErrorMsg(null);
-
     try {
-      const payload: any = {
+      const payload = {
+        deliveryOrderId: sourceType === 'DO' && selectedDoId ? parseInt(selectedDoId, 10) : null,
         sourceType,
-        deliveryOrderId: sourceType === 'DO' && selectedDoId ? Number(selectedDoId) : undefined,
-        shipDate: formData.shipDate ? new Date(formData.shipDate).toISOString() : new Date().toISOString(),
+        shipDate: new Date(formData.shipDate).toISOString(),
         recipientName: formData.recipientName.trim(),
-        attnName: formData.attnName.trim() || undefined,
+        attnName: formData.attnName.trim() || null,
         destination: formData.destination.trim(),
-        referenceNumber: formData.referenceNumber.trim() || undefined,
-        doNumber: formData.doNumber.trim() || undefined,
-        senderName: formData.senderName.trim() || undefined,
-        senderAddress: formData.senderAddress.trim() || undefined,
-        senderPhone: formData.senderPhone.trim() || undefined,
-        isFragile: Boolean(formData.isFragile),
-        handlingNote: formData.handlingNote.trim() || undefined,
-        labelWidth: Number(formData.labelWidth) || 100,
-        labelHeight: Number(formData.labelHeight) || 150,
-        notes: formData.notes.trim() || undefined,
+        referenceNumber: formData.referenceNumber.trim() || null,
+        doNumber: formData.doNumber.trim() || null,
+        senderName: formData.senderName.trim() || 'PT ALSSA Corporindo',
+        senderAddress: formData.senderAddress.trim() || null,
+        senderPhone: formData.senderPhone.trim() || null,
+        isFragile: formData.isFragile,
+        handlingNote: formData.handlingNote.trim() || null,
+        labelWidth: formData.labelWidth,
+        labelHeight: formData.labelHeight,
+        notes: formData.notes.trim() || null,
       };
 
       if (shippingLabel) {
-        await apiClient.patch(`/shipping-labels/${shippingLabel.id}`, payload);
+        await apiClient.put(`/shipping-labels/${shippingLabel.id}`, payload);
       } else {
         await apiClient.post('/shipping-labels', payload);
       }
@@ -249,91 +266,141 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
       onClose();
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'Failed to save shipping label');
+      setErrorMsg(err.message || 'Failed to save shipping label.');
     } finally {
       setIsSaving(false);
     }
   };
+
+  const selectedDo = issuedDos.find((d) => String(d.id) === selectedDoId);
 
   return (
     <>
       <Modal
         isOpen={isOpen}
         onClose={handleRequestClose}
-        title={shippingLabel ? 'Edit Shipping Label' : 'Generate Shipping Label'}
-        maxWidth="760px"
+        title={shippingLabel ? `Edit Shipping Label #${shippingLabel.id}` : 'Create Shipping Label'}
+        maxWidth="740px"
       >
         <form onSubmit={handleSubmit}>
-          <div className="modal-body" style={{ maxHeight: '72vh', overflowY: 'auto' }}>
+          <div className="modal-body" style={{ maxHeight: '74vh', overflowY: 'auto' }}>
             {errorMsg && (
-              <div className="alert-error" style={{ marginBottom: '1rem' }}>
+              <div className="alert-error" style={{ marginBottom: '1.25rem' }}>
                 {errorMsg}
               </div>
             )}
 
             {/* Source Type Selector */}
-            {!shippingLabel && (
-              <div style={{ marginBottom: '1.25rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#1F2839', marginBottom: '6px' }}>
-                  Label Source *
-                </label>
-                <SegmentedControl<'DO' | 'STANDALONE'>
-                  value={sourceType}
-                  onChange={(val) => {
-                    setSourceType(val);
-                    if (val === 'STANDALONE') {
-                      setSelectedDoId('');
-                    }
-                  }}
-                  options={[
-                    { value: 'DO', label: 'From Issued Delivery Order', icon: <FileText size={16} /> },
-                    { value: 'STANDALONE', label: 'Standalone Package Label', icon: <Truck size={16} /> },
-                  ]}
-                />
-              </div>
-            )}
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  color: '#1F2839',
+                  marginBottom: '6px',
+                }}
+              >
+                Shipping Label Mode *
+              </label>
+              <SegmentedControl<'DO' | 'STANDALONE'>
+                value={sourceType}
+                onChange={(val) => {
+                  setSourceType(val);
+                  if (val === 'STANDALONE') {
+                    setSelectedDoId('');
+                  }
+                }}
+                options={[
+                  {
+                    value: 'DO',
+                    label: 'From Issued Delivery Order (Recommended)',
+                    icon: <FileText size={16} />,
+                  },
+                  {
+                    value: 'STANDALONE',
+                    label: 'Standalone Package Dispatch',
+                    icon: <Truck size={16} />,
+                  },
+                ]}
+              />
+            </div>
 
-            {/* Issued DO Selector (if DO mode) */}
-            {sourceType === 'DO' && !shippingLabel && (
-              <div style={{ marginBottom: '1rem' }}>
-                <FormField label="Select Issued Delivery Order" required>
+            {/* DO Selection Section */}
+            {sourceType === 'DO' && (
+              <div style={{ marginBottom: '1.25rem' }}>
+                <FormField label="Select Issued Delivery Order *" required>
                   <Select
-                    required
                     value={selectedDoId}
-                    onChange={(e) => handleDoSelect(e.target.value)}
+                    onChange={(e) => handleSelectDo(e.target.value)}
+                    required
                   >
-                    <option value="">Choose an Issued Delivery Order...</option>
+                    <option value="">-- Choose an issued Delivery Order --</option>
                     {issuedDos.map((d) => (
                       <option key={d.id} value={d.id}>
-                        {d.doNumber} — {d.client?.name || d.clientCompanyName} ({d.project?.name || d.projectName})
+                        {d.doNumber} — {d.clientCompanyName || d.project?.name || `DO #${d.id}`} (
+                        {new Date(d.date).toLocaleDateString()})
                       </option>
                     ))}
                   </Select>
                 </FormField>
 
-                {selectedDoObj && (
-                  <ProjectSnapshotCard
-                    clientName={selectedDoObj.client?.name || selectedDoObj.clientCompanyName}
-                    clientType={selectedDoObj.client?.clientType || selectedDoObj.clientType}
-                    attnName={selectedDoObj.attnName || selectedDoObj.project?.clientContact?.name}
-                    attnPhone={selectedDoObj.attnPhone || selectedDoObj.project?.clientContact?.phone}
-                    projectName={selectedDoObj.projectName || selectedDoObj.project?.name}
-                    referenceNumber={selectedDoObj.referenceNumber || selectedDoObj.project?.referenceNumber}
-                    projectLocation={selectedDoObj.projectLocation || selectedDoObj.project?.location}
-                    siteCode={selectedDoObj.siteCode || selectedDoObj.project?.siteCode}
-                  />
+                {selectedDo && (
+                  <div style={{ marginTop: '0.5rem' }}>
+                    <ProjectSnapshotCard
+                      projectName={selectedDo.project?.name || selectedDo.projectName}
+                      siteCode={selectedDo.project?.siteCode || selectedDo.siteCode}
+                      referenceNumber={selectedDo.referenceNumber || selectedDo.project?.referenceNumber}
+                      clientName={selectedDo.client?.name || selectedDo.clientCompanyName}
+                      clientType={selectedDo.client?.clientType || selectedDo.clientType}
+                      attnName={selectedDo.attnName || selectedDo.project?.clientContact?.name}
+                      attnPhone={selectedDo.attnPhone || selectedDo.project?.clientContact?.phone}
+                      projectLocation={selectedDo.projectLocation || selectedDo.project?.location}
+                    />
+                  </div>
                 )}
               </div>
             )}
 
-            {/* Recipient & Destination Details */}
+            {/* Label Size Selector (A6 Default vs A5) */}
+            <div style={{ marginBottom: '1.25rem', padding: '12px 14px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '6px' }}>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  color: '#1E293B',
+                  marginBottom: '8px',
+                }}
+              >
+                Label Physical Size *
+              </label>
+              <SegmentedControl<'A6' | 'A5'>
+                value={labelSizeChoice}
+                onChange={handleSizeChange}
+                options={[
+                  {
+                    value: 'A6',
+                    label: 'A6 — Compact (148 × 105 mm) [Default]',
+                    icon: <Maximize2 size={15} />,
+                  },
+                  {
+                    value: 'A5',
+                    label: 'A5 — Large (210 × 148 mm)',
+                    icon: <Maximize2 size={16} />,
+                  },
+                ]}
+              />
+            </div>
+
+            {/* Recipient Details */}
             <div style={{ border: '1px solid #E2E8F0', borderRadius: '6px', padding: '12px 14px', backgroundColor: '#FFFFFF', marginBottom: '1rem' }}>
-              <h4 style={{ margin: '0 0 10px 0', fontSize: '0.85rem', fontWeight: 600, color: '#1E293B', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Building size={15} color="#2250A1" /> Recipient &amp; Destination Details
+              <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem', fontWeight: 700, color: '#1E293B' }}>
+                Recipient &amp; Destination Information
               </h4>
 
               <div className="form-grid">
-                <FormField label="Recipient / Company" required>
+                <FormField label="Recipient / Client Company *" required>
                   <Input
                     ref={recipientInputRef}
                     placeholder="e.g. PT Pertamina Hulu Mahakam"
@@ -343,16 +410,16 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
                   />
                 </FormField>
 
-                <FormField label="Attn / Recipient Name">
+                <FormField label="Attn (Recipient Contact Person)">
                   <Input
-                    placeholder="e.g. Budi Santoso (0812-345678)"
+                    placeholder="e.g. Ir. Budi Santoso"
                     value={formData.attnName}
                     onChange={(e) => setFormData({ ...formData, attnName: e.target.value })}
                   />
                 </FormField>
               </div>
 
-              <FormField label="Destination / Site Address" required>
+              <FormField label="Destination / Site Address *" required>
                 <Input
                   placeholder="e.g. CPA Sanga-Sanga Field, Handil 2 Logistics Hub"
                   required
@@ -364,7 +431,7 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
               <div className="form-grid" style={{ marginBottom: 0 }}>
                 <FormField label="Reference Number (PO / Contract)" style={{ marginBottom: 0 }}>
                   <Input
-                    placeholder="e.g. PO-PHM-2026-001"
+                    placeholder="e.g. PO-PHM-2026-0881"
                     value={formData.referenceNumber}
                     onChange={(e) => setFormData({ ...formData, referenceNumber: e.target.value })}
                   />
@@ -380,7 +447,7 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
               </div>
             </div>
 
-            {/* Sender Details (Auto-defaults from PT ALSSA Corporindo Identity) */}
+            {/* Sender Dispatch Office */}
             <div style={{ border: '1px solid #E2E8F0', borderRadius: '6px', padding: '12px 14px', backgroundColor: '#F8FAFC', marginBottom: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                 <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600, color: '#1E293B' }}>
@@ -462,66 +529,41 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
               </FormField>
             </div>
 
-            {/* Handling, Fragile & Dimensions */}
+            {/* Handling & Date Configuration */}
             <div className="form-grid" style={{ marginBottom: '1rem' }}>
-              <div>
-                <FormField label="Ship Date" required>
-                  <Input
-                    type="date"
-                    required
-                    value={formData.shipDate}
-                    onChange={(e) => setFormData({ ...formData, shipDate: e.target.value })}
-                  />
-                </FormField>
+              <FormField label="Ship Date & Time *" required>
+                <Input
+                  type="datetime-local"
+                  required
+                  value={formData.shipDate}
+                  onChange={(e) => setFormData({ ...formData, shipDate: e.target.value })}
+                />
+              </FormField>
 
-                <FormField label="Fragile Package?">
-                  <SegmentedControl<string>
-                    value={formData.isFragile ? 'YES' : 'NO'}
-                    onChange={(val) => setFormData({ ...formData, isFragile: val === 'YES' })}
-                    options={[
-                      { value: 'NO', label: 'Standard Package' },
-                      { value: 'YES', label: '⚠️ FRAGILE / HANDLE WITH CARE' },
-                    ]}
-                  />
-                </FormField>
-              </div>
-
-              <div>
-                <FormField label="Handling Notes">
-                  <Input
-                    placeholder="e.g. KEEP DRY, THIS SIDE UP, DO NOT DROP"
-                    value={formData.handlingNote}
-                    onChange={(e) => setFormData({ ...formData, handlingNote: e.target.value.toUpperCase() })}
-                  />
-                </FormField>
-
-                <div className="form-grid" style={{ marginBottom: 0 }}>
-                  <FormField label="Label Width (mm)" style={{ marginBottom: 0 }}>
-                    <Input
-                      type="number"
-                      min={50}
-                      max={300}
-                      value={formData.labelWidth}
-                      onChange={(e) => setFormData({ ...formData, labelWidth: parseInt(e.target.value, 10) || 100 })}
-                    />
-                  </FormField>
-
-                  <FormField label="Label Height (mm)" style={{ marginBottom: 0 }}>
-                    <Input
-                      type="number"
-                      min={50}
-                      max={400}
-                      value={formData.labelHeight}
-                      onChange={(e) => setFormData({ ...formData, labelHeight: parseInt(e.target.value, 10) || 150 })}
-                    />
-                  </FormField>
-                </div>
-              </div>
+              <FormField label="Handling Classification *">
+                <SegmentedControl<'NO' | 'YES'>
+                  value={formData.isFragile ? 'YES' : 'NO'}
+                  onChange={(val) => setFormData({ ...formData, isFragile: val === 'YES' })}
+                  options={[
+                    { value: 'NO', label: 'Standard Package' },
+                    { value: 'YES', label: '⚠️ FRAGILE / HANDLE WITH CARE' },
+                  ]}
+                />
+              </FormField>
             </div>
+
+            <FormField label="Handling Notes / Instructions" style={{ marginBottom: '1rem' }}>
+              <Input
+                placeholder="e.g. KEEP DRY, THIS SIDE UP, DO NOT DROP"
+                value={formData.handlingNote}
+                onChange={(e) => setFormData({ ...formData, handlingNote: e.target.value.toUpperCase() })}
+              />
+            </FormField>
 
             <FormField label="Internal Logistics Notes" style={{ marginBottom: 0 }}>
               <Textarea
                 placeholder="e.g. Courier: JNE Trucking, 3 boxes total..."
+                rows={2}
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               />
@@ -541,18 +583,16 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
 
       <ConfirmModal
         isOpen={showDiscardConfirm}
-        onClose={() => setShowDiscardConfirm(false)}
+        title="Discard Changes?"
+        message="You have unsaved form entries. Are you sure you want to discard them?"
+        confirmLabel="Discard"
+        variant="danger"
         onConfirm={() => {
           setShowDiscardConfirm(false);
           onClose();
         }}
-        title="Discard Unsaved Changes?"
-        message="You have unsaved changes in this shipping label form. Are you sure you want to discard them?"
-        confirmLabel="Discard Changes"
-        variant="danger"
+        onClose={() => setShowDiscardConfirm(false)}
       />
     </>
   );
 };
-
-export default ShippingLabelFormModal;

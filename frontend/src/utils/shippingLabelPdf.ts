@@ -12,16 +12,23 @@ function sanitizeFilename(str: string): string {
 }
 
 /**
- * Generates clean filename for a single shipping label.
- * Example: "Shipping_Label_DO_001_ALS-BPN_2026.pdf" or "Shipping_Label_Pertamina_Hulu_Mahakam_2026-09-03.pdf"
+ * Generates clean filename for a single shipping label with timestamp.
+ * Example: "Shipping_Label_DO_001_ALS-BPN_2026-09-04_1045.pdf"
  */
 export function generateShippingLabelFilename(label: ShippingLabel): string {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const hh = String(now.getHours()).padStart(2, '0');
+  const min = String(now.getMinutes()).padStart(2, '0');
+  const ts = `${yyyy}-${mm}-${dd}_${hh}${min}`;
+
   if (label.doNumber && label.doNumber.trim()) {
-    return `Shipping_Label_DO_${sanitizeFilename(label.doNumber)}.pdf`;
+    return `Shipping_Label_DO_${sanitizeFilename(label.doNumber)}_${ts}.pdf`;
   }
-  const dateStr = label.shipDate ? label.shipDate.split('T')[0] : 'undated';
   const name = sanitizeFilename(label.recipientName || 'Client');
-  return `Shipping_Label_${name}_${dateStr}.pdf`;
+  return `Shipping_Label_${name}_${ts}.pdf`;
 }
 
 /**
@@ -32,7 +39,9 @@ export function generateMultiShippingLabelsFilename(count: number): string {
   const yyyy = now.getFullYear();
   const mm = String(now.getMonth() + 1).padStart(2, '0');
   const dd = String(now.getDate()).padStart(2, '0');
-  return `Shipping_Labels_${yyyy}-${mm}-${dd}_${count}-labels.pdf`;
+  const hh = String(now.getHours()).padStart(2, '0');
+  const min = String(now.getMinutes()).padStart(2, '0');
+  return `Shipping_Labels_${yyyy}-${mm}-${dd}_${hh}${min}_${count}-labels.pdf`;
 }
 
 /**
@@ -55,14 +64,16 @@ export async function waitForImagesToLoad(container: HTMLElement): Promise<void>
  */
 export async function downloadShippingLabelPdf(
   element: HTMLElement,
-  filename: string
+  filename: string,
+  size: 'A6' | 'A5' = 'A6'
 ): Promise<void> {
   await waitForImagesToLoad(element);
 
   const safeName = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
+  const formatDimensions = size === 'A5' ? [210, 148] : [148, 105];
 
   const opt = {
-    margin: [2, 2, 2, 2] as [number, number, number, number], // mm
+    margin: [0, 0, 0, 0] as [number, number, number, number],
     filename: safeName,
     image: { type: 'jpeg' as const, quality: 0.98 },
     html2canvas: {
@@ -73,7 +84,7 @@ export async function downloadShippingLabelPdf(
     },
     jsPDF: {
       unit: 'mm',
-      format: [150, 100] as [number, number], // 150mm x 100mm landscape package label
+      format: formatDimensions as [number, number],
       orientation: 'landscape' as const,
       compressPDF: true,
     },

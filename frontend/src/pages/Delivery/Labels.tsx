@@ -13,6 +13,8 @@ import {
   generateMultiShippingLabelsFilename,
 } from '../../utils/shippingLabelPdf.js';
 
+import { formatDateTime } from '../../utils/datetime.js';
+
 export const Labels: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -234,15 +236,11 @@ export const Labels: React.FC = () => {
       ),
     },
     {
-      header: 'Ship Date',
+      header: 'Ship Date & Time',
       key: 'shipDate',
       render: (l) => (
         <span style={{ fontSize: '0.8rem', color: '#4B5563', whiteSpace: 'nowrap' }}>
-          {new Date(l.shipDate).toLocaleDateString('en-GB', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-          })}
+          {formatDateTime(l.shipDate, l.senderAddress || 'WITA')}
         </span>
       ),
     },
