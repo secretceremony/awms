@@ -14,10 +14,9 @@ import {
   LogOut,
   User,
   Briefcase,
-  History
+  History,
 } from 'lucide-react';
 import { Button } from './ui/index.js';
-
 import { canAccessSettings, canAccessLogs } from '../utils/permissions.js';
 
 export const DashboardLayout = () => {
@@ -36,15 +35,15 @@ export const DashboardLayout = () => {
 
   const navItems = [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { type: 'header', label: 'Inventory' },
-    { to: '/inventory', label: 'Stock List', icon: Boxes },
-    { to: '/inventory/incoming', label: 'Incoming Stock', icon: ArrowDownLeft },
-    { to: '/inventory/movements', label: 'Movement History', icon: History },
-    { to: '/inventory/outgoing', label: 'Outgoing Stock', icon: ArrowUpRight },
     { type: 'header', label: 'Master Data' },
+    { to: '/clients', label: 'Clients', icon: Users },
     { to: '/warehouses', label: 'Warehouses', icon: Warehouse },
     { to: '/projects', label: 'Projects', icon: Briefcase },
-    { to: '/clients', label: 'Clients', icon: Users },
+    { type: 'header', label: 'Inventory' },
+    { to: '/inventory', label: 'Stock List', icon: Boxes },
+    { to: '/inventory/incoming', label: 'Incoming', icon: ArrowDownLeft },
+    { to: '/inventory/outgoing', label: 'Outgoing', icon: ArrowUpRight },
+    { to: '/inventory/movements', label: 'Movement History', icon: History },
     { type: 'header', label: 'Deliveries' },
     { to: '/delivery-orders', label: 'Delivery Orders', icon: Truck },
     { to: '/shipping-labels', label: 'Shipping Labels', icon: Tag },
@@ -90,21 +89,28 @@ export const DashboardLayout = () => {
                   `nav-link ${isActive ? 'active' : ''}`
                 }
               >
-                <Icon size={18} />
+                <Icon size={17} />
                 <span>{item.label}</span>
               </NavLink>
             );
           })}
         </nav>
 
-        {/* Single Logout Button in Sidebar */}
+        {/* User Identity and Logout in Sidebar */}
         <div className="sidebar-footer">
           <Button
             variant="danger"
-            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+            size="sm"
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+            }}
             onClick={handleLogout}
           >
-            <LogOut size={16} /> Logout
+            <LogOut size={15} /> Logout
           </Button>
         </div>
       </aside>
@@ -121,7 +127,7 @@ export const DashboardLayout = () => {
             </h1>
           </div>
           <div className="header-user-section">
-            <User size={16} />
+            <User size={15} />
             <span>{user?.name || user?.email || 'User'}</span>
           </div>
         </header>

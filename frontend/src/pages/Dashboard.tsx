@@ -8,17 +8,13 @@ import {
   RotateCcw,
   SlidersHorizontal,
   Briefcase,
-  Truck,
   AlertTriangle,
-  CheckCircle2,
   Wrench,
   PackageCheck,
-  Plus,
   ArrowRight,
   ShieldAlert,
-  Send,
 } from 'lucide-react';
-import { Button, PageHeader, LoadingState, ErrorState } from '../components/ui/index.js';
+import { PageHeader, LoadingState, ErrorState, Button } from '../components/ui/index.js';
 import { apiClient } from '../api/client.js';
 import { MovementDetailModal } from '../components/history/MovementDetailModal.js';
 import { DeliveryOrderDetailModal } from '../components/delivery/DeliveryOrderDetailModal.js';
@@ -121,81 +117,6 @@ export const Dashboard: React.FC = () => {
 
   const { summary, stockHealth, recentMovements, recentDeliveryOrders } = data;
 
-  const statCards = [
-    {
-      label: 'Total Catalog Items',
-      value: summary.totalItems,
-      unit: 'masters',
-      icon: Boxes,
-      color: '#2250A1',
-      bg: '#EFF6FF',
-      onClick: () => navigate('/inventory'),
-    },
-    {
-      label: 'Bulk Warehouse Stock',
-      value: summary.totalBulkStock,
-      unit: 'units',
-      icon: Layers,
-      color: '#0891B2',
-      bg: '#ECFEFF',
-      onClick: () => navigate('/inventory?trackingType=bulk'),
-    },
-    {
-      label: 'Serialized Assets',
-      value: summary.totalSerialized,
-      unit: 'devices',
-      icon: PackageCheck,
-      color: '#7C3AED',
-      bg: '#F5F3FF',
-      onClick: () => navigate('/inventory?trackingType=serialized'),
-    },
-    {
-      label: 'Deployed at Sites',
-      value: summary.deployedSerialized,
-      unit: 'in field',
-      icon: ArrowUpRight,
-      color: '#D97706',
-      bg: '#FFFBEB',
-      onClick: () => navigate('/inventory?trackingType=serialized&status=Deploy'),
-    },
-    {
-      label: 'Under Repair',
-      value: summary.underRepairSerialized,
-      unit: 'faulty',
-      icon: Wrench,
-      color: '#DC2626',
-      bg: '#FEF2F2',
-      onClick: () => navigate('/inventory?trackingType=serialized&status=Under%20Repair'),
-    },
-    {
-      label: 'Low Stock (< threshold)',
-      value: stockHealth.lowStock,
-      unit: 'items',
-      icon: AlertTriangle,
-      color: '#EA580C',
-      bg: '#FFF7ED',
-      onClick: () => navigate('/inventory?trackingType=bulk&status=Low%20Stock'),
-    },
-    {
-      label: 'Active Projects',
-      value: summary.activeProjects,
-      unit: 'active',
-      icon: Briefcase,
-      color: '#059669',
-      bg: '#ECFDF5',
-      onClick: () => navigate('/projects?status=active'),
-    },
-    {
-      label: 'Draft Delivery Orders',
-      value: summary.draftDeliveryOrders,
-      unit: 'pending',
-      icon: Truck,
-      color: '#4F46E5',
-      bg: '#EEF2FF',
-      onClick: () => navigate('/delivery-orders?status=DRAFT'),
-    },
-  ];
-
   const getMovementTypeBadge = (type: string) => {
     switch (type) {
       case 'INCOMING':
@@ -211,249 +132,250 @@ export const Dashboard: React.FC = () => {
     }
   };
 
+  const attentionCards = [
+    {
+      label: 'Out of Stock',
+      count: stockHealth.outOfStock,
+      desc: 'Bulk inventory records depleted',
+      icon: ShieldAlert,
+      color: '#DC2626',
+      bg: '#FEF2F2',
+      border: '#FECACA',
+      onClick: () => navigate('/inventory?trackingType=bulk&status=Out%20of%20Stock'),
+    },
+    {
+      label: 'Low Stock',
+      count: stockHealth.lowStock,
+      desc: `Items below threshold (≤ ${summary.lowStockThreshold} units)`,
+      icon: AlertTriangle,
+      color: '#D97706',
+      bg: '#FFFBEB',
+      border: '#FDE68A',
+      onClick: () => navigate('/inventory?trackingType=bulk&status=Low%20Stock'),
+    },
+    {
+      label: 'Under Repair',
+      count: stockHealth.underRepair,
+      desc: 'Faulty serialized devices needing maintenance',
+      icon: Wrench,
+      color: '#DC2626',
+      bg: '#FEF2F2',
+      border: '#FECACA',
+      onClick: () => navigate('/inventory?trackingType=serialized&status=Under%20Repair'),
+    },
+  ];
+
+  const generalMetrics = [
+    {
+      label: 'Item Masters',
+      value: summary.totalItems,
+      unit: 'catalog items',
+      icon: Boxes,
+      onClick: () => navigate('/inventory'),
+    },
+    {
+      label: 'Serialized Assets',
+      value: summary.totalSerialized,
+      unit: 'devices',
+      icon: PackageCheck,
+      onClick: () => navigate('/inventory?trackingType=serialized'),
+    },
+    {
+      label: 'Bulk Warehouse Stock',
+      value: summary.totalBulkStock,
+      unit: 'units stored',
+      icon: Layers,
+      onClick: () => navigate('/inventory?trackingType=bulk'),
+    },
+    {
+      label: 'Deployed at Sites',
+      value: summary.deployedSerialized,
+      unit: 'in field',
+      icon: ArrowUpRight,
+      onClick: () => navigate('/inventory?trackingType=serialized&status=Deploy'),
+    },
+    {
+      label: 'Active Projects',
+      value: summary.activeProjects,
+      unit: 'active sites',
+      icon: Briefcase,
+      onClick: () => navigate('/projects?status=active'),
+    },
+  ];
+
   return (
-    <div className="page-container">
+    <div className="page-container" style={{ gap: '1.25rem' }}>
       <PageHeader
         title="Logistics Operations Dashboard"
-        description="Real-time inventory levels, warehouse health, and dispatch movements."
-        actions={
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => navigate('/shipping-labels')}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              <Truck size={15} /> Shipping Labels
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => navigate('/delivery-orders')}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              <Plus size={15} /> Delivery Orders
-            </Button>
-          </div>
-        }
+        description="Real-time stock attention, inventory balance, and recent dispatch movements."
       />
 
-      {/* 1. Real Statistics Grid */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '12px',
-          marginBottom: '1.5rem',
-        }}
-      >
-        {statCards.map((card, idx) => {
-          const Icon = card.icon;
-          return (
-            <div
-              key={idx}
-              onClick={card.onClick}
-              style={{
-                backgroundColor: '#FFFFFF',
-                border: '1px solid #E2E8F0',
-                borderRadius: '8px',
-                padding: '14px 16px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '14px',
-                cursor: 'pointer',
-                transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
+      {/* 1. NEEDS ATTENTION SECTION */}
+      <div>
+        <div
+          style={{
+            fontSize: '0.8rem',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            color: '#64748B',
+            marginBottom: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+          }}
+        >
+          <span
+            style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              backgroundColor: '#DC2626',
+              display: 'inline-block',
+            }}
+          />
+          Needs Attention
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            gap: '12px',
+          }}
+        >
+          {attentionCards.map((card, idx) => {
+            const Icon = card.icon;
+            return (
               <div
+                key={idx}
+                onClick={card.onClick}
                 style={{
-                  display: 'inline-flex',
+                  backgroundColor: '#FFFFFF',
+                  border: `1px solid ${card.border}`,
+                  borderLeft: `4px solid ${card.color}`,
+                  borderRadius: '6px',
+                  padding: '12px 14px',
+                  display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '8px',
-                  backgroundColor: card.bg,
-                  color: card.color,
-                  flexShrink: 0,
+                  justifyContent: 'space-between',
+                  cursor: 'pointer',
+                  transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 3px 6px -1px rgba(0, 0, 0, 0.08)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
                 }}
               >
-                <Icon size={22} />
-              </div>
-              <div style={{ overflow: 'hidden' }}>
-                <div style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 600 }}>
-                  {card.label}
+                <div>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: card.color, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <Icon size={14} />
+                    {card.label}
+                  </div>
+                  <div style={{ fontSize: '0.725rem', color: '#64748B', marginTop: '2px' }}>
+                    {card.desc}
+                  </div>
                 </div>
-                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#1E293B', lineHeight: '1.2', marginTop: '2px' }}>
+
+                <div
+                  style={{
+                    fontSize: '1.4rem',
+                    fontWeight: 800,
+                    color: card.color,
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    backgroundColor: card.bg,
+                  }}
+                >
+                  {card.count}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 2. GENERAL INVENTORY SITUATION (Compact Row) */}
+      <div>
+        <div
+          style={{
+            fontSize: '0.8rem',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            color: '#64748B',
+            marginBottom: '8px',
+          }}
+        >
+          Inventory Overview
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))',
+            gap: '10px',
+          }}
+        >
+          {generalMetrics.map((card, idx) => {
+            const Icon = card.icon;
+            return (
+              <div
+                key={idx}
+                onClick={card.onClick}
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  border: '1px solid #E2E8F0',
+                  borderRadius: '6px',
+                  padding: '10px 12px',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.15s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#F8FAFC')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#FFFFFF')}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748B' }}>
+                    {card.label}
+                  </span>
+                  <Icon size={14} color="#94A3B8" />
+                </div>
+                <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#1E293B', marginTop: '2px' }}>
                   {card.value}{' '}
-                  <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94A3B8' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 500, color: '#94A3B8' }}>
                     {card.unit}
                   </span>
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* 2. Stock Health & Quick Actions Bar */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-          gap: '16px',
-          marginBottom: '1.5rem',
-        }}
-      >
-        {/* Stock Health */}
-        <div
-          style={{
-            backgroundColor: '#FFFFFF',
-            border: '1px solid #E2E8F0',
-            borderRadius: '8px',
-            padding: '16px',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#1E293B' }}>
-              Inventory Health Status
-            </h3>
-            <span style={{ fontSize: '0.75rem', color: '#64748B' }}>
-              Threshold: &le; {summary.lowStockThreshold} units
-            </span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
-            <div
-              onClick={() => navigate('/inventory?trackingType=bulk&status=Normal')}
-              style={{ border: '1px solid #E2E8F0', borderRadius: '6px', padding: '10px', backgroundColor: '#F8FAFC', cursor: 'pointer' }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem', fontWeight: 600, color: '#059669' }}>
-                <CheckCircle2 size={14} /> Normal Stock
-              </div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1E293B', marginTop: '4px' }}>
-                {stockHealth.normal}
-              </div>
-            </div>
-
-            <div
-              onClick={() => navigate('/inventory?trackingType=bulk&status=Low%20Stock')}
-              style={{ border: '1px solid #FED7AA', borderRadius: '6px', padding: '10px', backgroundColor: '#FFF7ED', cursor: 'pointer' }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem', fontWeight: 600, color: '#EA580C' }}>
-                <AlertTriangle size={14} /> Low Stock
-              </div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#EA580C', marginTop: '4px' }}>
-                {stockHealth.lowStock}
-              </div>
-            </div>
-
-            <div
-              onClick={() => navigate('/inventory?trackingType=bulk&status=Out%20of%20Stock')}
-              style={{ border: '1px solid #FECACA', borderRadius: '6px', padding: '10px', backgroundColor: '#FEF2F2', cursor: 'pointer' }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem', fontWeight: 600, color: '#DC2626' }}>
-                <ShieldAlert size={14} /> Out of Stock
-              </div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#DC2626', marginTop: '4px' }}>
-                {stockHealth.outOfStock}
-              </div>
-            </div>
-
-            <div
-              onClick={() => navigate('/inventory?trackingType=serialized&status=Under%20Repair')}
-              style={{ border: '1px solid #DDD6FE', borderRadius: '6px', padding: '10px', backgroundColor: '#F5F3FF', cursor: 'pointer' }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem', fontWeight: 600, color: '#7C3AED' }}>
-                <Wrench size={14} /> Under Repair
-              </div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#7C3AED', marginTop: '4px' }}>
-                {stockHealth.underRepair}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Operational Shortcuts */}
-        <div
-          style={{
-            backgroundColor: '#FFFFFF',
-            border: '1px solid #E2E8F0',
-            borderRadius: '8px',
-            padding: '16px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-          }}
-        >
-          <h3 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', fontWeight: 700, color: '#1E293B' }}>
-            Quick Warehouse Operations
-          </h3>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-            <Button
-              variant="secondary"
-              onClick={() => navigate('/inventory/incoming')}
-              style={{ justifyContent: 'flex-start', padding: '10px 12px', fontSize: '0.85rem' }}
-            >
-              <ArrowDownLeft size={16} color="#2250A1" /> Record Incoming
-            </Button>
-
-            <Button
-              variant="secondary"
-              onClick={() => navigate('/inventory/outgoing')}
-              style={{ justifyContent: 'flex-start', padding: '10px 12px', fontSize: '0.85rem' }}
-            >
-              <ArrowUpRight size={16} color="#D97706" /> Dispatch Outgoing
-            </Button>
-
-            <Button
-              variant="secondary"
-              onClick={() => navigate('/delivery-orders')}
-              style={{ justifyContent: 'flex-start', padding: '10px 12px', fontSize: '0.85rem' }}
-            >
-              <Send size={16} color="#4F46E5" /> Issue Delivery Order
-            </Button>
-
-            <Button
-              variant="secondary"
-              onClick={() => navigate('/shipping-labels')}
-              style={{ justifyContent: 'flex-start', padding: '10px 12px', fontSize: '0.85rem' }}
-            >
-              <Truck size={16} color="#059669" /> Print Shipping Label
-            </Button>
-          </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* 3. Recent Activity Section: Movements & DOs */}
+      {/* 3. RECENT ACTIVITY (2-Column Compact Layout) */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))',
-          gap: '16px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
+          gap: '14px',
         }}
       >
-        {/* Recent Movements */}
+        {/* Recent Inventory Movements */}
         <div
           style={{
             backgroundColor: '#FFFFFF',
             border: '1px solid #E2E8F0',
-            borderRadius: '8px',
+            borderRadius: '6px',
             overflow: 'hidden',
           }}
         >
           <div
             style={{
-              padding: '12px 16px',
+              padding: '10px 14px',
               backgroundColor: '#F8FAFC',
               borderBottom: '1px solid #E2E8F0',
               display: 'flex',
@@ -461,31 +383,31 @@ export const Dashboard: React.FC = () => {
               alignItems: 'center',
             }}
           >
-            <h3 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: '#1E293B' }}>
+            <h3 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: '#1E293B' }}>
               Recent Inventory Movements
             </h3>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => navigate('/inventory/movements')}
-              style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+              style={{ fontSize: '0.75rem', padding: '2px 6px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
             >
-              View Ledger <ArrowRight size={13} />
+              View All <ArrowRight size={12} />
             </Button>
           </div>
 
           {recentMovements.length === 0 ? (
-            <div style={{ padding: '2rem', textAlign: 'center', color: '#94A3B8', fontSize: '0.85rem' }}>
+            <div style={{ padding: '1.5rem', textAlign: 'center', color: '#94A3B8', fontSize: '0.8rem' }}>
               No recent movements recorded.
             </div>
           ) : (
-            <table className="data-table" style={{ margin: 0, fontSize: '0.8rem' }}>
+            <table className="data-table" style={{ margin: 0, fontSize: '0.775rem' }}>
               <thead>
                 <tr>
-                  <th>Date &amp; Type</th>
-                  <th>Item Details</th>
-                  <th>Route / Location</th>
-                  <th style={{ width: '60px', textAlign: 'right' }}>Qty</th>
+                  <th style={{ padding: '6px 10px' }}>Date &amp; Type</th>
+                  <th style={{ padding: '6px 10px' }}>Item Details</th>
+                  <th style={{ padding: '6px 10px' }}>Destination</th>
+                  <th style={{ width: '45px', textAlign: 'right', padding: '6px 10px' }}>Qty</th>
                 </tr>
               </thead>
               <tbody>
@@ -502,11 +424,12 @@ export const Dashboard: React.FC = () => {
                       style={{ cursor: 'pointer' }}
                       title="Click to view movement details"
                     >
-                      <td>
-                        <div style={{ fontSize: '0.75rem', color: '#64748B' }}>
+                      <td style={{ padding: '6px 10px' }}>
+                        <div style={{ fontSize: '0.7rem', color: '#64748B' }}>
                           {new Date(m.movementDate).toLocaleDateString('en-GB', {
                             day: '2-digit',
-                            month: 'short',
+                            month: '2-digit',
+                            year: 'numeric',
                           })}
                         </div>
                         <span
@@ -514,35 +437,35 @@ export const Dashboard: React.FC = () => {
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '3px',
-                            fontSize: '0.7rem',
+                            fontSize: '0.675rem',
                             fontWeight: 700,
                             backgroundColor: badge.bg,
                             color: badge.color,
-                            padding: '1px 5px',
-                            borderRadius: '4px',
-                            marginTop: '2px',
+                            padding: '1px 4px',
+                            borderRadius: '3px',
+                            marginTop: '1px',
                           }}
                         >
-                          <Icon size={11} /> {badge.label}
+                          <Icon size={10} /> {badge.label}
                         </span>
                       </td>
 
-                      <td>
+                      <td style={{ padding: '6px 10px' }}>
                         <div style={{ fontWeight: 600, color: '#1E293B' }}>{m.firstItemName}</div>
                         {m.serialNumber && (
-                          <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#7C3AED' }}>
+                          <span style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: '#7C3AED' }}>
                             SN: {m.serialNumber}
                           </span>
                         )}
                       </td>
 
-                      <td>
-                        <div style={{ color: '#334155' }}>
-                          <span style={{ color: '#64748B' }}>To:</span> {m.toLocation}
-                        </div>
+                      <td style={{ padding: '6px 10px', color: '#334155' }}>
+                        {m.toLocation}
                       </td>
 
-                      <td style={{ textAlign: 'right', fontWeight: 700 }}>{m.itemCount}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 700, padding: '6px 10px' }}>
+                        {m.itemCount}
+                      </td>
                     </tr>
                   );
                 })}
@@ -556,13 +479,13 @@ export const Dashboard: React.FC = () => {
           style={{
             backgroundColor: '#FFFFFF',
             border: '1px solid #E2E8F0',
-            borderRadius: '8px',
+            borderRadius: '6px',
             overflow: 'hidden',
           }}
         >
           <div
             style={{
-              padding: '12px 16px',
+              padding: '10px 14px',
               backgroundColor: '#F8FAFC',
               borderBottom: '1px solid #E2E8F0',
               display: 'flex',
@@ -570,30 +493,30 @@ export const Dashboard: React.FC = () => {
               alignItems: 'center',
             }}
           >
-            <h3 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: '#1E293B' }}>
+            <h3 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: '#1E293B' }}>
               Recent Delivery Orders
             </h3>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => navigate('/delivery-orders')}
-              style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+              style={{ fontSize: '0.75rem', padding: '2px 6px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
             >
-              View Orders <ArrowRight size={13} />
+              View All <ArrowRight size={12} />
             </Button>
           </div>
 
           {recentDeliveryOrders.length === 0 ? (
-            <div style={{ padding: '2rem', textAlign: 'center', color: '#94A3B8', fontSize: '0.85rem' }}>
+            <div style={{ padding: '1.5rem', textAlign: 'center', color: '#94A3B8', fontSize: '0.8rem' }}>
               No delivery orders created yet.
             </div>
           ) : (
-            <table className="data-table" style={{ margin: 0, fontSize: '0.8rem' }}>
+            <table className="data-table" style={{ margin: 0, fontSize: '0.775rem' }}>
               <thead>
                 <tr>
-                  <th>DO # / Date</th>
-                  <th>Project &amp; Client</th>
-                  <th style={{ width: '85px', textAlign: 'center' }}>Status</th>
+                  <th style={{ padding: '6px 10px' }}>DO # / Date</th>
+                  <th style={{ padding: '6px 10px' }}>Project &amp; Client</th>
+                  <th style={{ width: '80px', textAlign: 'center', padding: '6px 10px' }}>Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -607,37 +530,32 @@ export const Dashboard: React.FC = () => {
                     style={{ cursor: 'pointer' }}
                     title="Click to view delivery order details"
                   >
-                    <td>
+                    <td style={{ padding: '6px 10px' }}>
                       <div style={{ fontFamily: 'monospace', fontWeight: 700, color: '#2250A1' }}>
                         {doDoc.doNumber || `Draft #${doDoc.id}`}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: '#64748B' }}>
+                      <div style={{ fontSize: '0.7rem', color: '#64748B' }}>
                         {new Date(doDoc.date).toLocaleDateString('en-GB', {
                           day: '2-digit',
-                          month: 'short',
+                          month: '2-digit',
+                          year: 'numeric',
                         })}
                       </div>
                     </td>
 
-                    <td>
+                    <td style={{ padding: '6px 10px' }}>
                       <div style={{ fontWeight: 600, color: '#1E293B' }}>
                         {doDoc.siteCode ? `[${doDoc.siteCode}] ` : ''}
                         {doDoc.projectName}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: '#64748B' }}>{doDoc.clientName}</div>
+                      <div style={{ fontSize: '0.7rem', color: '#64748B' }}>{doDoc.clientName}</div>
                     </td>
 
-                    <td style={{ textAlign: 'center' }}>
+                    <td style={{ textAlign: 'center', padding: '6px 10px' }}>
                       <span
-                        style={{
-                          fontSize: '0.7rem',
-                          fontWeight: 700,
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                          backgroundColor: doDoc.status === 'ISSUED' ? '#ECFDF5' : '#FFFBEB',
-                          color: doDoc.status === 'ISSUED' ? '#059669' : '#D97706',
-                          border: `1px solid ${doDoc.status === 'ISSUED' ? '#A7F3D0' : '#FDE68A'}`,
-                        }}
+                        className={`badge-pill ${
+                          doDoc.status === 'ISSUED' ? 'badge-blue' : 'badge-yellow'
+                        } badge-sm`}
                       >
                         {doDoc.status}
                       </span>
@@ -650,7 +568,7 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Detail Modals for Recent Rows */}
+      {/* Detail Modals for Interactive Activity Rows */}
       <MovementDetailModal
         isOpen={isMovementModalOpen}
         movementId={selectedMovementId}

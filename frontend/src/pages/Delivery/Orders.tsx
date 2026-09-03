@@ -272,8 +272,12 @@ export const Orders: React.FC = () => {
       key: 'date',
       header: 'Date',
       render: (item: DeliveryOrderListItem) => (
-        <span style={{ color: '#4B5563', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
-          {new Date(item.date).toLocaleDateString()}
+        <span style={{ color: '#4B5563', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+          {new Date(item.date).toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+          })}
         </span>
       ),
     },

@@ -4,51 +4,123 @@ export interface StatusBadgeProps {
   status: boolean | string;
   activeText?: string;
   inactiveText?: string;
-  type?: 'status' | 'tracking' | 'condition';
+  type?: 'status' | 'tracking' | 'condition' | 'stockHealth' | 'orderStatus' | 'projectStatus';
   label?: string;
+  size?: 'sm' | 'md';
 }
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({
   status,
   activeText = 'Active',
   inactiveText = 'Inactive',
-  type = 'status',
+  type,
   label: customLabel,
+  size = 'md',
 }) => {
-  if (type === 'tracking') {
-    const isSerialized = String(status).toUpperCase() === 'SERIALIZED';
+  const str = String(status).trim();
+  const lower = str.toLowerCase();
+
+  // 1. Explicit or auto-detected tracking badge
+  if (type === 'tracking' || lower === 'bulk' || lower === 'serialized') {
+    const isSerialized = lower === 'serialized';
     return (
-      <span className={`badge-tracking ${isSerialized ? 'type-serialized' : 'type-bulk'}`}>
+      <span
+        className={`badge-pill ${isSerialized ? 'tracking-serialized' : 'tracking-bulk'} ${
+          size === 'sm' ? 'badge-sm' : ''
+        }`}
+      >
         {customLabel || (isSerialized ? 'Serialized' : 'Bulk')}
       </span>
     );
   }
 
-  if (type === 'condition') {
-    const val = String(status).toLowerCase();
-    let conditionClass = 'good';
-    if (val.includes('bad')) conditionClass = 'bad';
-    else if (val.includes('repair')) conditionClass = 'repair';
-    else if (val.includes('deploy')) conditionClass = 'deploy';
+  // 2. Semantic Color Mapping
+  let colorVariant: 'green' | 'yellow' | 'red' | 'blue' | 'gray' = 'gray';
+  let displayLabel = customLabel || str;
 
-    return (
-      <span className={`badge-condition ${conditionClass}`}>
-        {customLabel || status}
-      </span>
-    );
-  }
-
-  let isActive = false;
   if (typeof status === 'boolean') {
-    isActive = status;
-  } else {
-    const s = String(status).toLowerCase();
-    isActive = s === 'active' || s === 'completed' || s === 'approved' || s === 'in_stock';
+    colorVariant = status ? 'green' : 'gray';
+    displayLabel = status ? activeText : inactiveText;
+  } else if (
+    lower === 'active' ||
+    lower === 'standby good' ||
+    lower === 'standby_good' ||
+    lower === 'normal' ||
+    lower === 'in_stock' ||
+    lower === 'in stock' ||
+    lower === 'good'
+  ) {
+    colorVariant = 'green';
+    if (!customLabel) {
+      if (lower.includes('standby')) displayLabel = 'Standby Good';
+      else if (lower === 'normal') displayLabel = 'Normal Stock';
+      else displayLabel = 'Active';
+    }
+  } else if (
+    lower === 'draft' ||
+    lower === 'low stock' ||
+    lower === 'low_stock' ||
+    lower === 'warning' ||
+    lower === 'pending'
+  ) {
+    colorVariant = 'yellow';
+    if (!customLabel) {
+      if (lower.includes('low')) displayLabel = 'Low Stock';
+      else if (lower === 'draft') displayLabel = 'Draft';
+      else displayLabel = str;
+    }
+  } else if (
+    lower === 'under repair' ||
+    lower === 'under_repair' ||
+    lower === 'repair' ||
+    lower === 'standby bad' ||
+    lower === 'standby_bad' ||
+    lower === 'bad' ||
+    lower === 'out of stock' ||
+    lower === 'out_of_stock' ||
+    lower === 'cancelled' ||
+    lower === 'canceled'
+  ) {
+    colorVariant = 'red';
+    if (!customLabel) {
+      if (lower.includes('repair')) displayLabel = 'Under Repair';
+      else if (lower.includes('bad')) displayLabel = 'Standby Bad';
+      else if (lower.includes('out')) displayLabel = 'Out of Stock';
+      else if (lower.includes('cancel')) displayLabel = 'Cancelled';
+      else displayLabel = str;
+    }
+  } else if (
+    lower === 'deploy' ||
+    lower === 'deployed' ||
+    lower === 'issued' ||
+    lower === 'shipped' ||
+    lower === 'delivered'
+  ) {
+    // DEPLOY MUST BE BLUE (currently in field/at project)
+    colorVariant = 'blue';
+    if (!customLabel) {
+      if (lower === 'deploy' || lower === 'deployed') displayLabel = 'Deploy';
+      else if (lower === 'issued') displayLabel = 'Issued';
+      else displayLabel = str;
+    }
+  } else if (
+    lower === 'completed' ||
+    lower === 'inactive' ||
+    lower === 'closed' ||
+    lower === 'archived'
+  ) {
+    // COMPLETED MUST BE GRAY
+    colorVariant = 'gray';
+    if (!customLabel) {
+      displayLabel = lower === 'completed' ? 'Completed' : 'Inactive';
+    }
   }
 
   return (
-    <span className={`badge-status ${isActive ? 'active' : 'inactive'}`}>
-      {customLabel || (isActive ? activeText : inactiveText)}
+    <span className={`badge-pill badge-${colorVariant} ${size === 'sm' ? 'badge-sm' : ''}`}>
+      {displayLabel}
     </span>
   );
 };
+
+export default StatusBadge;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Input, Button } from '../ui/index.js';
-import { Plus, Check, Warehouse as WarehouseIcon } from 'lucide-react';
+import { Plus, Check, Info } from 'lucide-react';
 import { apiClient } from '../../api/client.js';
 
 export interface InventoryItemOption {
@@ -35,8 +35,8 @@ export const InventoryPicker: React.FC<InventoryPickerProps> = ({
   selectedItemKeys = [],
   lockedWarehouseId = null,
   lockedWarehouseName = null,
-  searchPlaceholder = 'Search item name, brand, model number, serial number, warehouse...',
-  height = '240px',
+  searchPlaceholder = 'Search item name, brand, model, SN, or hub...',
+  height = '230px',
 }) => {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -44,11 +44,16 @@ export const InventoryPicker: React.FC<InventoryPickerProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Auto-focus search input on mount
+  useEffect(() => {
+    searchInputRef.current?.focus();
+  }, []);
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
-    }, 250);
+    }, 200);
     return () => clearTimeout(timer);
   }, [search]);
 
@@ -92,6 +97,27 @@ export const InventoryPicker: React.FC<InventoryPickerProps> = ({
         flexDirection: 'column',
       }}
     >
+      {/* Source Hub Lock Banner (Contextual Information, not an error) */}
+      {lockedWarehouseId && (
+        <div
+          style={{
+            backgroundColor: '#EFF6FF',
+            borderBottom: '1px solid #BFDBFE',
+            padding: '6px 12px',
+            fontSize: '0.75rem',
+            color: '#1E40AF',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+          }}
+        >
+          <Info size={14} color="#2250A1" />
+          <span>
+            Source Hub locked to <strong>{lockedWarehouseName || `Hub #${lockedWarehouseId}`}</strong> &mdash; Only inventory from this warehouse can be included in this transaction.
+          </span>
+        </div>
+      )}
+
       {/* Search Header */}
       <div
         style={{
@@ -109,37 +135,22 @@ export const InventoryPicker: React.FC<InventoryPickerProps> = ({
             placeholder={searchPlaceholder}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ fontSize: '0.85rem', padding: '6px 10px' }}
+            style={{ fontSize: '0.825rem', padding: '5px 8px' }}
           />
         </div>
-        {lockedWarehouseId && (
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '4px 8px',
-              backgroundColor: '#EFF6FF',
-              color: '#2250A1',
-              borderRadius: '4px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              flexShrink: 0,
-            }}
-          >
-            <WarehouseIcon size={12} /> {lockedWarehouseName || `Hub #${lockedWarehouseId}`}
-          </div>
-        )}
+        <div style={{ fontSize: '0.75rem', color: '#64748B', whiteSpace: 'nowrap', fontWeight: 600 }}>
+          {inventory.length} available
+        </div>
       </div>
 
-      {/* Scrollable Inventory List */}
+      {/* Scrollable Inventory List with Sticky Table Header */}
       <div style={{ maxHeight: height, overflowY: 'auto' }}>
         {isLoading ? (
-          <div style={{ padding: '1.5rem', textAlign: 'center', color: '#64748B', fontSize: '0.85rem' }}>
-            Loading available inventory...
+          <div style={{ padding: '1.5rem', textAlign: 'center', color: '#64748B', fontSize: '0.825rem' }}>
+            Loading available warehouse inventory...
           </div>
         ) : inventory.length === 0 ? (
-          <div style={{ padding: '1.75rem 1rem', textAlign: 'center', color: '#64748B', fontSize: '0.85rem' }}>
+          <div style={{ padding: '1.5rem 1rem', textAlign: 'center', color: '#64748B', fontSize: '0.825rem' }}>
             {search ? (
               <div>
                 <p style={{ margin: '0 0 4px 0', fontWeight: 600, color: '#334155' }}>
@@ -170,14 +181,14 @@ export const InventoryPicker: React.FC<InventoryPickerProps> = ({
             )}
           </div>
         ) : (
-          <table className="data-table" style={{ margin: 0, fontSize: '0.85rem' }}>
+          <table className="data-table" style={{ margin: 0, fontSize: '0.8rem' }}>
             <thead>
               <tr style={{ position: 'sticky', top: 0, backgroundColor: '#F1F5F9', zIndex: 1 }}>
-                <th>Item &amp; Details</th>
-                <th>Hub / Warehouse</th>
-                <th style={{ width: '80px', textAlign: 'center' }}>Type</th>
-                <th style={{ width: '90px', textAlign: 'right' }}>Available</th>
-                <th style={{ width: '85px', textAlign: 'center' }}>Action</th>
+                <th style={{ padding: '6px 8px' }}>Item &amp; Details</th>
+                <th style={{ padding: '6px 8px' }}>Hub / Location</th>
+                <th style={{ width: '70px', textAlign: 'center', padding: '6px 8px' }}>Type</th>
+                <th style={{ width: '85px', textAlign: 'right', padding: '6px 8px' }}>Available</th>
+                <th style={{ width: '75px', textAlign: 'center', padding: '6px 8px' }}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -194,60 +205,64 @@ export const InventoryPicker: React.FC<InventoryPickerProps> = ({
                       backgroundColor: isSelected ? '#F0FDF4' : undefined,
                     }}
                   >
-                    <td>
+                    <td style={{ padding: '6px 8px' }}>
                       <div style={{ fontWeight: 600, color: '#1E293B' }}>{item.itemName}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#64748B' }}>
+                      <div style={{ fontSize: '0.725rem', color: '#64748B' }}>
                         {item.brand && `${item.brand} `}
-                        {item.modelNumber && `| MN: ${item.modelNumber}`}
+                        {item.modelNumber && `[MN: ${item.modelNumber}] `}
                         {item.serialNumber && (
-                          <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#2250A1', marginLeft: '6px' }}>
-                            SN: {item.serialNumber} {item.condition ? `(${item.condition})` : ''}
+                          <span
+                            style={{
+                              fontFamily: 'monospace',
+                              fontWeight: 700,
+                              color: '#2250A1',
+                              backgroundColor: '#EFF6FF',
+                              padding: '1px 4px',
+                              borderRadius: '3px',
+                            }}
+                          >
+                            SN: {item.serialNumber}
                           </span>
                         )}
                       </div>
                     </td>
 
-                    <td>
-                      <span style={{ fontSize: '0.8rem', color: '#334155' }}>
+                    <td style={{ padding: '6px 8px' }}>
+                      <span style={{ fontSize: '0.775rem', color: '#334155' }}>
                         {item.warehouseName} <strong>[{item.cityCode}]</strong>
                       </span>
                     </td>
 
-                    <td style={{ textAlign: 'center' }}>
+                    <td style={{ textAlign: 'center', padding: '6px 8px' }}>
                       <span
-                        style={{
-                          fontSize: '0.7rem',
-                          fontWeight: 700,
-                          padding: '2px 5px',
-                          borderRadius: '4px',
-                          backgroundColor: item.trackingType === 'SERIALIZED' ? '#F5F3FF' : '#F1F5F9',
-                          color: item.trackingType === 'SERIALIZED' ? '#7C3AED' : '#475569',
-                        }}
+                        className={`badge-pill ${
+                          item.trackingType === 'SERIALIZED' ? 'tracking-serialized' : 'tracking-bulk'
+                        } badge-sm`}
                       >
-                        {item.trackingType}
+                        {item.trackingType === 'SERIALIZED' ? 'SERIAL' : 'BULK'}
                       </span>
                     </td>
 
-                    <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                    <td style={{ textAlign: 'right', fontWeight: 600, padding: '6px 8px' }}>
                       {item.availableQty} {item.unitSymbol}
                     </td>
 
-                    <td style={{ textAlign: 'center' }}>
+                    <td style={{ textAlign: 'center', padding: '6px 8px' }}>
                       <Button
                         type="button"
                         variant={isSelected ? 'secondary' : 'primary'}
                         size="sm"
                         disabled={isWarehouseMismatched || isSelected}
                         onClick={() => onSelectItem(item)}
-                        style={{ padding: '3px 8px', fontSize: '0.75rem' }}
+                        style={{ padding: '2px 7px', fontSize: '0.725rem' }}
                       >
                         {isSelected ? (
                           <>
-                            <Check size={12} /> Added
+                            <Check size={11} /> Added
                           </>
                         ) : (
                           <>
-                            <Plus size={12} /> Add
+                            <Plus size={11} /> Add
                           </>
                         )}
                       </Button>
@@ -262,3 +277,5 @@ export const InventoryPicker: React.FC<InventoryPickerProps> = ({
     </div>
   );
 };
+
+export default InventoryPicker;

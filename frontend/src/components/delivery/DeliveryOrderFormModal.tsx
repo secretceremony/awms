@@ -10,7 +10,6 @@ import {
 } from '../ui/index.js';
 import { apiClient } from '../../api/client.js';
 import {
-  Warehouse as WarehouseIcon,
   Trash2,
   AlertCircle,
   ArrowRight,
@@ -381,17 +380,16 @@ export const DeliveryOrderFormModal: React.FC<DeliveryOrderFormModalProps> = ({
               </div>
             )}
 
-            {/* Stepper Header */}
+            {/* Step Wizard Indicator */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '12px',
-                padding: '8px 12px',
-                backgroundColor: '#F1F5F9',
-                borderRadius: '6px',
+                gap: '8px',
                 marginBottom: '1rem',
-                fontSize: '0.85rem',
+                paddingBottom: '0.75rem',
+                borderBottom: '1px solid #E2E8F0',
+                fontSize: '0.8rem',
               }}
             >
               <div
@@ -408,12 +406,13 @@ export const DeliveryOrderFormModal: React.FC<DeliveryOrderFormModalProps> = ({
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    width: '22px',
-                    height: '22px',
+                    width: '20px',
+                    height: '20px',
                     borderRadius: '50%',
                     backgroundColor: step === 1 ? '#2250A1' : '#CBD5E1',
                     color: '#FFFFFF',
                     fontSize: '0.75rem',
+                    fontWeight: 700,
                   }}
                 >
                   1
@@ -421,7 +420,7 @@ export const DeliveryOrderFormModal: React.FC<DeliveryOrderFormModalProps> = ({
                 Delivery Information
               </div>
 
-              <div style={{ color: '#CBD5E1' }}>→</div>
+              <ArrowRight size={14} color="#94A3B8" />
 
               <div
                 style={{
@@ -437,12 +436,13 @@ export const DeliveryOrderFormModal: React.FC<DeliveryOrderFormModalProps> = ({
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    width: '22px',
-                    height: '22px',
+                    width: '20px',
+                    height: '20px',
                     borderRadius: '50%',
                     backgroundColor: step === 2 ? '#2250A1' : '#CBD5E1',
                     color: '#FFFFFF',
                     fontSize: '0.75rem',
+                    fontWeight: 700,
                   }}
                 >
                   2
@@ -455,23 +455,23 @@ export const DeliveryOrderFormModal: React.FC<DeliveryOrderFormModalProps> = ({
             {step === 1 && (
               <div>
                 <div className="form-grid" style={{ marginBottom: '1rem' }}>
-                  <FormField label="Destination Project" required style={{ marginBottom: 0 }}>
+                  <FormField label="Destination Project *" style={{ marginBottom: 0 }}>
                     <Select
                       disabled={Boolean(deliveryOrderId)}
                       required
                       value={selectedProjectId}
                       onChange={(e) => setSelectedProjectId(e.target.value)}
                     >
-                      <option value="">Select Project...</option>
+                      <option value="">Select Destination Project...</option>
                       {projects.map((p) => (
                         <option key={p.id} value={p.id}>
-                          {p.name} {p.siteCode ? `[${p.siteCode}]` : ''} — {p.client?.name || 'No Client'}
+                          {p.name} {p.siteCode ? `[${p.siteCode}]` : ''} &mdash; {p.client?.name || 'No Client'}
                         </option>
                       ))}
                     </Select>
                   </FormField>
 
-                  <FormField label="Document Date" required style={{ marginBottom: 0 }}>
+                  <FormField label="Document Date *" style={{ marginBottom: 0 }}>
                     <Input
                       type="date"
                       required
@@ -520,7 +520,7 @@ export const DeliveryOrderFormModal: React.FC<DeliveryOrderFormModalProps> = ({
                 )}
 
                 {/* Rule 21: Activity remains free text */}
-                <FormField label="Activity" required>
+                <FormField label="Activity / Dispatch Purpose *">
                   <Input
                     placeholder="e.g. Mobilization, Site Equipment Replacement, Maintenance Dispatch..."
                     required
@@ -542,18 +542,22 @@ export const DeliveryOrderFormModal: React.FC<DeliveryOrderFormModalProps> = ({
             {/* STEP 2: INVENTORY & LINE ITEMS */}
             {step === 2 && (
               <div>
-                {/* Project Context Summary */}
+                {/* Persistent Situational Summary Strip */}
                 {selectedProject && (
                   <div
                     style={{
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '8px',
                       padding: '8px 12px',
-                      backgroundColor: '#EFF6FF',
+                      backgroundColor: '#F8FAFC',
+                      border: '1px solid #E2E8F0',
+                      borderLeft: '4px solid #2250A1',
                       borderRadius: '6px',
                       marginBottom: '1rem',
-                      fontSize: '0.85rem',
+                      fontSize: '0.8rem',
                     }}
                   >
                     <div>
@@ -561,22 +565,47 @@ export const DeliveryOrderFormModal: React.FC<DeliveryOrderFormModalProps> = ({
                       <strong style={{ color: '#1E293B' }}>{selectedProject.name}</strong>
                       <span style={{ color: '#64748B' }}> | Ref: </span>
                       <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#2250A1' }}>
-                        {selectedProject.referenceNumber}
+                        {selectedProject.referenceNumber || '—'}
                       </span>
                     </div>
-                    {establishedWarehouseId && (
-                      <div
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          color: '#2250A1',
-                          fontWeight: 600,
-                        }}
-                      >
-                        <WarehouseIcon size={14} /> {establishedWarehouseName}
+
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      <div>
+                        <span style={{ color: '#64748B' }}>Source Hub: </span>
+                        <strong style={{ color: establishedWarehouseName ? '#2250A1' : '#64748B' }}>
+                          {establishedWarehouseName || 'Unassigned (pick item)'}
+                        </strong>
                       </div>
-                    )}
+
+                      <div style={{ width: '1px', height: '14px', backgroundColor: '#CBD5E1' }} />
+
+                      <div>
+                        <span style={{ color: '#64748B' }}>Items: </span>
+                        <strong style={{ color: '#1E293B' }}>{selectedItems.length}</strong>
+                      </div>
+
+                      <div style={{ width: '1px', height: '14px', backgroundColor: '#CBD5E1' }} />
+
+                      <div>
+                        <span style={{ color: '#64748B' }}>Serials: </span>
+                        <strong style={{ color: '#7C3AED' }}>
+                          {selectedItems
+                            .filter((i) => i.trackingType === 'SERIALIZED')
+                            .reduce((acc, curr) => acc + (curr.serialNumbers?.length || 0), 0)}
+                        </strong>
+                      </div>
+
+                      <div style={{ width: '1px', height: '14px', backgroundColor: '#CBD5E1' }} />
+
+                      <div>
+                        <span style={{ color: '#64748B' }}>Bulk: </span>
+                        <strong style={{ color: '#0284C7' }}>
+                          {selectedItems
+                            .filter((i) => i.trackingType === 'BULK')
+                            .reduce((acc, curr) => acc + curr.quantity, 0)}
+                        </strong>
+                      </div>
+                    </div>
                   </div>
                 )}
 

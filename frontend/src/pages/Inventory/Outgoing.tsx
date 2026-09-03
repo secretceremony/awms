@@ -181,10 +181,14 @@ export const Outgoing: React.FC = () => {
       header: 'Movement Date',
       render: (m: OutgoingMovement) => (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontWeight: 600, color: '#1F2839' }}>
-            {new Date(m.movementDate).toLocaleDateString()}
+          <span style={{ fontWeight: 600, color: '#1F2839', fontSize: '0.8rem' }}>
+            {new Date(m.movementDate).toLocaleDateString('en-GB', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+            })}
           </span>
-          <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>
+          <span style={{ fontSize: '0.725rem', color: '#6B7280', fontFamily: 'monospace' }}>
             {m.movementNumber}
           </span>
         </div>

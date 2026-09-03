@@ -162,11 +162,11 @@ export const Incoming: React.FC = () => {
       header: 'Movement Date',
       key: 'movementDate',
       render: (m) => (
-        <span style={{ fontSize: '13px', color: '#4B5563', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: '0.8rem', color: '#4B5563', whiteSpace: 'nowrap' }}>
           {new Date(m.movementDate).toLocaleDateString('en-GB', {
             day: '2-digit',
-            month: 'short',
-            year: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
           })}
         </span>
       ),
