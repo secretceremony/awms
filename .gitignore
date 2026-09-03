@@ -12,3 +12,9 @@ dist/
 agents.md
 PROGRESS.md
 .local-docs/
+
+# Local AI agent skills and configuration
+.agents/
+.claude/
+.windsurf/
+
