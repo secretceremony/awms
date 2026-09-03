@@ -335,7 +335,7 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
                   />
                 </FormField>
 
-                <FormField label="Attn / Recipient PIC">
+                <FormField label="Attn / Recipient Name">
                   <Input
                     placeholder="e.g. Budi Santoso (0812-345678)"
                     value={formData.attnName}

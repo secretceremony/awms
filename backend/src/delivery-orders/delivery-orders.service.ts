@@ -177,6 +177,13 @@ export class DeliveryOrdersService {
             );
           }
 
+          if (itemSerial.state !== 'STANDBY_GOOD') {
+            const condition = itemSerial.conditionLabel || itemSerial.state;
+            throw new BadRequestException(
+              `Serial number "${trimmedSn}" is not available for deployment because its current condition is ${condition}.`,
+            );
+          }
+
           if (!inferredWarehouseId) {
             inferredWarehouseId = itemSerial.currentWarehouseId;
           } else if (inferredWarehouseId !== itemSerial.currentWarehouseId) {
@@ -553,6 +560,13 @@ export class DeliveryOrdersService {
             ) {
               throw new BadRequestException(
                 `Serial number ${s.serialNumber} is not available in warehouse ${warehouse.name}`,
+              );
+            }
+
+            if (itemSerial.state !== 'STANDBY_GOOD') {
+              const condition = itemSerial.conditionLabel || itemSerial.state;
+              throw new BadRequestException(
+                `Serial number ${s.serialNumber} is not available for deployment because its current condition is ${condition}.`,
               );
             }
 

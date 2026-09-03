@@ -11,3 +11,4 @@ dist/
 # Untracked documentation files
 agents.md
 PROGRESS.md
+.local-docs/

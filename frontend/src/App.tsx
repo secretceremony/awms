@@ -40,12 +40,18 @@ function App() {
               <Route path="/warehouses" element={<Warehouses />} />
               <Route path="/projects" element={<Projects />} />
               <Route path="/clients" element={<Clients />} />
-              <Route path="/customers" element={<Clients />} />
+              <Route path="/customers" element={<Navigate to="/clients" replace />} />
               <Route path="/units" element={<Navigate to="/settings?tab=units" replace />} />
               <Route path="/delivery-orders" element={<Orders />} />
               <Route path="/shipping-labels" element={<Labels />} />
-              <Route path="/logs" element={<Logs />} />
-              <Route path="/settings" element={<Settings />} />
+
+              {/* Admin-only Protected Sub-routes */}
+              <Route element={<ProtectedRoute requiredPermission="view_audit_logs" />}>
+                <Route path="/logs" element={<Logs />} />
+              </Route>
+              <Route element={<ProtectedRoute requiredPermission="manage_settings" />}>
+                <Route path="/settings" element={<Settings />} />
+              </Route>
             </Route>
           </Route>
         </Routes>

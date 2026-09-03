@@ -215,7 +215,7 @@ export const DeliveryOrderPrintView: React.FC<DeliveryOrderPrintViewProps> = ({
                 </tr>
                 <tr>
                   <td style={{ fontWeight: 'bold', color: '#334155', padding: '2px 0', verticalAlign: 'top' }}>
-                    Attn / PIC
+                    Attn
                   </td>
                   <td style={{ padding: '2px 0', verticalAlign: 'top' }}>:</td>
                   <td style={{ padding: '2px 0', color: '#000000' }}>

@@ -61,14 +61,14 @@ Authentication
 
 ## 🔑 Environment Variables
 
-The project uses `.env` configuration files. Reference [.env.example](.env.example) for baseline parameters:
+The project uses environment variable configuration files. Configure required environment variables referencing [.env.example](.env.example):
 
 | Variable | Description | Example / Default |
 | :--- | :--- | :--- |
 | `PORT` | Backend HTTP port | `3000` |
 | `NODE_ENV` | Runtime environment | `development` / `production` |
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@localhost:5432/awms?schema=public` |
-| `JWT_SECRET` | Secret key for signing session tokens | `awms-jwt-secret-placeholder-key-2026` |
+| `JWT_SECRET` | Secret key for signing session tokens | `your-secure-jwt-secret-key` |
 | `FRONTEND_URL` | Allowed client origin for CORS | `http://localhost:5173` |
 
 ---
@@ -88,8 +88,10 @@ cd awms
 # Install dependencies
 npm install
 
-# Setup environment & database
+# Configure environment & database
 cp .env.example backend/.env
+# (Configure your local database credentials and SEED_ADMIN_PASSWORD in backend/.env)
+
 cd backend
 npx prisma migrate dev
 npx prisma db seed
@@ -103,10 +105,6 @@ npm run dev
 ```
 - **Frontend Client**: [http://localhost:5173](http://localhost:5173)
 - **Backend API**: [http://localhost:3000](http://localhost:3000)
-
-### 4. Demo Credentials
-- **Email**: `admin.logistics@alssa.com`
-- **Password**: `securepassword123`
 
 ---
 
@@ -129,7 +127,7 @@ npm run build:frontend
 awms/
 ├── frontend/             # React 19 Vite client application
 ├── backend/              # NestJS REST API server & Prisma schema
-└── docs/                 # Operational & technical documentation
+└── archive/              # Packaged project documentation archive
 ```
 
 ---

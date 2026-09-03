@@ -6,11 +6,12 @@ import {
   createPaginationResult,
   PaginatedResult,
 } from '../common/helpers/pagination.helper.js';
-import { TrackingType } from '../../generated/prisma/client.js';
+import { TrackingType, Prisma } from '../../generated/prisma/client.js';
 
 export interface StockRow {
   id: string;
   itemId: number;
+  warehouseId?: number | null;
   registeredDate: string;
   location: string;
   locationType: 'WAREHOUSE' | 'PROJECT' | 'NONE';
@@ -32,273 +33,620 @@ export class StocksService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getStockList(
-    paginationDto: PaginationDto & { trackingType?: string; warehouseId?: number },
+    paginationDto: PaginationDto & {
+      trackingType?: string;
+      warehouseId?: number;
+      status?: string;
+    },
   ): Promise<PaginatedResult<StockRow>> {
     const page = paginationDto.page ?? 1;
     const limit = paginationDto.limit ?? 10;
-    const search = paginationDto.search?.trim().toLowerCase();
+    const search = paginationDto.search?.trim();
     const trackingFilter = paginationDto.trackingType?.toUpperCase();
-    const warehouseFilter = paginationDto.warehouseId ? Number(paginationDto.warehouseId) : undefined;
-
-    const rows: StockRow[] = [];
+    const warehouseFilter = paginationDto.warehouseId
+      ? Number(paginationDto.warehouseId)
+      : undefined;
+    const statusParam = paginationDto.status?.trim().toLowerCase();
 
     const lowStockSetting = await this.prisma.systemSetting.findUnique({
       where: { key: 'inventory.lowStockThreshold' },
     });
-    const lowStockThreshold = lowStockSetting ? parseInt(lowStockSetting.value, 10) : 5;
+    const lowStockThreshold = lowStockSetting
+      ? parseInt(lowStockSetting.value, 10)
+      : 5;
 
-    // 1. Bulk Items & Stocks
-    if (!trackingFilter || trackingFilter === 'ALL' || trackingFilter === 'BULK') {
-      const bulkItems = await this.prisma.item.findMany({
-        where: {
-          trackingType: TrackingType.BULK,
-          isActive: true,
-        },
-        include: {
-          unit: { select: { name: true, symbol: true } },
-          warehouseStocks: {
-            where: {
-              ...(warehouseFilter && { warehouseId: warehouseFilter }),
-            },
-            include: {
-              warehouse: { select: { id: true, name: true, cityCode: true, location: true } },
-            },
-          },
-          stockMovementItems: {
-            take: 1,
-            orderBy: { createdAt: 'asc' },
-            select: { createdAt: true },
-          },
-        },
-        orderBy: { name: 'asc' },
+    // Helper functions for status checking
+    const isSerializedStatus =
+      statusParam === 'deploy' ||
+      statusParam === 'deployed' ||
+      statusParam === 'in warehouse' ||
+      statusParam === 'in_warehouse' ||
+      statusParam === 'under repair' ||
+      statusParam === 'under_repair' ||
+      statusParam === 'standby good' ||
+      statusParam === 'standby_good' ||
+      statusParam === 'standby bad' ||
+      statusParam === 'standby_bad';
+
+    const isBulkStatus =
+      statusParam === 'low stock' ||
+      statusParam === 'low_stock' ||
+      statusParam === 'normal' ||
+      statusParam === 'out of stock' ||
+      statusParam === 'out_of_stock';
+
+    // 1. If only BULK is requested (or status matches bulk-specific status)
+    if (
+      trackingFilter === 'BULK' ||
+      (isBulkStatus && trackingFilter !== 'SERIALIZED')
+    ) {
+      return this.getBulkStockList({
+        page,
+        limit,
+        search,
+        warehouseId: warehouseFilter,
+        statusParam,
+        lowStockThreshold,
       });
-
-      for (const item of bulkItems) {
-        const regDate =
-          item.stockMovementItems[0]?.createdAt?.toISOString() ||
-          item.createdAt?.toISOString();
-
-        const activeStocks = item.warehouseStocks.filter((ws) => ws.quantity > 0);
-
-        if (activeStocks.length > 0) {
-          for (const stock of activeStocks) {
-            const locName = stock.warehouse.cityCode || stock.warehouse.name;
-            const statusLabel =
-              stock.quantity === 0
-                ? 'Out of Stock'
-                : stock.quantity <= lowStockThreshold
-                ? 'Low Stock'
-                : 'Normal';
-
-            rows.push({
-              id: `bulk-wh-${stock.warehouseId}-item-${item.id}`,
-              itemId: item.id,
-              registeredDate: regDate,
-              location: locName,
-              locationType: 'WAREHOUSE',
-              itemName: item.name,
-              brand: item.brand,
-              modelNumber: item.modelNumber,
-              serialNumber: '-',
-              trackingType: 'BULK',
-              quantity: stock.quantity,
-              unit: item.unit.name,
-              unitSymbol: item.unit.symbol || item.unit.name,
-              condition: '-',
-              currentStatus: statusLabel,
-              notes: '-',
-            });
-          }
-        } else if (!warehouseFilter) {
-          // Unassigned / 0 quantity bulk item
-          rows.push({
-            id: `bulk-item-${item.id}-nostock`,
-            itemId: item.id,
-            registeredDate: regDate,
-            location: '-',
-            locationType: 'NONE',
-            itemName: item.name,
-            brand: item.brand,
-            modelNumber: item.modelNumber,
-            serialNumber: '-',
-            trackingType: 'BULK',
-            quantity: 0,
-            unit: item.unit.name,
-            unitSymbol: item.unit.symbol || item.unit.name,
-            condition: '-',
-            currentStatus: 'Out of Stock',
-            notes: '-',
-          });
-        }
-      }
     }
 
-    // 2. Serialized Items & Serials
-    if (!trackingFilter || trackingFilter === 'ALL' || trackingFilter === 'SERIALIZED') {
-      const serializedItems = await this.prisma.item.findMany({
-        where: {
-          trackingType: TrackingType.SERIALIZED,
-          isActive: true,
-        },
+    // 2. If only SERIALIZED is requested (or status matches serialized-specific status)
+    if (
+      trackingFilter === 'SERIALIZED' ||
+      (isSerializedStatus && trackingFilter !== 'BULK')
+    ) {
+      return this.getSerializedStockList({
+        page,
+        limit,
+        search,
+        warehouseId: warehouseFilter,
+        statusParam,
+      });
+    }
+
+    // 3. If ALL tracking types are requested
+    return this.getCombinedStockList({
+      page,
+      limit,
+      search,
+      warehouseId: warehouseFilter,
+      statusParam,
+      lowStockThreshold,
+    });
+  }
+
+  private async getBulkStockList(params: {
+    page: number;
+    limit: number;
+    search?: string;
+    warehouseId?: number;
+    statusParam?: string;
+    lowStockThreshold: number;
+  }): Promise<PaginatedResult<StockRow>> {
+    const { page, limit, search, warehouseId, statusParam, lowStockThreshold } =
+      params;
+    const { skip, take } = getSkipAndTake(page, limit);
+
+    // Build Prisma query condition on warehouseStock
+    const where: Prisma.WarehouseStockWhereInput = {
+      item: {
+        trackingType: TrackingType.BULK,
+        isActive: true,
+        ...(search && {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+            { brand: { contains: search, mode: 'insensitive' } },
+            { modelNumber: { contains: search, mode: 'insensitive' } },
+          ],
+        }),
+      },
+      ...(warehouseId && { warehouseId }),
+    };
+
+    if (statusParam === 'low stock' || statusParam === 'low_stock') {
+      where.quantity = { gt: 0, lte: lowStockThreshold };
+    } else if (statusParam === 'normal') {
+      where.quantity = { gt: lowStockThreshold };
+    } else if (statusParam === 'out of stock' || statusParam === 'out_of_stock') {
+      where.quantity = { equals: 0 };
+    }
+
+    const [stocks, total] = await Promise.all([
+      this.prisma.warehouseStock.findMany({
+        where,
+        skip,
+        take,
         include: {
-          unit: { select: { name: true, symbol: true } },
-          itemSerials: {
-            where: {
-              ...(warehouseFilter && { currentWarehouseId: warehouseFilter }),
-            },
+          warehouse: {
+            select: { id: true, name: true, cityCode: true, location: true },
+          },
+          item: {
             include: {
-              currentWarehouse: { select: { id: true, name: true, cityCode: true } },
-              currentProject: { select: { id: true, name: true, location: true, siteCode: true } },
-              movementSerials: {
+              unit: { select: { name: true, symbol: true } },
+              stockMovementItems: {
                 take: 1,
                 orderBy: { createdAt: 'asc' },
-                select: {
-                  stockMovementItem: {
-                    select: {
-                      stockMovement: {
-                        select: { createdAt: true },
-                      },
-                    },
-                  },
+                select: { createdAt: true },
+              },
+            },
+          },
+        },
+        orderBy: [{ warehouse: { name: 'asc' } }, { item: { name: 'asc' } }],
+      }),
+      this.prisma.warehouseStock.count({ where }),
+    ]);
+
+    const rows: StockRow[] = stocks.map((s) => {
+      const regDate =
+        s.item.stockMovementItems[0]?.createdAt?.toISOString() ||
+        s.createdAt.toISOString();
+      const statusLabel =
+        s.quantity === 0
+          ? 'Out of Stock'
+          : s.quantity <= lowStockThreshold
+          ? 'Low Stock'
+          : 'Normal';
+
+      return {
+        id: `bulk-wh-${s.warehouseId}-item-${s.itemId}`,
+        itemId: s.itemId,
+        warehouseId: s.warehouseId,
+        registeredDate: regDate,
+        location: s.warehouse.cityCode || s.warehouse.name,
+        locationType: 'WAREHOUSE',
+        itemName: s.item.name,
+        brand: s.item.brand,
+        modelNumber: s.item.modelNumber,
+        serialNumber: '-',
+        trackingType: 'BULK',
+        quantity: s.quantity,
+        unit: s.item.unit.name,
+        unitSymbol: s.item.unit.symbol || s.item.unit.name,
+        condition: '-',
+        currentStatus: statusLabel,
+        notes: '-',
+      };
+    });
+
+    return createPaginationResult(rows, total, page, limit);
+  }
+
+  private async getSerializedStockList(params: {
+    page: number;
+    limit: number;
+    search?: string;
+    warehouseId?: number;
+    statusParam?: string;
+  }): Promise<PaginatedResult<StockRow>> {
+    const { page, limit, search, warehouseId, statusParam } = params;
+    const { skip, take } = getSkipAndTake(page, limit);
+
+    const where: Prisma.ItemSerialWhereInput = {
+      item: {
+        trackingType: TrackingType.SERIALIZED,
+        isActive: true,
+      },
+      ...(warehouseId && { currentWarehouseId: warehouseId }),
+    };
+
+    if (search) {
+      where.OR = [
+        { serialNumber: { contains: search, mode: 'insensitive' } },
+        { item: { name: { contains: search, mode: 'insensitive' } } },
+        { item: { brand: { contains: search, mode: 'insensitive' } } },
+        { item: { modelNumber: { contains: search, mode: 'insensitive' } } },
+        { currentWarehouse: { name: { contains: search, mode: 'insensitive' } } },
+        { currentProject: { name: { contains: search, mode: 'insensitive' } } },
+        { currentProject: { siteCode: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    if (statusParam === 'deploy' || statusParam === 'deployed') {
+      where.currentProjectId = { not: null };
+    } else if (statusParam === 'in warehouse' || statusParam === 'in_warehouse') {
+      where.currentWarehouseId = { not: null };
+      where.currentProjectId = null;
+    } else if (statusParam === 'under repair' || statusParam === 'under_repair') {
+      where.OR = [
+        { state: 'UNDER_REPAIR' },
+        { conditionLabel: { contains: 'repair', mode: 'insensitive' } },
+      ];
+    } else if (statusParam === 'standby good' || statusParam === 'standby_good') {
+      where.state = 'STANDBY_GOOD';
+    } else if (statusParam === 'standby bad' || statusParam === 'standby_bad') {
+      where.state = 'STANDBY_BAD';
+    }
+
+    const [serials, total] = await Promise.all([
+      this.prisma.itemSerial.findMany({
+        where,
+        skip,
+        take,
+        include: {
+          currentWarehouse: {
+            select: { id: true, name: true, cityCode: true },
+          },
+          currentProject: {
+            select: { id: true, name: true, location: true, siteCode: true },
+          },
+          item: {
+            include: {
+              unit: { select: { name: true, symbol: true } },
+              stockMovementItems: {
+                take: 1,
+                orderBy: { createdAt: 'asc' },
+                select: { createdAt: true },
+              },
+            },
+          },
+        },
+        orderBy: [{ createdAt: 'desc' }, { serialNumber: 'asc' }],
+      }),
+      this.prisma.itemSerial.count({ where }),
+    ]);
+
+    const rows: StockRow[] = serials.map((s) => {
+      let locName = '-';
+      let locType: 'WAREHOUSE' | 'PROJECT' | 'NONE' = 'NONE';
+      let currentStatus = 'In Warehouse';
+
+      if (s.currentProjectId && s.currentProject) {
+        locName =
+          s.currentProject.siteCode ||
+          s.currentProject.name ||
+          s.currentProject.location;
+        locType = 'PROJECT';
+        currentStatus = 'Deploy';
+      } else if (s.currentWarehouse) {
+        locName = s.currentWarehouse.cityCode || s.currentWarehouse.name;
+        locType = 'WAREHOUSE';
+        const condLower = (s.conditionLabel || s.state || '').toLowerCase();
+        if (s.state === 'UNDER_REPAIR' || condLower.includes('repair')) {
+          currentStatus = 'Under Repair';
+        } else if (s.state === 'STANDBY_BAD' || condLower.includes('bad')) {
+          currentStatus = 'Standby Bad';
+        } else if (s.state === 'STANDBY_GOOD' || condLower.includes('good')) {
+          currentStatus = 'Standby Good';
+        } else {
+          currentStatus = 'In Warehouse';
+        }
+      } else {
+        currentStatus = 'Out of Stock';
+      }
+
+      const conditionDisplay =
+        s.conditionLabel ||
+        (s.state === 'STANDBY_GOOD'
+          ? 'Standby Good'
+          : s.state === 'STANDBY_BAD'
+          ? 'Standby Bad'
+          : s.state === 'UNDER_REPAIR'
+          ? 'Under Repair'
+          : s.state);
+
+      return {
+        id: `ser-${s.id}`,
+        itemId: s.itemId,
+        warehouseId: s.currentWarehouseId,
+        registeredDate: s.createdAt.toISOString(),
+        location: locName,
+        locationType: locType,
+        itemName: s.item.name,
+        brand: s.item.brand,
+        modelNumber: s.item.modelNumber,
+        serialNumber: s.serialNumber,
+        trackingType: 'SERIALIZED',
+        quantity: 1,
+        unit: s.item.unit.name,
+        unitSymbol: s.item.unit.symbol || s.item.unit.name,
+        condition: conditionDisplay,
+        currentStatus,
+        notes: s.notes || '-',
+      };
+    });
+
+    return createPaginationResult(rows, total, page, limit);
+  }
+
+  private async getCombinedStockList(params: {
+    page: number;
+    limit: number;
+    search?: string;
+    warehouseId?: number;
+    statusParam?: string;
+    lowStockThreshold: number;
+  }): Promise<PaginatedResult<StockRow>> {
+    const { page, limit, search, warehouseId, statusParam, lowStockThreshold } =
+      params;
+    const { skip, take } = getSkipAndTake(page, limit);
+
+    // 1. Build Bulk Where & Count
+    const bulkWhere: Prisma.WarehouseStockWhereInput = {
+      item: {
+        trackingType: TrackingType.BULK,
+        isActive: true,
+        ...(search && {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+            { brand: { contains: search, mode: 'insensitive' } },
+            { modelNumber: { contains: search, mode: 'insensitive' } },
+          ],
+        }),
+      },
+      ...(warehouseId && { warehouseId }),
+    };
+
+    if (statusParam === 'low stock' || statusParam === 'low_stock') {
+      bulkWhere.quantity = { gt: 0, lte: lowStockThreshold };
+    } else if (statusParam === 'normal') {
+      bulkWhere.quantity = { gt: lowStockThreshold };
+    } else if (statusParam === 'out of stock' || statusParam === 'out_of_stock') {
+      bulkWhere.quantity = { equals: 0 };
+    }
+
+    // 2. Build Serialized Where & Count
+    const serialWhere: Prisma.ItemSerialWhereInput = {
+      item: {
+        trackingType: TrackingType.SERIALIZED,
+        isActive: true,
+      },
+      ...(warehouseId && { currentWarehouseId: warehouseId }),
+    };
+
+    if (search) {
+      serialWhere.OR = [
+        { serialNumber: { contains: search, mode: 'insensitive' } },
+        { item: { name: { contains: search, mode: 'insensitive' } } },
+        { item: { brand: { contains: search, mode: 'insensitive' } } },
+        { item: { modelNumber: { contains: search, mode: 'insensitive' } } },
+        { currentWarehouse: { name: { contains: search, mode: 'insensitive' } } },
+        { currentProject: { name: { contains: search, mode: 'insensitive' } } },
+        { currentProject: { siteCode: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const [bulkCount, serialCount] = await Promise.all([
+      this.prisma.warehouseStock.count({ where: bulkWhere }),
+      this.prisma.itemSerial.count({ where: serialWhere }),
+    ]);
+
+    const total = bulkCount + serialCount;
+    const rows: StockRow[] = [];
+
+    // Determine how many bulk and serial items to fetch for current page
+    if (skip < bulkCount) {
+      const bulkTake = Math.min(take, bulkCount - skip);
+      const bulkStocks = await this.prisma.warehouseStock.findMany({
+        where: bulkWhere,
+        skip,
+        take: bulkTake,
+        include: {
+          warehouse: {
+            select: { id: true, name: true, cityCode: true, location: true },
+          },
+          item: {
+            include: {
+              unit: { select: { name: true, symbol: true } },
+              stockMovementItems: {
+                take: 1,
+                orderBy: { createdAt: 'asc' },
+                select: { createdAt: true },
+              },
+            },
+          },
+        },
+        orderBy: [{ warehouse: { name: 'asc' } }, { item: { name: 'asc' } }],
+      });
+
+      for (const s of bulkStocks) {
+        const regDate =
+          s.item.stockMovementItems[0]?.createdAt?.toISOString() ||
+          s.createdAt.toISOString();
+        const statusLabel =
+          s.quantity === 0
+            ? 'Out of Stock'
+            : s.quantity <= lowStockThreshold
+            ? 'Low Stock'
+            : 'Normal';
+
+        rows.push({
+          id: `bulk-wh-${s.warehouseId}-item-${s.itemId}`,
+          itemId: s.itemId,
+          warehouseId: s.warehouseId,
+          registeredDate: regDate,
+          location: s.warehouse.cityCode || s.warehouse.name,
+          locationType: 'WAREHOUSE',
+          itemName: s.item.name,
+          brand: s.item.brand,
+          modelNumber: s.item.modelNumber,
+          serialNumber: '-',
+          trackingType: 'BULK',
+          quantity: s.quantity,
+          unit: s.item.unit.name,
+          unitSymbol: s.item.unit.symbol || s.item.unit.name,
+          condition: '-',
+          currentStatus: statusLabel,
+          notes: '-',
+        });
+      }
+
+      // If page still needs serialized items
+      const remainingTake = take - rows.length;
+      if (remainingTake > 0 && serialCount > 0) {
+        const serials = await this.prisma.itemSerial.findMany({
+          where: serialWhere,
+          skip: 0,
+          take: remainingTake,
+          include: {
+            currentWarehouse: {
+              select: { id: true, name: true, cityCode: true },
+            },
+            currentProject: {
+              select: { id: true, name: true, location: true, siteCode: true },
+            },
+            item: {
+              include: {
+                unit: { select: { name: true, symbol: true } },
+                stockMovementItems: {
+                  take: 1,
+                  orderBy: { createdAt: 'asc' },
+                  select: { createdAt: true },
                 },
               },
             },
-            orderBy: [{ createdAt: 'desc' }, { serialNumber: 'asc' }],
           },
-          stockMovementItems: {
-            take: 1,
-            orderBy: { createdAt: 'asc' },
-            select: { createdAt: true },
-          },
-        },
-        orderBy: { name: 'asc' },
-      });
+          orderBy: [{ createdAt: 'desc' }, { serialNumber: 'asc' }],
+        });
 
-      for (const item of serializedItems) {
-        const itemRegDate =
-          item.stockMovementItems[0]?.createdAt?.toISOString() ||
-          item.createdAt?.toISOString();
+        for (const s of serials) {
+          let locName = '-';
+          let locType: 'WAREHOUSE' | 'PROJECT' | 'NONE' = 'NONE';
+          let currentStatus = 'In Warehouse';
 
-        if (item.itemSerials.length > 0) {
-          for (const s of item.itemSerials) {
-            const regDate =
-              s.movementSerials[0]?.stockMovementItem?.stockMovement?.createdAt?.toISOString() ||
-              s.createdAt?.toISOString() ||
-              itemRegDate;
-
-            let locName = '-';
-            let locType: 'WAREHOUSE' | 'PROJECT' | 'NONE' = 'NONE';
-            let currentStatus = 'In Warehouse';
-
-            if (s.currentProjectId && s.currentProject) {
-              locName = s.currentProject.siteCode || s.currentProject.name || s.currentProject.location;
-              locType = 'PROJECT';
-              currentStatus = 'Deploy';
-            } else if (s.currentWarehouse) {
-              locName = s.currentWarehouse.cityCode || s.currentWarehouse.name;
-              locType = 'WAREHOUSE';
-              const condLower = (s.conditionLabel || s.state || '').toLowerCase();
-              if (s.state === 'UNDER_REPAIR' || condLower.includes('repair')) {
-                currentStatus = 'Under Repair';
-              } else if (s.state === 'STANDBY_BAD' || condLower.includes('bad')) {
-                currentStatus = 'Standby Bad';
-              } else if (s.state === 'STANDBY_GOOD' || condLower.includes('good')) {
-                currentStatus = 'Standby Good';
-              } else {
-                currentStatus = 'In Warehouse';
-              }
+          if (s.currentProjectId && s.currentProject) {
+            locName =
+              s.currentProject.siteCode ||
+              s.currentProject.name ||
+              s.currentProject.location;
+            locType = 'PROJECT';
+            currentStatus = 'Deploy';
+          } else if (s.currentWarehouse) {
+            locName = s.currentWarehouse.cityCode || s.currentWarehouse.name;
+            locType = 'WAREHOUSE';
+            const condLower = (s.conditionLabel || s.state || '').toLowerCase();
+            if (s.state === 'UNDER_REPAIR' || condLower.includes('repair')) {
+              currentStatus = 'Under Repair';
+            } else if (s.state === 'STANDBY_BAD' || condLower.includes('bad')) {
+              currentStatus = 'Standby Bad';
+            } else if (s.state === 'STANDBY_GOOD' || condLower.includes('good')) {
+              currentStatus = 'Standby Good';
             } else {
-              currentStatus = 'Out of Stock';
+              currentStatus = 'In Warehouse';
             }
-
-            const conditionDisplay =
-              s.conditionLabel ||
-              (s.state === 'STANDBY_GOOD'
-                ? 'Standby Good'
-                : s.state === 'STANDBY_BAD'
-                ? 'Standby Bad'
-                : s.state === 'UNDER_REPAIR'
-                ? 'Under Repair'
-                : s.state);
-
-            rows.push({
-              id: `ser-${s.id}`,
-              itemId: item.id,
-              registeredDate: regDate,
-              location: locName,
-              locationType: locType,
-              itemName: item.name,
-              brand: item.brand,
-              modelNumber: item.modelNumber,
-              serialNumber: s.serialNumber,
-              trackingType: 'SERIALIZED',
-              quantity: 1,
-              unit: item.unit.name,
-              unitSymbol: item.unit.symbol || item.unit.name,
-              condition: conditionDisplay,
-              currentStatus,
-              notes: s.notes || '-',
-            });
+          } else {
+            currentStatus = 'Out of Stock';
           }
-        } else if (!warehouseFilter) {
-          // Serialized item without serial records yet
+
+          const conditionDisplay =
+            s.conditionLabel ||
+            (s.state === 'STANDBY_GOOD'
+              ? 'Standby Good'
+              : s.state === 'STANDBY_BAD'
+              ? 'Standby Bad'
+              : s.state === 'UNDER_REPAIR'
+              ? 'Under Repair'
+              : s.state);
+
           rows.push({
-            id: `ser-item-${item.id}-nostock`,
-            itemId: item.id,
-            registeredDate: itemRegDate,
-            location: '-',
-            locationType: 'NONE',
-            itemName: item.name,
-            brand: item.brand,
-            modelNumber: item.modelNumber,
-            serialNumber: '-',
+            id: `ser-${s.id}`,
+            itemId: s.itemId,
+            warehouseId: s.currentWarehouseId,
+            registeredDate: s.createdAt.toISOString(),
+            location: locName,
+            locationType: locType,
+            itemName: s.item.name,
+            brand: s.item.brand,
+            modelNumber: s.item.modelNumber,
+            serialNumber: s.serialNumber,
             trackingType: 'SERIALIZED',
-            quantity: 0,
-            unit: item.unit.name,
-            unitSymbol: item.unit.symbol || item.unit.name,
-            condition: '-',
-            currentStatus: 'Out of Stock',
-            notes: '-',
+            quantity: 1,
+            unit: s.item.unit.name,
+            unitSymbol: s.item.unit.symbol || s.item.unit.name,
+            condition: conditionDisplay,
+            currentStatus,
+            notes: s.notes || '-',
           });
         }
       }
-    }
-
-    // 3. Search filter
-    let filtered = rows;
-    if (search) {
-      filtered = rows.filter((r) => {
-        const matchesName = r.itemName.toLowerCase().includes(search);
-        const matchesBrand = r.brand?.toLowerCase().includes(search);
-        const matchesMN = r.modelNumber?.toLowerCase().includes(search);
-        const matchesLoc = r.location.toLowerCase().includes(search);
-        const matchesSN = r.serialNumber !== '-' && r.serialNumber.toLowerCase().includes(search);
-        const matchesStatus = r.currentStatus.toLowerCase().includes(search);
-        const matchesCondition = r.condition.toLowerCase().includes(search);
-        const matchesNotes = r.notes !== '-' && r.notes.toLowerCase().includes(search);
-        return (
-          matchesName ||
-          matchesBrand ||
-          matchesMN ||
-          matchesLoc ||
-          matchesSN ||
-          matchesStatus ||
-          matchesCondition ||
-          matchesNotes
-        );
+    } else {
+      // Entire page is in serialized range
+      const serialSkip = skip - bulkCount;
+      const serials = await this.prisma.itemSerial.findMany({
+        where: serialWhere,
+        skip: serialSkip,
+        take,
+        include: {
+          currentWarehouse: {
+            select: { id: true, name: true, cityCode: true },
+          },
+          currentProject: {
+            select: { id: true, name: true, location: true, siteCode: true },
+          },
+          item: {
+            include: {
+              unit: { select: { name: true, symbol: true } },
+              stockMovementItems: {
+                take: 1,
+                orderBy: { createdAt: 'asc' },
+                select: { createdAt: true },
+              },
+            },
+          },
+        },
+        orderBy: [{ createdAt: 'desc' }, { serialNumber: 'asc' }],
       });
+
+      for (const s of serials) {
+        let locName = '-';
+        let locType: 'WAREHOUSE' | 'PROJECT' | 'NONE' = 'NONE';
+        let currentStatus = 'In Warehouse';
+
+        if (s.currentProjectId && s.currentProject) {
+          locName =
+            s.currentProject.siteCode ||
+            s.currentProject.name ||
+            s.currentProject.location;
+          locType = 'PROJECT';
+          currentStatus = 'Deploy';
+        } else if (s.currentWarehouse) {
+          locName = s.currentWarehouse.cityCode || s.currentWarehouse.name;
+          locType = 'WAREHOUSE';
+          const condLower = (s.conditionLabel || s.state || '').toLowerCase();
+          if (s.state === 'UNDER_REPAIR' || condLower.includes('repair')) {
+            currentStatus = 'Under Repair';
+          } else if (s.state === 'STANDBY_BAD' || condLower.includes('bad')) {
+            currentStatus = 'Standby Bad';
+          } else if (s.state === 'STANDBY_GOOD' || condLower.includes('good')) {
+            currentStatus = 'Standby Good';
+          } else {
+            currentStatus = 'In Warehouse';
+          }
+        } else {
+          currentStatus = 'Out of Stock';
+        }
+
+        const conditionDisplay =
+          s.conditionLabel ||
+          (s.state === 'STANDBY_GOOD'
+            ? 'Standby Good'
+            : s.state === 'STANDBY_BAD'
+            ? 'Standby Bad'
+            : s.state === 'UNDER_REPAIR'
+            ? 'Under Repair'
+            : s.state);
+
+        rows.push({
+          id: `ser-${s.id}`,
+          itemId: s.itemId,
+          warehouseId: s.currentWarehouseId,
+          registeredDate: s.createdAt.toISOString(),
+          location: locName,
+          locationType: locType,
+          itemName: s.item.name,
+          brand: s.item.brand,
+          modelNumber: s.item.modelNumber,
+          serialNumber: s.serialNumber,
+          trackingType: 'SERIALIZED',
+          quantity: 1,
+          unit: s.item.unit.name,
+          unitSymbol: s.item.unit.symbol || s.item.unit.name,
+          condition: conditionDisplay,
+          currentStatus,
+          notes: s.notes || '-',
+        });
+      }
     }
 
-    // 4. Sort by Registered Date (descending)
-    filtered.sort(
-      (a, b) => new Date(b.registeredDate).getTime() - new Date(a.registeredDate).getTime(),
-    );
-
-    // 5. Paginate
-    const total = filtered.length;
-    const { skip, take } = getSkipAndTake(page, limit);
-    const paginated = filtered.slice(skip, skip + take);
-
-    return createPaginationResult(paginated, total, page, limit);
+    return createPaginationResult(rows, total, page, limit);
   }
 }

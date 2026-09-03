@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { Button, PageHeader, LoadingState, ErrorState } from '../components/ui/index.js';
 import { apiClient } from '../api/client.js';
+import { MovementDetailModal } from '../components/history/MovementDetailModal.js';
+import { DeliveryOrderDetailModal } from '../components/delivery/DeliveryOrderDetailModal.js';
 
 interface DashboardData {
   summary: {
@@ -71,6 +73,12 @@ export const Dashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Detail modals
+  const [selectedMovementId, setSelectedMovementId] = useState<number | null>(null);
+  const [isMovementModalOpen, setIsMovementModalOpen] = useState(false);
+  const [selectedDoId, setSelectedDoId] = useState<number | null>(null);
+  const [isDoModalOpen, setIsDoModalOpen] = useState(false);
+
   const fetchDashboardData = async () => {
     setIsLoading(true);
     setErrorMsg(null);
@@ -78,8 +86,11 @@ export const Dashboard: React.FC = () => {
       const res: any = await apiClient.get('/dashboard/summary');
       setData(res?.data || res);
     } catch (err: any) {
-      console.error('Failed to load dashboard data:', err);
-      setErrorMsg(err.message || 'Failed to load dashboard statistics');
+      console.error('Failed to load dashboard summary:', err);
+      setErrorMsg(
+        err?.response?.data?.message ||
+          'Failed to load dashboard statistics. Please check your network and try again.',
+      );
     } finally {
       setIsLoading(false);
     }
@@ -92,7 +103,7 @@ export const Dashboard: React.FC = () => {
   if (isLoading) {
     return (
       <div className="page-container">
-        <LoadingState text="Loading logistics dashboard analytics..." />
+        <LoadingState text="Aggregating warehouse operations & inventory metrics..." />
       </div>
     );
   }
@@ -118,7 +129,7 @@ export const Dashboard: React.FC = () => {
       icon: Boxes,
       color: '#2250A1',
       bg: '#EFF6FF',
-      onClick: () => navigate('/inventory/stock'),
+      onClick: () => navigate('/inventory'),
     },
     {
       label: 'Bulk Warehouse Stock',
@@ -127,7 +138,7 @@ export const Dashboard: React.FC = () => {
       icon: Layers,
       color: '#0891B2',
       bg: '#ECFEFF',
-      onClick: () => navigate('/inventory/stock?trackingType=bulk'),
+      onClick: () => navigate('/inventory?trackingType=bulk'),
     },
     {
       label: 'Serialized Assets',
@@ -136,7 +147,7 @@ export const Dashboard: React.FC = () => {
       icon: PackageCheck,
       color: '#7C3AED',
       bg: '#F5F3FF',
-      onClick: () => navigate('/inventory/stock?trackingType=serialized'),
+      onClick: () => navigate('/inventory?trackingType=serialized'),
     },
     {
       label: 'Deployed at Sites',
@@ -145,7 +156,7 @@ export const Dashboard: React.FC = () => {
       icon: ArrowUpRight,
       color: '#D97706',
       bg: '#FFFBEB',
-      onClick: () => navigate('/inventory/stock?trackingType=serialized'),
+      onClick: () => navigate('/inventory?trackingType=serialized&status=Deploy'),
     },
     {
       label: 'Under Repair',
@@ -154,7 +165,7 @@ export const Dashboard: React.FC = () => {
       icon: Wrench,
       color: '#DC2626',
       bg: '#FEF2F2',
-      onClick: () => navigate('/inventory/stock?trackingType=serialized'),
+      onClick: () => navigate('/inventory?trackingType=serialized&status=Under%20Repair'),
     },
     {
       label: 'Low Stock (< threshold)',
@@ -163,7 +174,7 @@ export const Dashboard: React.FC = () => {
       icon: AlertTriangle,
       color: '#EA580C',
       bg: '#FFF7ED',
-      onClick: () => navigate('/inventory/stock?trackingType=bulk'),
+      onClick: () => navigate('/inventory?trackingType=bulk&status=Low%20Stock'),
     },
     {
       label: 'Active Projects',
@@ -172,7 +183,7 @@ export const Dashboard: React.FC = () => {
       icon: Briefcase,
       color: '#059669',
       bg: '#ECFDF5',
-      onClick: () => navigate('/projects'),
+      onClick: () => navigate('/projects?status=active'),
     },
     {
       label: 'Draft Delivery Orders',
@@ -181,7 +192,7 @@ export const Dashboard: React.FC = () => {
       icon: Truck,
       color: '#4F46E5',
       bg: '#EEF2FF',
-      onClick: () => navigate('/delivery/orders?status=DRAFT'),
+      onClick: () => navigate('/delivery-orders?status=DRAFT'),
     },
   ];
 
@@ -210,7 +221,7 @@ export const Dashboard: React.FC = () => {
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => navigate('/delivery/labels')}
+              onClick={() => navigate('/shipping-labels')}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
               <Truck size={15} /> Shipping Labels
@@ -218,7 +229,7 @@ export const Dashboard: React.FC = () => {
             <Button
               variant="primary"
               size="sm"
-              onClick={() => navigate('/delivery/orders')}
+              onClick={() => navigate('/delivery-orders')}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
               <Plus size={15} /> Delivery Orders
@@ -253,8 +264,14 @@ export const Dashboard: React.FC = () => {
                 cursor: 'pointer',
                 transition: 'transform 0.15s ease, box-shadow 0.15s ease',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-2px)')}
-              onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             >
               <div
                 style={{
@@ -315,7 +332,10 @@ export const Dashboard: React.FC = () => {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
-            <div style={{ border: '1px solid #E2E8F0', borderRadius: '6px', padding: '10px', backgroundColor: '#F8FAFC' }}>
+            <div
+              onClick={() => navigate('/inventory?trackingType=bulk&status=Normal')}
+              style={{ border: '1px solid #E2E8F0', borderRadius: '6px', padding: '10px', backgroundColor: '#F8FAFC', cursor: 'pointer' }}
+            >
               <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem', fontWeight: 600, color: '#059669' }}>
                 <CheckCircle2 size={14} /> Normal Stock
               </div>
@@ -324,7 +344,10 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            <div style={{ border: '1px solid #FED7AA', borderRadius: '6px', padding: '10px', backgroundColor: '#FFF7ED' }}>
+            <div
+              onClick={() => navigate('/inventory?trackingType=bulk&status=Low%20Stock')}
+              style={{ border: '1px solid #FED7AA', borderRadius: '6px', padding: '10px', backgroundColor: '#FFF7ED', cursor: 'pointer' }}
+            >
               <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem', fontWeight: 600, color: '#EA580C' }}>
                 <AlertTriangle size={14} /> Low Stock
               </div>
@@ -333,7 +356,10 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            <div style={{ border: '1px solid #FECACA', borderRadius: '6px', padding: '10px', backgroundColor: '#FEF2F2' }}>
+            <div
+              onClick={() => navigate('/inventory?trackingType=bulk&status=Out%20of%20Stock')}
+              style={{ border: '1px solid #FECACA', borderRadius: '6px', padding: '10px', backgroundColor: '#FEF2F2', cursor: 'pointer' }}
+            >
               <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem', fontWeight: 600, color: '#DC2626' }}>
                 <ShieldAlert size={14} /> Out of Stock
               </div>
@@ -342,7 +368,10 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            <div style={{ border: '1px solid #DDD6FE', borderRadius: '6px', padding: '10px', backgroundColor: '#F5F3FF' }}>
+            <div
+              onClick={() => navigate('/inventory?trackingType=serialized&status=Under%20Repair')}
+              style={{ border: '1px solid #DDD6FE', borderRadius: '6px', padding: '10px', backgroundColor: '#F5F3FF', cursor: 'pointer' }}
+            >
               <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem', fontWeight: 600, color: '#7C3AED' }}>
                 <Wrench size={14} /> Under Repair
               </div>
@@ -388,7 +417,7 @@ export const Dashboard: React.FC = () => {
 
             <Button
               variant="secondary"
-              onClick={() => navigate('/delivery/orders')}
+              onClick={() => navigate('/delivery-orders')}
               style={{ justifyContent: 'flex-start', padding: '10px 12px', fontSize: '0.85rem' }}
             >
               <Send size={16} color="#4F46E5" /> Issue Delivery Order
@@ -396,7 +425,7 @@ export const Dashboard: React.FC = () => {
 
             <Button
               variant="secondary"
-              onClick={() => navigate('/delivery/labels')}
+              onClick={() => navigate('/shipping-labels')}
               style={{ justifyContent: 'flex-start', padding: '10px 12px', fontSize: '0.85rem' }}
             >
               <Truck size={16} color="#059669" /> Print Shipping Label
@@ -464,7 +493,15 @@ export const Dashboard: React.FC = () => {
                   const badge = getMovementTypeBadge(m.movementType);
                   const Icon = badge.icon;
                   return (
-                    <tr key={m.id}>
+                    <tr
+                      key={m.id}
+                      onClick={() => {
+                        setSelectedMovementId(m.id);
+                        setIsMovementModalOpen(true);
+                      }}
+                      style={{ cursor: 'pointer' }}
+                      title="Click to view movement details"
+                    >
                       <td>
                         <div style={{ fontSize: '0.75rem', color: '#64748B' }}>
                           {new Date(m.movementDate).toLocaleDateString('en-GB', {
@@ -539,7 +576,7 @@ export const Dashboard: React.FC = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate('/delivery/orders')}
+              onClick={() => navigate('/delivery-orders')}
               style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
             >
               View Orders <ArrowRight size={13} />
@@ -561,7 +598,15 @@ export const Dashboard: React.FC = () => {
               </thead>
               <tbody>
                 {recentDeliveryOrders.map((doDoc) => (
-                  <tr key={doDoc.id}>
+                  <tr
+                    key={doDoc.id}
+                    onClick={() => {
+                      setSelectedDoId(doDoc.id);
+                      setIsDoModalOpen(true);
+                    }}
+                    style={{ cursor: 'pointer' }}
+                    title="Click to view delivery order details"
+                  >
                     <td>
                       <div style={{ fontFamily: 'monospace', fontWeight: 700, color: '#2250A1' }}>
                         {doDoc.doNumber || `Draft #${doDoc.id}`}
@@ -604,6 +649,26 @@ export const Dashboard: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Detail Modals for Recent Rows */}
+      <MovementDetailModal
+        isOpen={isMovementModalOpen}
+        movementId={selectedMovementId}
+        onClose={() => {
+          setIsMovementModalOpen(false);
+          setSelectedMovementId(null);
+        }}
+      />
+
+      <DeliveryOrderDetailModal
+        isOpen={isDoModalOpen}
+        deliveryOrderId={selectedDoId}
+        onClose={() => {
+          setIsDoModalOpen(false);
+          setSelectedDoId(null);
+        }}
+        onIssuedSuccess={() => fetchDashboardData()}
+      />
     </div>
   );
 };

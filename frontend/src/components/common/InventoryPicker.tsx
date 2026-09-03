@@ -139,8 +139,35 @@ export const InventoryPicker: React.FC<InventoryPickerProps> = ({
             Loading available inventory...
           </div>
         ) : inventory.length === 0 ? (
-          <div style={{ padding: '1.5rem', textAlign: 'center', color: '#94A3B8', fontSize: '0.85rem' }}>
-            {search ? 'No matching available inventory found' : 'No available inventory in warehouse'}
+          <div style={{ padding: '1.75rem 1rem', textAlign: 'center', color: '#64748B', fontSize: '0.85rem' }}>
+            {search ? (
+              <div>
+                <p style={{ margin: '0 0 4px 0', fontWeight: 600, color: '#334155' }}>
+                  No inventory matches "{search}"
+                </p>
+                <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>
+                  Try adjusting your search terms or checking a different Source Hub.
+                </span>
+              </div>
+            ) : lockedWarehouseId ? (
+              <div>
+                <p style={{ margin: '0 0 4px 0', fontWeight: 600, color: '#334155' }}>
+                  No available stock found in {lockedWarehouseName || `Hub #${lockedWarehouseId}`}
+                </p>
+                <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>
+                  Please select another Source Hub or verify physical stock balances.
+                </span>
+              </div>
+            ) : (
+              <div>
+                <p style={{ margin: '0 0 4px 0', fontWeight: 600, color: '#334155' }}>
+                  No available stock found in warehouses
+                </p>
+                <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>
+                  Record Incoming or Initial Stock before dispatching.
+                </span>
+              </div>
+            )}
           </div>
         ) : (
           <table className="data-table" style={{ margin: 0, fontSize: '0.85rem' }}>

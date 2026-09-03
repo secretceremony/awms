@@ -37,6 +37,7 @@ export const StockList: React.FC = () => {
   const search = searchParams.get('search') || '';
   const trackingType = searchParams.get('trackingType') || 'all';
   const warehouseId = searchParams.get('warehouseId') || '';
+  const statusFilter = searchParams.get('status') || 'all';
 
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [warehouses, setWarehouses] = useState<{ id: number; name: string; cityCode?: string | null }[]>([]);
@@ -90,6 +91,14 @@ export const StockList: React.FC = () => {
       label: 'Tracking',
       valueDisplay: trackingType.toUpperCase(),
       onClear: () => updateFilters({ trackingType: null }),
+    });
+  }
+  if (statusFilter && statusFilter !== 'all') {
+    activeFilters.push({
+      key: 'status',
+      label: 'Status',
+      valueDisplay: statusFilter.toUpperCase(),
+      onClear: () => updateFilters({ status: null }),
     });
   }
   if (warehouseId) {
@@ -360,6 +369,26 @@ export const StockList: React.FC = () => {
       />
 
       <FilterPanel isOpen={isAdvancedOpen}>
+        <div style={{ width: '180px' }}>
+          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4B5563', marginBottom: '4px' }}>
+            Stock Status
+          </label>
+          <Select
+            value={statusFilter}
+            onChange={(e) => updateFilters({ status: e.target.value })}
+          >
+            <option value="all">All Statuses</option>
+            <option value="Normal">Normal Stock</option>
+            <option value="Low Stock">Low Stock</option>
+            <option value="Out of Stock">Out of Stock</option>
+            <option value="Deploy">Deploy (at Site)</option>
+            <option value="In Warehouse">In Warehouse</option>
+            <option value="Standby Good">Standby Good</option>
+            <option value="Standby Bad">Standby Bad</option>
+            <option value="Under Repair">Under Repair</option>
+          </Select>
+        </div>
+
         <div style={{ width: '200px' }}>
           <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4B5563', marginBottom: '4px' }}>
             Warehouse Location
@@ -385,6 +414,7 @@ export const StockList: React.FC = () => {
         extraParams={{
           trackingType: trackingType !== 'all' ? trackingType : undefined,
           warehouseId: warehouseId || undefined,
+          status: statusFilter !== 'all' ? statusFilter : undefined,
           search: search || undefined,
           _refresh: refreshKey,
         }}

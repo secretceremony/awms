@@ -557,12 +557,13 @@ export class StockMovementsService {
       }
     }
 
-    // 2. Available Serialized Units in Warehouse
+    // 2. Available Serialized Units in Warehouse (Only STANDBY_GOOD deployable assets)
     if (!trackingType || trackingType === 'ALL' || trackingType === 'SERIALIZED') {
       const serials = await this.prisma.itemSerial.findMany({
         where: {
           currentWarehouseId: warehouseFilter ? warehouseFilter : { not: null },
           currentProjectId: null,
+          state: 'STANDBY_GOOD',
           item: {
             isActive: true,
             trackingType: TrackingType.SERIALIZED,
@@ -683,6 +684,12 @@ export class StockMovementsService {
           if (itemSerial.itemId !== item.id) {
             throw new BadRequestException(`Serial number ${sn} does not belong to item ${item.name}`);
           }
+          if (itemSerial.state !== 'STANDBY_GOOD') {
+            const condition = itemSerial.conditionLabel || itemSerial.state;
+            throw new BadRequestException(
+              `Serial number ${sn} is not available for deployment because its current condition is ${condition}. Only Standby Good items can be deployed.`,
+            );
+          }
 
           if (!inferredWarehouseId) {
             inferredWarehouseId = itemSerial.currentWarehouseId;
@@ -775,6 +782,12 @@ export class StockMovementsService {
             const itemSerial = await tx.itemSerial.findUnique({ where: { serialNumber: sn } });
             if (!itemSerial || itemSerial.currentWarehouseId !== inferredWarehouseId || itemSerial.currentProjectId) {
               throw new BadRequestException(`Serial number ${sn} is not available in ${warehouse.name}`);
+            }
+            if (itemSerial.state !== 'STANDBY_GOOD') {
+              const condition = itemSerial.conditionLabel || itemSerial.state;
+              throw new BadRequestException(
+                `Serial number ${sn} is not available for deployment because its current condition is ${condition}.`,
+              );
             }
 
             const updatedSerial = await tx.itemSerial.update({

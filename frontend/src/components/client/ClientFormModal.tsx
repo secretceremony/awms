@@ -230,7 +230,7 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                   </span>
                 </div>
 
-                <FormField label="Attn / PIC Name" style={{ marginBottom: '8px' }}>
+                <FormField label="Contact Person / Attn Name" style={{ marginBottom: '8px' }}>
                   <Input
                     placeholder="e.g. Budi Santoso"
                     value={formData.contactName}

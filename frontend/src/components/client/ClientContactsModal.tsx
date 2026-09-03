@@ -232,7 +232,7 @@ export const ClientContactsModal: React.FC<ClientContactsModalProps> = ({
               {editingContact ? 'Edit Contact Person' : 'Add Contact Person'}
             </div>
 
-            <FormField label="Contact Person Name (Attn / PIC)" required>
+            <FormField label="Contact Person Name (Attn)" required>
               <Input
                 type="text"
                 required

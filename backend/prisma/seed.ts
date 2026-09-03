@@ -18,9 +18,14 @@ async function main() {
     console.log('--- Starting Final Idempotent Master Data Seeding ---');
 
     // 1. Seed Admin Logistics
-    const adminEmail = 'admin.logistics@alssa.com';
-    const rawPassword = process.env.SEED_ADMIN_PASSWORD || 'Admin123!';
-    const hashedPassword = await bcrypt.hash(rawPassword, 10);
+    const rawPassword = process.env.SEED_ADMIN_PASSWORD;
+    if (!rawPassword || !rawPassword.trim()) {
+      throw new Error(
+        'SEED_ADMIN_PASSWORD environment variable is required to seed the administrator account.',
+      );
+    }
+    const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin.logistics@alssa.com';
+    const hashedPassword = await bcrypt.hash(rawPassword.trim(), 10);
 
     const admin = await prisma.user.upsert({
       where: { email: adminEmail },
@@ -35,7 +40,7 @@ async function main() {
         isActive: true,
       },
     });
-    console.log('✓ Seeded Admin Logistics:', admin.email);
+    console.log('✓ Seeded Admin Logistics user successfully');
 
     // 2. Seed Default Units (Normalized lowercase symbols)
     const defaultUnits = [

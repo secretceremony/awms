@@ -1,8 +1,16 @@
+import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.js';
+import { hasPermission, type PermissionCapability } from '../utils/permissions.js';
 
-export const ProtectedRoute = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+interface ProtectedRouteProps {
+  requiredPermission?: PermissionCapability;
+}
+
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  requiredPermission,
+}) => {
+  const { user, isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -13,5 +21,13 @@ export const ProtectedRoute = () => {
     );
   }
 
-  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (requiredPermission && !hasPermission(user?.role, requiredPermission)) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <Outlet />;
 };

@@ -78,6 +78,9 @@ describe('DeliveryOrdersService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockPrisma.$transaction.mockImplementation((callback: (tx: any) => Promise<any>) =>
+      callback(mockPrisma),
+    );
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DeliveryOrdersService,
@@ -166,6 +169,7 @@ describe('DeliveryOrdersService', () => {
           id: 101,
           serialNumber: 'SN-001',
           itemId: 1,
+          state: 'STANDBY_GOOD',
           currentWarehouseId: 1, // Warehouse 1
           currentProjectId: null,
         })
@@ -173,6 +177,7 @@ describe('DeliveryOrdersService', () => {
           id: 102,
           serialNumber: 'SN-002',
           itemId: 2,
+          state: 'STANDBY_GOOD',
           currentWarehouseId: 2, // Warehouse 2 (DIFFERENT!)
           currentProjectId: null,
         });
@@ -313,6 +318,9 @@ describe('DeliveryOrdersService', () => {
       mockPrisma.project.findUnique.mockResolvedValue(mockDoDraft.project);
       mockPrisma.warehouse.findUnique.mockResolvedValue(mockDoDraft.sourceWarehouse);
       mockPrisma.item.findUnique.mockResolvedValue(mockDoDraft.items[0].item);
+      mockPrisma.warehouseStock.findMany.mockResolvedValue([
+        { warehouseId: 1, quantity: 50, warehouse: { id: 1, name: 'Balikpapan Central Hub', isActive: true } },
+      ]);
       mockPrisma.warehouseStock.findUnique.mockResolvedValue({
         id: 501,
         warehouseId: 1,

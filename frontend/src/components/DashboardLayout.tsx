@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { Button } from './ui/index.js';
 
+import { canAccessSettings, canAccessLogs } from '../utils/permissions.js';
+
 export const DashboardLayout = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -46,9 +48,15 @@ export const DashboardLayout = () => {
     { type: 'header', label: 'Deliveries' },
     { to: '/delivery-orders', label: 'Delivery Orders', icon: Truck },
     { to: '/shipping-labels', label: 'Shipping Labels', icon: Tag },
-    { type: 'header', label: 'System' },
-    { to: '/logs', label: 'Activity Logs', icon: FileText },
-    { to: '/settings', label: 'Settings', icon: SettingsIcon },
+    ...((canAccessLogs(user?.role) || canAccessSettings(user?.role))
+      ? [{ type: 'header', label: 'System' }]
+      : []),
+    ...(canAccessLogs(user?.role)
+      ? [{ to: '/logs', label: 'Activity Logs', icon: FileText }]
+      : []),
+    ...(canAccessSettings(user?.role)
+      ? [{ to: '/settings', label: 'Settings', icon: SettingsIcon }]
+      : []),
   ];
 
   const currentNav = navItems.find((item) => item.to === location.pathname);
