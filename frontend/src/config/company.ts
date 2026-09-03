@@ -16,7 +16,7 @@ export const COMPANY_IDENTITY: {
   offices: Record<'JKT' | 'BPN', CompanyOfficeIdentity>;
 } = {
   name: 'PT ALSSA Corporindo',
-  logoUrl: '/alssa-logo.svg',
+  logoUrl: '/alssa-logo.png',
   offices: {
     JKT: {
       companyName: 'PT ALSSA Corporindo',
@@ -27,7 +27,7 @@ export const COMPANY_IDENTITY: {
       phone: '+6221 8010035 / +6221 8010033',
       email: 'info@alssacorp.co.id',
       website: 'alssacorp.co.id',
-      logoUrl: '/alssa-logo.svg',
+      logoUrl: '/alssa-logo.png',
     },
     BPN: {
       companyName: 'PT ALSSA Corporindo',
@@ -38,7 +38,7 @@ export const COMPANY_IDENTITY: {
       phone: '+6221 8010035',
       email: 'info@alssacorp.co.id',
       website: 'alssacorp.co.id',
-      logoUrl: '/alssa-logo.svg',
+      logoUrl: '/alssa-logo.png',
     },
   },
 };

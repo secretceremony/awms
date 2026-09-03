@@ -292,7 +292,7 @@ export const ShippingLabelDetailModal: React.FC<ShippingLabelDetailModalProps> =
             <div className="header-row">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <img
-                  src="/alssa-logo.svg"
+                  src="/alssa-logo.png"
                   alt="PT ALSSA Corporindo"
                   style={{ height: '26px', maxWidth: '120px', objectFit: 'contain' }}
                   onError={(e) => {
