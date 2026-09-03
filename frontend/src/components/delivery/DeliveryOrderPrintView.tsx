@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { getCompanyIdentity } from '../../config/company.js';
+import { apiClient } from '../../api/client.js';
 
 export interface DeliveryOrderPrintViewProps {
   deliveryOrder: any;
@@ -8,6 +9,25 @@ export interface DeliveryOrderPrintViewProps {
 export const DeliveryOrderPrintView: React.FC<DeliveryOrderPrintViewProps> = ({
   deliveryOrder,
 }) => {
+  const [customSettings, setCustomSettings] = useState<any>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    apiClient
+      .get('/settings')
+      .then((res: any) => {
+        if (isMounted && res?.company) {
+          setCustomSettings(res.company);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not load dynamic settings for print view:', err);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   if (!deliveryOrder) return null;
 
   const snapshot = deliveryOrder.snapshots || {};
@@ -23,7 +43,7 @@ export const DeliveryOrderPrintView: React.FC<DeliveryOrderPrintViewProps> = ({
   const warehouseName = deliveryOrder.warehouseName || snapshot.warehouse?.name || deliveryOrder.sourceWarehouse?.name || '—';
   const cityCode = deliveryOrder.warehouseCityCode || snapshot.warehouse?.cityCode || deliveryOrder.sourceWarehouse?.cityCode || '—';
 
-  const companyIdentity = getCompanyIdentity(cityCode || warehouseName);
+  const companyIdentity = getCompanyIdentity(cityCode || warehouseName, customSettings);
 
   const rawItems = snapshot.items || deliveryOrder.items || [];
   const items = rawItems.map((i: any, idx: number) => {
@@ -59,9 +79,9 @@ export const DeliveryOrderPrintView: React.FC<DeliveryOrderPrintViewProps> = ({
       className="print-do-page"
       style={{
         width: '100%',
-        boxSizing: 'border-box',
         backgroundColor: '#FFFFFF',
         color: '#000000',
+        boxSizing: 'border-box',
         fontFamily: "'Segoe UI', Arial, Helvetica, sans-serif",
         fontSize: '9pt',
         lineHeight: 1.4,
@@ -73,18 +93,18 @@ export const DeliveryOrderPrintView: React.FC<DeliveryOrderPrintViewProps> = ({
         style={{
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: '6px',
+          alignItems: 'center',
+          marginBottom: '8px',
         }}
       >
         {/* Logo & Company Name */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', maxWidth: '65%' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', maxWidth: '68%' }}>
           <img
             src={companyIdentity.logoUrl}
             alt={companyIdentity.companyName}
             style={{
-              height: '34px',
-              maxWidth: '160px',
+              height: '46px',
+              maxWidth: '220px',
               objectFit: 'contain',
               flexShrink: 0,
             }}
@@ -109,7 +129,7 @@ export const DeliveryOrderPrintView: React.FC<DeliveryOrderPrintViewProps> = ({
               style={{
                 fontSize: '7.5pt',
                 color: '#555555',
-                marginTop: '2px',
+                marginTop: '3px',
                 lineHeight: 1.25,
               }}
             >

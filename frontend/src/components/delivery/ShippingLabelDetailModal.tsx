@@ -294,7 +294,7 @@ export const ShippingLabelDetailModal: React.FC<ShippingLabelDetailModalProps> =
                 <img
                   src="/alssa-logo.png"
                   alt="PT ALSSA Corporindo"
-                  style={{ height: '26px', maxWidth: '120px', objectFit: 'contain' }}
+                  style={{ height: '34px', maxWidth: '160px', objectFit: 'contain' }}
                   onError={(e) => {
                     (e.currentTarget as HTMLElement).style.display = 'none';
                   }}

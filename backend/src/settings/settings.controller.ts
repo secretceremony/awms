@@ -3,6 +3,7 @@ import { SettingsService } from './settings.service.js';
 import {
   UpdateInventorySettingsDto,
   UpdateDeliverySettingsDto,
+  UpdateCompanySettingsDto,
 } from './dto/update-settings.dto.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { Roles } from '../common/decorators/roles.decorator.js';
@@ -16,6 +17,15 @@ export class SettingsController {
   @Get()
   getAllSettings() {
     return this.settingsService.getAllSettings();
+  }
+
+  @Patch('company')
+  @Roles('ADMIN_LOGISTICS')
+  updateCompanySettings(
+    @Body() dto: UpdateCompanySettingsDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.settingsService.updateCompanySettings(dto, user.id);
   }
 
   @Patch('inventory')

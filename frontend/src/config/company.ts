@@ -45,17 +45,46 @@ export const COMPANY_IDENTITY: {
 
 /**
  * Resolves company identity based on city code or warehouse context.
+ * Merges dynamic settings configured in System Settings if provided.
  * Defaults to Jakarta Head Office if no specific city is matched.
  */
-export function getCompanyIdentity(cityCodeOrName?: string | null): CompanyOfficeIdentity {
-  if (!cityCodeOrName) {
-    return COMPANY_IDENTITY.offices.JKT;
+export function getCompanyIdentity(
+  cityCodeOrName?: string | null,
+  customCompanySettings?: any,
+): CompanyOfficeIdentity {
+  const normalized = (cityCodeOrName || '').trim().toUpperCase();
+  const isBpn = normalized === 'BPN' || normalized.includes('BALIKPAPAN');
+  const defaultOffice = isBpn ? COMPANY_IDENTITY.offices.BPN : COMPANY_IDENTITY.offices.JKT;
+
+  if (!customCompanySettings) {
+    return defaultOffice;
   }
 
-  const normalized = cityCodeOrName.trim().toUpperCase();
-  if (normalized === 'BPN' || normalized.includes('BALIKPAPAN')) {
-    return COMPANY_IDENTITY.offices.BPN;
+  const name = customCompanySettings.companyName || COMPANY_IDENTITY.name;
+  if (isBpn) {
+    return {
+      companyName: name,
+      officeName: customCompanySettings.bpnOfficeName || defaultOffice.officeName,
+      address: customCompanySettings.bpnAddress || defaultOffice.address,
+      city: 'Balikpapan',
+      cityCode: 'BPN',
+      phone: customCompanySettings.bpnPhone || defaultOffice.phone,
+      email: customCompanySettings.bpnEmail || defaultOffice.email,
+      website: defaultOffice.website,
+      logoUrl: defaultOffice.logoUrl,
+    };
   }
 
-  return COMPANY_IDENTITY.offices.JKT;
+  return {
+    companyName: name,
+    officeName: customCompanySettings.jktOfficeName || defaultOffice.officeName,
+    address: customCompanySettings.jktAddress || defaultOffice.address,
+    city: 'Jakarta Selatan',
+    cityCode: 'JKT',
+    phone: customCompanySettings.jktPhone || defaultOffice.phone,
+    email: customCompanySettings.jktEmail || defaultOffice.email,
+    website: defaultOffice.website,
+    logoUrl: defaultOffice.logoUrl,
+  };
 }
+
