@@ -61,6 +61,11 @@ export class ItemsController {
     return this.itemsService.findOne(id);
   }
 
+  @Get(':id/balances')
+  getItemBalances(@Param('id', ParseIntPipe) id: number) {
+    return this.itemsService.getItemBalances(id);
+  }
+
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,

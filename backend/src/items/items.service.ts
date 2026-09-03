@@ -144,6 +144,96 @@ export class ItemsService {
     return item;
   }
 
+  async getItemBalances(id: number) {
+    const item = await this.prisma.item.findUnique({
+      where: { id },
+      include: {
+        unit: {
+          select: { id: true, name: true, symbol: true },
+        },
+      },
+    });
+
+    if (!item) {
+      throw new NotFoundException(`Item with ID ${id} not found`);
+    }
+
+    if (item.trackingType === 'BULK') {
+      // 1. Warehouse Stocks for BULK
+      const warehouseStocks = await this.prisma.warehouseStock.findMany({
+        where: { itemId: id, quantity: { gt: 0 } },
+        include: {
+          warehouse: {
+            select: { id: true, name: true, cityCode: true, city: true, location: true },
+          },
+        },
+        orderBy: { warehouse: { name: 'asc' } },
+      });
+
+      // 2. Project Stocks for BULK (if deployed to client project sites)
+      const projectStocks = await this.prisma.projectStock.findMany({
+        where: { itemId: id, quantity: { gt: 0 } },
+        include: {
+          project: {
+            select: {
+              id: true,
+              name: true,
+              siteCode: true,
+              location: true,
+              client: { select: { id: true, name: true } },
+            },
+          },
+        },
+        orderBy: { project: { name: 'asc' } },
+      });
+
+      const totalWarehouseQty = warehouseStocks.reduce((sum, ws) => sum + ws.quantity, 0);
+      const totalProjectQty = projectStocks.reduce((sum, ps) => sum + ps.quantity, 0);
+
+      return {
+        itemId: item.id,
+        itemName: item.name,
+        trackingType: item.trackingType,
+        unit: item.unit?.symbol || item.unit?.name || 'pcs',
+        totalQuantity: totalWarehouseQty + totalProjectQty,
+        totalWarehouseQuantity: totalWarehouseQty,
+        totalProjectQuantity: totalProjectQty,
+        warehouseStocks,
+        projectStocks,
+      };
+    }
+
+    // SERIALIZED tracking type: source of truth is item_serials table
+    const [totalSerials, deployedCount, inWarehouseCount, standbyGoodCount, underRepairCount] =
+      await Promise.all([
+        this.prisma.itemSerial.count({ where: { itemId: id } }),
+        this.prisma.itemSerial.count({ where: { itemId: id, currentProjectId: { not: null } } }),
+        this.prisma.itemSerial.count({
+          where: { itemId: id, currentWarehouseId: { not: null }, currentProjectId: null },
+        }),
+        this.prisma.itemSerial.count({
+          where: { itemId: id, state: 'STANDBY_GOOD' },
+        }),
+        this.prisma.itemSerial.count({
+          where: { itemId: id, state: 'UNDER_REPAIR' },
+        }),
+      ]);
+
+    return {
+      itemId: item.id,
+      itemName: item.name,
+      trackingType: item.trackingType,
+      unit: item.unit?.symbol || item.unit?.name || 'pcs',
+      totalQuantity: totalSerials,
+      inWarehouseQuantity: inWarehouseCount,
+      deployedQuantity: deployedCount,
+      standbyGoodQuantity: standbyGoodCount,
+      underRepairQuantity: underRepairCount,
+      warehouseStocks: [],
+      projectStocks: [],
+    };
+  }
+
   async update(id: number, updateItemDto: UpdateItemDto, userId: number) {
     const item = await this.findOne(id);
 
