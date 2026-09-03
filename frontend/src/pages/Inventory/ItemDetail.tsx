@@ -201,7 +201,7 @@ export const ItemDetail = () => {
       />
 
       <Card title="Item Master Overview">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.25rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '1.25rem' }}>
           <div>
             <span style={{ fontSize: '0.8rem', color: '#6B7280' }}>Brand</span>
             <p style={{ fontWeight: 600, margin: '4px 0 0' }}>{item.brand || '-'}</p>

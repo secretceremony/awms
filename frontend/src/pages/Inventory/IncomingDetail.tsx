@@ -126,7 +126,7 @@ export const IncomingDetail = () => {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
             gap: '1.25rem',
             marginBottom: '1.5rem',
           }}

@@ -745,42 +745,44 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto' }}>
-                      {regularForm.serialRows.map((row, idx) => (
-                        <div key={idx} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                          <Input
-                            placeholder={`Serial #${idx + 1}`}
-                            required
-                            value={row.serialNumber}
-                            onChange={(e) => handleSerialChange(idx, 'serialNumber', e.target.value)}
-                            style={{ flex: 2, padding: '4px 8px', fontSize: '0.8rem' }}
-                          />
-                          <Select
-                            value={row.conditionLabel}
-                            onChange={(e) => handleSerialChange(idx, 'conditionLabel', e.target.value)}
-                            style={{ flex: 1.5, padding: '4px 8px', fontSize: '0.8rem' }}
-                          >
-                            <option value="Standby Good">Standby Good</option>
-                            <option value="Standby Bad">Standby Bad</option>
-                            <option value="Under Repair">Under Repair</option>
-                          </Select>
-                          <Input
-                            placeholder="Notes (optional)"
-                            value={row.notes}
-                            onChange={(e) => handleSerialChange(idx, 'notes', e.target.value)}
-                            style={{ flex: 2, padding: '4px 8px', fontSize: '0.8rem' }}
-                          />
-                          {regularForm.serialRows.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveSerialField(idx)}
-                              style={{ border: 'none', background: 'transparent', color: '#EF4444', cursor: 'pointer', padding: '4px' }}
+                    <div style={{ maxHeight: '200px', overflowY: 'auto', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '420px' }}>
+                        {regularForm.serialRows.map((row, idx) => (
+                          <div key={idx} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <Input
+                              placeholder={`Serial #${idx + 1}`}
+                              required
+                              value={row.serialNumber}
+                              onChange={(e) => handleSerialChange(idx, 'serialNumber', e.target.value)}
+                              style={{ flex: 2, padding: '4px 8px', fontSize: '0.8rem' }}
+                            />
+                            <Select
+                              value={row.conditionLabel}
+                              onChange={(e) => handleSerialChange(idx, 'conditionLabel', e.target.value)}
+                              style={{ flex: 1.5, padding: '4px 8px', fontSize: '0.8rem' }}
                             >
-                              <Trash2 size={15} />
-                            </button>
-                          )}
-                        </div>
-                      ))}
+                              <option value="Standby Good">Standby Good</option>
+                              <option value="Standby Bad">Standby Bad</option>
+                              <option value="Under Repair">Under Repair</option>
+                            </Select>
+                            <Input
+                              placeholder="Notes (optional)"
+                              value={row.notes}
+                              onChange={(e) => handleSerialChange(idx, 'notes', e.target.value)}
+                              style={{ flex: 2, padding: '4px 8px', fontSize: '0.8rem' }}
+                            />
+                            {regularForm.serialRows.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveSerialField(idx)}
+                                style={{ border: 'none', background: 'transparent', color: '#EF4444', cursor: 'pointer', padding: '4px' }}
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
 
                     <Button

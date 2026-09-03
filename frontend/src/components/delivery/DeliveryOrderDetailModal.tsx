@@ -230,7 +230,7 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
                 gap: '1rem',
                 padding: '1.25rem',
                 backgroundColor: '#F9FAFB',

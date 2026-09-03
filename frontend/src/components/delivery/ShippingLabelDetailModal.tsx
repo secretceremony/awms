@@ -199,7 +199,7 @@ export const ShippingLabelDetailModal: React.FC<ShippingLabelDetailModalProps> =
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
             gap: '10px',
             marginBottom: '1rem',
             fontSize: '0.85rem',

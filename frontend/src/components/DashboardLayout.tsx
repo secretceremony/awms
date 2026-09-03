@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.js';
 import {
@@ -15,6 +16,8 @@ import {
   User,
   Briefcase,
   History,
+  Menu,
+  X,
 } from 'lucide-react';
 import { Button } from './ui/index.js';
 import { canAccessSettings, canAccessLogs } from '../utils/permissions.js';
@@ -23,9 +26,15 @@ export const DashboardLayout = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     try {
+      setSidebarOpen(false);
       await logout();
       navigate('/login');
     } catch (e) {
@@ -62,13 +71,29 @@ export const DashboardLayout = () => {
 
   return (
     <div className="dashboard-container">
+      {/* Mobile Drawer Backdrop */}
+      {sidebarOpen && (
+        <div
+          className="sidebar-backdrop active"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar Navigation */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
         <div className="logo-section">
           <div className="logo-text">
             <h2>AWMS</h2>
             <p>Warehouse Management</p>
           </div>
+          <button
+            type="button"
+            className="sidebar-close-btn"
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Close navigation"
+          >
+            <X size={18} />
+          </button>
         </div>
 
         <nav className="nav-menu">
@@ -85,6 +110,7 @@ export const DashboardLayout = () => {
               <NavLink
                 key={item.to}
                 to={item.to!}
+                onClick={() => setSidebarOpen(false)}
                 className={({ isActive }) =>
                   `nav-link ${isActive ? 'active' : ''}`
                 }
@@ -118,17 +144,27 @@ export const DashboardLayout = () => {
       {/* Main Content Area */}
       <main className="main-content-layout">
         <header className="content-header">
-          <div className="header-title-area">
-            <div className="breadcrumb">
-              AWMS &nbsp;/&nbsp; {currentNav?.label || 'Overview'}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+            <button
+              type="button"
+              className="mobile-menu-toggle"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open navigation"
+            >
+              <Menu size={20} />
+            </button>
+            <div className="header-title-area">
+              <div className="breadcrumb">
+                AWMS &nbsp;/&nbsp; {currentNav?.label || 'Overview'}
+              </div>
+              <h1 className="header-page-title">
+                {currentNav?.label || 'Dashboard'}
+              </h1>
             </div>
-            <h1 className="header-page-title">
-              {currentNav?.label || 'Dashboard'}
-            </h1>
           </div>
           <div className="header-user-section">
-            <User size={15} />
-            <span>{user?.name || user?.email || 'User'}</span>
+            <User size={15} style={{ flexShrink: 0 }} />
+            <span className="header-user-name">{user?.name || user?.email || 'User'}</span>
           </div>
         </header>
         <div className="content-body">
@@ -140,3 +176,4 @@ export const DashboardLayout = () => {
 };
 
 export default DashboardLayout;
+

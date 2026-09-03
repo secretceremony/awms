@@ -240,7 +240,7 @@ export const Dashboard: React.FC = () => {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
             gap: '12px',
           }}
         >
@@ -317,7 +317,7 @@ export const Dashboard: React.FC = () => {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
             gap: '10px',
           }}
         >
@@ -360,7 +360,7 @@ export const Dashboard: React.FC = () => {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
           gap: '14px',
         }}
       >
@@ -401,76 +401,78 @@ export const Dashboard: React.FC = () => {
               No recent movements recorded.
             </div>
           ) : (
-            <table className="data-table" style={{ margin: 0, fontSize: '0.775rem' }}>
-              <thead>
-                <tr>
-                  <th style={{ padding: '6px 10px' }}>Date &amp; Type</th>
-                  <th style={{ padding: '6px 10px' }}>Item Details</th>
-                  <th style={{ padding: '6px 10px' }}>Destination</th>
-                  <th style={{ width: '45px', textAlign: 'right', padding: '6px 10px' }}>Qty</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentMovements.map((m) => {
-                  const badge = getMovementTypeBadge(m.movementType);
-                  const Icon = badge.icon;
-                  return (
-                    <tr
-                      key={m.id}
-                      onClick={() => {
-                        setSelectedMovementId(m.id);
-                        setIsMovementModalOpen(true);
-                      }}
-                      style={{ cursor: 'pointer' }}
-                      title="Click to view movement details"
-                    >
-                      <td style={{ padding: '6px 10px' }}>
-                        <div style={{ fontSize: '0.7rem', color: '#64748B' }}>
-                          {new Date(m.movementDate).toLocaleDateString('en-GB', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                          })}
-                        </div>
-                        <span
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '3px',
-                            fontSize: '0.675rem',
-                            fontWeight: 700,
-                            backgroundColor: badge.bg,
-                            color: badge.color,
-                            padding: '1px 4px',
-                            borderRadius: '3px',
-                            marginTop: '1px',
-                          }}
-                        >
-                          <Icon size={10} /> {badge.label}
-                        </span>
-                      </td>
-
-                      <td style={{ padding: '6px 10px' }}>
-                        <div style={{ fontWeight: 600, color: '#1E293B' }}>{m.firstItemName}</div>
-                        {m.serialNumber && (
-                          <span style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: '#7C3AED' }}>
-                            SN: {m.serialNumber}
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <table className="data-table" style={{ margin: 0, fontSize: '0.775rem', width: '100%', minWidth: '320px' }}>
+                <thead>
+                  <tr>
+                    <th style={{ padding: '6px 10px' }}>Date &amp; Type</th>
+                    <th style={{ padding: '6px 10px' }}>Item Details</th>
+                    <th style={{ padding: '6px 10px' }}>Destination</th>
+                    <th style={{ width: '45px', textAlign: 'right', padding: '6px 10px' }}>Qty</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentMovements.map((m) => {
+                    const badge = getMovementTypeBadge(m.movementType);
+                    const Icon = badge.icon;
+                    return (
+                      <tr
+                        key={m.id}
+                        onClick={() => {
+                          setSelectedMovementId(m.id);
+                          setIsMovementModalOpen(true);
+                        }}
+                        style={{ cursor: 'pointer' }}
+                        title="Click to view movement details"
+                      >
+                        <td style={{ padding: '6px 10px', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: '0.7rem', color: '#64748B' }}>
+                            {new Date(m.movementDate).toLocaleDateString('en-GB', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                            })}
+                          </div>
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              fontSize: '0.675rem',
+                              fontWeight: 700,
+                              backgroundColor: badge.bg,
+                              color: badge.color,
+                              padding: '1px 4px',
+                              borderRadius: '3px',
+                              marginTop: '1px',
+                            }}
+                          >
+                            <Icon size={10} /> {badge.label}
                           </span>
-                        )}
-                      </td>
+                        </td>
 
-                      <td style={{ padding: '6px 10px', color: '#334155' }}>
-                        {m.toLocation}
-                      </td>
+                        <td style={{ padding: '6px 10px' }}>
+                          <div style={{ fontWeight: 600, color: '#1E293B' }}>{m.firstItemName}</div>
+                          {m.serialNumber && (
+                            <span style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: '#7C3AED' }}>
+                              SN: {m.serialNumber}
+                            </span>
+                          )}
+                        </td>
 
-                      <td style={{ textAlign: 'right', fontWeight: 700, padding: '6px 10px' }}>
-                        {m.itemCount}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        <td style={{ padding: '6px 10px', color: '#334155' }}>
+                          {m.toLocation}
+                        </td>
+
+                        <td style={{ textAlign: 'right', fontWeight: 700, padding: '6px 10px' }}>
+                          {m.itemCount}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
@@ -511,59 +513,61 @@ export const Dashboard: React.FC = () => {
               No delivery orders created yet.
             </div>
           ) : (
-            <table className="data-table" style={{ margin: 0, fontSize: '0.775rem' }}>
-              <thead>
-                <tr>
-                  <th style={{ padding: '6px 10px' }}>DO # / Date</th>
-                  <th style={{ padding: '6px 10px' }}>Project &amp; Client</th>
-                  <th style={{ width: '80px', textAlign: 'center', padding: '6px 10px' }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentDeliveryOrders.map((doDoc) => (
-                  <tr
-                    key={doDoc.id}
-                    onClick={() => {
-                      setSelectedDoId(doDoc.id);
-                      setIsDoModalOpen(true);
-                    }}
-                    style={{ cursor: 'pointer' }}
-                    title="Click to view delivery order details"
-                  >
-                    <td style={{ padding: '6px 10px' }}>
-                      <div style={{ fontFamily: 'monospace', fontWeight: 700, color: '#2250A1' }}>
-                        {doDoc.doNumber || `Draft #${doDoc.id}`}
-                      </div>
-                      <div style={{ fontSize: '0.7rem', color: '#64748B' }}>
-                        {new Date(doDoc.date).toLocaleDateString('en-GB', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric',
-                        })}
-                      </div>
-                    </td>
-
-                    <td style={{ padding: '6px 10px' }}>
-                      <div style={{ fontWeight: 600, color: '#1E293B' }}>
-                        {doDoc.siteCode ? `[${doDoc.siteCode}] ` : ''}
-                        {doDoc.projectName}
-                      </div>
-                      <div style={{ fontSize: '0.7rem', color: '#64748B' }}>{doDoc.clientName}</div>
-                    </td>
-
-                    <td style={{ textAlign: 'center', padding: '6px 10px' }}>
-                      <span
-                        className={`badge-pill ${
-                          doDoc.status === 'ISSUED' ? 'badge-blue' : 'badge-yellow'
-                        } badge-sm`}
-                      >
-                        {doDoc.status}
-                      </span>
-                    </td>
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <table className="data-table" style={{ margin: 0, fontSize: '0.775rem', width: '100%', minWidth: '320px' }}>
+                <thead>
+                  <tr>
+                    <th style={{ padding: '6px 10px' }}>DO # / Date</th>
+                    <th style={{ padding: '6px 10px' }}>Project &amp; Client</th>
+                    <th style={{ width: '80px', textAlign: 'center', padding: '6px 10px' }}>Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {recentDeliveryOrders.map((doDoc) => (
+                    <tr
+                      key={doDoc.id}
+                      onClick={() => {
+                        setSelectedDoId(doDoc.id);
+                        setIsDoModalOpen(true);
+                      }}
+                      style={{ cursor: 'pointer' }}
+                      title="Click to view delivery order details"
+                    >
+                      <td style={{ padding: '6px 10px', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontFamily: 'monospace', fontWeight: 700, color: '#2250A1' }}>
+                          {doDoc.doNumber || `Draft #${doDoc.id}`}
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: '#64748B' }}>
+                          {new Date(doDoc.date).toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                          })}
+                        </div>
+                      </td>
+
+                      <td style={{ padding: '6px 10px' }}>
+                        <div style={{ fontWeight: 600, color: '#1E293B' }}>
+                          {doDoc.siteCode ? `[${doDoc.siteCode}] ` : ''}
+                          {doDoc.projectName}
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: '#64748B' }}>{doDoc.clientName}</div>
+                      </td>
+
+                      <td style={{ textAlign: 'center', padding: '6px 10px' }}>
+                        <span
+                          className={`badge-pill ${
+                            doDoc.status === 'ISSUED' ? 'badge-blue' : 'badge-yellow'
+                          } badge-sm`}
+                        >
+                          {doDoc.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>

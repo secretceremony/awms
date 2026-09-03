@@ -493,8 +493,8 @@ export const AddOutgoingModal: React.FC<AddOutgoingModalProps> = ({
                       No items selected yet. Search and click "+ Add" from available inventory above.
                     </div>
                   ) : (
-                    <div style={{ border: '1px solid #E2E8F0', borderRadius: '6px', overflow: 'hidden' }}>
-                      <table className="data-table" style={{ margin: 0, fontSize: '0.85rem' }}>
+                    <div style={{ border: '1px solid #E2E8F0', borderRadius: '6px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                      <table className="data-table" style={{ margin: 0, fontSize: '0.85rem', minWidth: '450px' }}>
                         <thead>
                           <tr style={{ backgroundColor: '#F8FAFC' }}>
                             <th>Item Description</th>

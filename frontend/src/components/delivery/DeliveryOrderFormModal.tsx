@@ -637,6 +637,7 @@ export const DeliveryOrderFormModal: React.FC<DeliveryOrderFormModalProps> = ({
                   style={{
                     display: 'flex',
                     alignItems: 'center',
+                    flexWrap: 'wrap',
                     gap: '8px',
                     padding: '8px 12px',
                     backgroundColor: '#F8FAFC',
@@ -653,7 +654,7 @@ export const DeliveryOrderFormModal: React.FC<DeliveryOrderFormModalProps> = ({
                     placeholder="e.g. Agung (Logistics Lead), Field Tech Team..."
                     value={sharedPic}
                     onChange={(e) => setSharedPic(e.target.value)}
-                    style={{ padding: '4px 8px', fontSize: '0.8rem', flex: 1 }}
+                    style={{ padding: '4px 8px', fontSize: '0.8rem', flex: '1 1 180px', minWidth: '150px' }}
                   />
                   <Button
                     type="button"
@@ -687,8 +688,8 @@ export const DeliveryOrderFormModal: React.FC<DeliveryOrderFormModalProps> = ({
                       No items selected yet. Click "+ Add" on available stock above.
                     </div>
                   ) : (
-                    <div style={{ border: '1px solid #E2E8F0', borderRadius: '6px', overflow: 'hidden' }}>
-                      <table className="data-table" style={{ margin: 0, fontSize: '0.85rem' }}>
+                    <div style={{ border: '1px solid #E2E8F0', borderRadius: '6px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                      <table className="data-table" style={{ margin: 0, fontSize: '0.85rem', minWidth: '500px' }}>
                         <thead>
                           <tr style={{ backgroundColor: '#F8FAFC' }}>
                             <th>Item &amp; Model</th>

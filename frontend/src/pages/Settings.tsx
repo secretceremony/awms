@@ -49,6 +49,9 @@ export const Settings: React.FC = () => {
           gap: '4px',
           borderBottom: '1px solid #E5E7EB',
           marginBottom: '1.5rem',
+          overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          whiteSpace: 'nowrap',
         }}
       >
         {tabs.map((t) => {

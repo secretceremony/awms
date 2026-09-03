@@ -181,16 +181,17 @@ export const InventoryPicker: React.FC<InventoryPickerProps> = ({
             )}
           </div>
         ) : (
-          <table className="data-table" style={{ margin: 0, fontSize: '0.8rem' }}>
-            <thead>
-              <tr style={{ position: 'sticky', top: 0, backgroundColor: '#F1F5F9', zIndex: 1 }}>
-                <th style={{ padding: '6px 8px' }}>Item &amp; Details</th>
-                <th style={{ padding: '6px 8px' }}>Hub / Location</th>
-                <th style={{ width: '70px', textAlign: 'center', padding: '6px 8px' }}>Type</th>
-                <th style={{ width: '85px', textAlign: 'right', padding: '6px 8px' }}>Available</th>
-                <th style={{ width: '75px', textAlign: 'center', padding: '6px 8px' }}>Action</th>
-              </tr>
-            </thead>
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <table className="data-table" style={{ margin: 0, fontSize: '0.8rem', width: '100%', minWidth: '420px' }}>
+              <thead>
+                <tr style={{ position: 'sticky', top: 0, backgroundColor: '#F1F5F9', zIndex: 1 }}>
+                  <th style={{ padding: '6px 8px' }}>Item &amp; Details</th>
+                  <th style={{ padding: '6px 8px' }}>Hub / Location</th>
+                  <th style={{ width: '70px', textAlign: 'center', padding: '6px 8px' }}>Type</th>
+                  <th style={{ width: '85px', textAlign: 'right', padding: '6px 8px' }}>Available</th>
+                  <th style={{ width: '75px', textAlign: 'center', padding: '6px 8px' }}>Action</th>
+                </tr>
+              </thead>
             <tbody>
               {inventory.map((item) => {
                 const isSelected = selectedItemKeys.includes(item.id);
@@ -272,6 +273,7 @@ export const InventoryPicker: React.FC<InventoryPickerProps> = ({
               })}
             </tbody>
           </table>
+        </div>
         )}
       </div>
     </div>
