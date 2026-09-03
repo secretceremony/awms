@@ -6,7 +6,7 @@ import {
   createPaginationResult,
   PaginatedResult,
 } from '../common/helpers/pagination.helper.js';
-import { TrackingType, Prisma } from '../../generated/prisma/client.js';
+import { TrackingType, MaterialType, Prisma } from '../../generated/prisma/client.js';
 
 export interface StockRow {
   id: string;
@@ -20,6 +20,7 @@ export interface StockRow {
   modelNumber: string | null;
   serialNumber: string;
   trackingType: 'BULK' | 'SERIALIZED';
+  materialType?: string | null;
   quantity: number;
   unit: string;
   unitSymbol: string;
@@ -37,12 +38,14 @@ export class StocksService {
       trackingType?: string;
       warehouseId?: number;
       status?: string;
+      materialType?: string;
     },
   ): Promise<PaginatedResult<StockRow>> {
     const page = paginationDto.page ?? 1;
     const limit = paginationDto.limit ?? 10;
     const search = paginationDto.search?.trim();
     const trackingFilter = paginationDto.trackingType?.toUpperCase();
+    const materialTypeFilter = paginationDto.materialType?.toUpperCase() as MaterialType | undefined;
     const warehouseFilter = paginationDto.warehouseId
       ? Number(paginationDto.warehouseId)
       : undefined;
@@ -85,6 +88,7 @@ export class StocksService {
         limit,
         search,
         warehouseId: warehouseFilter,
+        materialType: materialTypeFilter,
         statusParam,
         lowStockThreshold,
       });
@@ -100,6 +104,7 @@ export class StocksService {
         limit,
         search,
         warehouseId: warehouseFilter,
+        materialType: materialTypeFilter,
         statusParam,
       });
     }
@@ -110,6 +115,7 @@ export class StocksService {
       limit,
       search,
       warehouseId: warehouseFilter,
+      materialType: materialTypeFilter,
       statusParam,
       lowStockThreshold,
     });
@@ -120,10 +126,11 @@ export class StocksService {
     limit: number;
     search?: string;
     warehouseId?: number;
+    materialType?: MaterialType;
     statusParam?: string;
     lowStockThreshold: number;
   }): Promise<PaginatedResult<StockRow>> {
-    const { page, limit, search, warehouseId, statusParam, lowStockThreshold } =
+    const { page, limit, search, warehouseId, materialType, statusParam, lowStockThreshold } =
       params;
     const { skip, take } = getSkipAndTake(page, limit);
 
@@ -132,6 +139,7 @@ export class StocksService {
       item: {
         trackingType: TrackingType.BULK,
         isActive: true,
+        ...(materialType && { materialType }),
         ...(search && {
           OR: [
             { name: { contains: search, mode: 'insensitive' } },
@@ -199,6 +207,7 @@ export class StocksService {
         modelNumber: s.item.modelNumber,
         serialNumber: '-',
         trackingType: 'BULK',
+        materialType: s.item.materialType || 'MAIN_MATERIAL',
         quantity: s.quantity,
         unit: s.item.unit.name,
         unitSymbol: s.item.unit.symbol || s.item.unit.name,
@@ -216,15 +225,17 @@ export class StocksService {
     limit: number;
     search?: string;
     warehouseId?: number;
+    materialType?: MaterialType;
     statusParam?: string;
   }): Promise<PaginatedResult<StockRow>> {
-    const { page, limit, search, warehouseId, statusParam } = params;
+    const { page, limit, search, warehouseId, materialType, statusParam } = params;
     const { skip, take } = getSkipAndTake(page, limit);
 
     const where: Prisma.ItemSerialWhereInput = {
       item: {
         trackingType: TrackingType.SERIALIZED,
         isActive: true,
+        ...(materialType && { materialType }),
       },
       ...(warehouseId && { currentWarehouseId: warehouseId }),
     };
@@ -336,6 +347,7 @@ export class StocksService {
         modelNumber: s.item.modelNumber,
         serialNumber: s.serialNumber,
         trackingType: 'SERIALIZED',
+        materialType: s.item.materialType || 'MAIN_MATERIAL',
         quantity: 1,
         unit: s.item.unit.name,
         unitSymbol: s.item.unit.symbol || s.item.unit.name,
@@ -353,10 +365,11 @@ export class StocksService {
     limit: number;
     search?: string;
     warehouseId?: number;
+    materialType?: MaterialType;
     statusParam?: string;
     lowStockThreshold: number;
   }): Promise<PaginatedResult<StockRow>> {
-    const { page, limit, search, warehouseId, statusParam, lowStockThreshold } =
+    const { page, limit, search, warehouseId, materialType, statusParam, lowStockThreshold } =
       params;
     const { skip, take } = getSkipAndTake(page, limit);
 
@@ -365,6 +378,7 @@ export class StocksService {
       item: {
         trackingType: TrackingType.BULK,
         isActive: true,
+        ...(materialType && { materialType }),
         ...(search && {
           OR: [
             { name: { contains: search, mode: 'insensitive' } },
@@ -389,6 +403,7 @@ export class StocksService {
       item: {
         trackingType: TrackingType.SERIALIZED,
         isActive: true,
+        ...(materialType && { materialType }),
       },
       ...(warehouseId && { currentWarehouseId: warehouseId }),
     };
@@ -461,6 +476,7 @@ export class StocksService {
           modelNumber: s.item.modelNumber,
           serialNumber: '-',
           trackingType: 'BULK',
+          materialType: s.item.materialType || 'MAIN_MATERIAL',
           quantity: s.quantity,
           unit: s.item.unit.name,
           unitSymbol: s.item.unit.symbol || s.item.unit.name,
@@ -549,6 +565,7 @@ export class StocksService {
             modelNumber: s.item.modelNumber,
             serialNumber: s.serialNumber,
             trackingType: 'SERIALIZED',
+            materialType: s.item.materialType || 'MAIN_MATERIAL',
             quantity: 1,
             unit: s.item.unit.name,
             unitSymbol: s.item.unit.symbol || s.item.unit.name,
@@ -637,6 +654,7 @@ export class StocksService {
           modelNumber: s.item.modelNumber,
           serialNumber: s.serialNumber,
           trackingType: 'SERIALIZED',
+          materialType: s.item.materialType || 'MAIN_MATERIAL',
           quantity: 1,
           unit: s.item.unit.name,
           unitSymbol: s.item.unit.symbol || s.item.unit.name,

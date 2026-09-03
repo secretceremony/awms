@@ -20,6 +20,7 @@ import { SettingsModule } from './settings/settings.module';
 import { DashboardModule } from './dashboard/dashboard.module.js';
 import { CitiesModule } from './cities/cities.module.js';
 import { ExportsModule } from './exports/exports.module.js';
+import { ImportsModule } from './imports/imports.module.js';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { ExportsModule } from './exports/exports.module.js';
     SettingsModule,
     DashboardModule,
     ExportsModule,
+    ImportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

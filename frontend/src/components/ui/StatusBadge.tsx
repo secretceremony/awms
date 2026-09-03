@@ -4,7 +4,7 @@ export interface StatusBadgeProps {
   status: boolean | string;
   activeText?: string;
   inactiveText?: string;
-  type?: 'status' | 'tracking' | 'condition' | 'stockHealth' | 'orderStatus' | 'projectStatus';
+  type?: 'status' | 'tracking' | 'material' | 'condition' | 'stockHealth' | 'orderStatus' | 'projectStatus';
   label?: string;
   size?: 'sm' | 'md';
 }
@@ -17,7 +17,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   label: customLabel,
   size = 'md',
 }) => {
-  const str = String(status).trim();
+  const str = String(status || '').trim();
   const lower = str.toLowerCase();
 
   // 1. Explicit or auto-detected tracking badge
@@ -30,6 +30,43 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
         }`}
       >
         {customLabel || (isSerialized ? 'Serialized' : 'Bulk')}
+      </span>
+    );
+  }
+
+  // 2. Material Type Badge
+  if (
+    type === 'material' ||
+    lower === 'main_material' ||
+    lower === 'main material' ||
+    lower === 'consumable' ||
+    lower === 'tools' ||
+    lower === 'hse_material' ||
+    lower === 'hse material'
+  ) {
+    let matVariant: 'blue' | 'yellow' | 'purple' | 'green' | 'gray' = 'gray';
+    let matLabel = customLabel || str;
+
+    if (lower === 'main_material' || lower === 'main material') {
+      matVariant = 'blue';
+      matLabel = customLabel || 'Main Material';
+    } else if (lower === 'consumable') {
+      matVariant = 'yellow';
+      matLabel = customLabel || 'Consumable';
+    } else if (lower === 'tools') {
+      matVariant = 'purple';
+      matLabel = customLabel || 'Tools';
+    } else if (lower === 'hse_material' || lower === 'hse material') {
+      matVariant = 'green';
+      matLabel = customLabel || 'HSE Material';
+    } else {
+      matVariant = 'gray';
+      matLabel = customLabel || 'Uncategorized';
+    }
+
+    return (
+      <span className={`badge-pill badge-${matVariant} ${size === 'sm' ? 'badge-sm' : ''}`}>
+        {matLabel}
       </span>
     );
   }

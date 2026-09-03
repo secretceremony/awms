@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PaginatedTable, type Column } from '../../components/PaginatedTable.js';
 import { apiClient } from '../../api/client.js';
-import { Eye, Plus, Layers, Edit2, SlidersHorizontal, Download, Loader2 } from 'lucide-react';
+import { Eye, Plus, Layers, Edit2, SlidersHorizontal, Download, Upload, Calendar, Loader2 } from 'lucide-react';
 import { Button, PageHeader, Select, StatusBadge, SegmentedControl } from '../../components/ui/index.js';
 import { ItemFormModal, type Item } from '../../components/inventory/ItemFormModal.js';
 import { InitialStockModal } from '../../components/inventory/InitialStockModal.js';
 import { AdjustmentModal } from '../../components/history/AdjustmentModal.js';
+import { ExcelImportModal } from '../../components/common/ExcelImportModal.js';
+import { MonthlyReportModal } from '../../components/common/MonthlyReportModal.js';
 import { FilterBar, FilterPanel, type ActiveFilter } from '../../components/filters/index.js';
 import { downloadAllDataWorkbook } from '../../utils/exportWorkbook.js';
 
@@ -19,6 +21,7 @@ interface StockRow {
   location: string;
   locationType: 'WAREHOUSE' | 'PROJECT';
   itemName: string;
+  materialType?: string | null;
   brand: string | null;
   modelNumber: string | null;
   serialNumber: string;
@@ -34,6 +37,7 @@ interface StockRow {
 interface ItemSummaryData {
   id: number;
   name: string;
+  materialType?: string | null;
   brand: string | null;
   modelNumber: string | null;
   trackingType: 'BULK' | 'SERIALIZED';
@@ -52,6 +56,7 @@ export const StockList: React.FC = () => {
   // URL state
   const search = searchParams.get('search') || '';
   const trackingType = searchParams.get('trackingType') || 'all';
+  const materialType = searchParams.get('materialType') || 'all';
   const warehouseId = searchParams.get('warehouseId') || '';
   const statusFilter = searchParams.get('status') || 'all';
 
@@ -66,6 +71,8 @@ export const StockList: React.FC = () => {
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [isInitialStockModalOpen, setIsInitialStockModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isMonthlyReportModalOpen, setIsMonthlyReportModalOpen] = useState(false);
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
   const [adjustContext, setAdjustContext] = useState<{ itemId: number | null; warehouseId: number | null }>({
     itemId: null,
@@ -186,6 +193,14 @@ export const StockList: React.FC = () => {
       onClear: () => updateFilters({ trackingType: null }),
     });
   }
+  if (materialType && materialType !== 'all') {
+    activeFilters.push({
+      key: 'materialType',
+      label: 'Type',
+      valueDisplay: materialType.replace('_', ' ').toUpperCase(),
+      onClear: () => updateFilters({ materialType: null }),
+    });
+  }
   if (statusFilter && statusFilter !== 'all') {
     activeFilters.push({
       key: 'status',
@@ -221,7 +236,7 @@ export const StockList: React.FC = () => {
       key: 'itemName',
       render: (r) => (
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
             <span
               className={`badge-pill ${
                 r.trackingType === 'SERIALIZED' ? 'tracking-serialized' : 'tracking-bulk'
@@ -229,10 +244,11 @@ export const StockList: React.FC = () => {
             >
               {r.trackingType === 'SERIALIZED' ? 'SERIAL' : 'BULK'}
             </span>
+            <StatusBadge type="material" status={r.materialType || 'MAIN_MATERIAL'} size="sm" />
             <span style={{ fontWeight: 700, color: '#1E293B' }}>{r.itemName}</span>
           </div>
           {(r.brand || r.modelNumber) && (
-            <div style={{ fontSize: '0.725rem', color: '#64748B', marginTop: '1px' }}>
+            <div style={{ fontSize: '0.725rem', color: '#64748B', marginTop: '2px' }}>
               {r.brand && `${r.brand} `}
               {r.modelNumber && `[MN: ${r.modelNumber}]`}
             </div>
@@ -388,7 +404,16 @@ export const StockList: React.FC = () => {
         title="Stock List"
         description="Physical multi-warehouse stock balances, serialized asset tracking, and site allocations."
         actions={
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setIsMonthlyReportModalOpen(true)}
+              title="Generate Monthly Operational Report (.xlsx)"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Calendar size={15} /> Monthly Report
+            </Button>
             <Button
               variant="secondary"
               size="sm"
@@ -399,6 +424,15 @@ export const StockList: React.FC = () => {
             >
               {isExporting ? <Loader2 className="animate-spin" size={15} /> : <Download size={15} />}
               {isExporting ? 'Exporting...' : 'Export All (.xlsx)'}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setIsImportModalOpen(true)}
+              title="Import initial stock via Excel (.xlsx)"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Upload size={15} /> Import Excel
             </Button>
             <Button
               variant="secondary"
@@ -449,6 +483,22 @@ export const StockList: React.FC = () => {
       />
 
       <FilterPanel isOpen={isAdvancedOpen}>
+        <div style={{ width: '180px' }}>
+          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4B5563', marginBottom: '4px' }}>
+            Material Type
+          </label>
+          <Select
+            value={materialType}
+            onChange={(e) => updateFilters({ materialType: e.target.value })}
+          >
+            <option value="all">All Types</option>
+            <option value="MAIN_MATERIAL">Main Material</option>
+            <option value="CONSUMABLE">Consumable</option>
+            <option value="TOOLS">Tools</option>
+            <option value="HSE_MATERIAL">HSE Material</option>
+          </Select>
+        </div>
+
         <div style={{ width: '180px' }}>
           <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4B5563', marginBottom: '4px' }}>
             Stock Status
@@ -577,6 +627,7 @@ export const StockList: React.FC = () => {
         emptyMessage="No stock records found matching current search and filters."
         extraParams={{
           trackingType: trackingType !== 'all' ? trackingType : undefined,
+          materialType: materialType !== 'all' ? materialType : undefined,
           warehouseId: warehouseId || undefined,
           status: statusFilter !== 'all' ? statusFilter : undefined,
           search: search || undefined,
@@ -595,6 +646,20 @@ export const StockList: React.FC = () => {
         isOpen={isInitialStockModalOpen}
         onClose={() => setIsInitialStockModalOpen(false)}
         onSuccess={() => setRefreshKey((prev) => prev + 1)}
+      />
+
+      <ExcelImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        importType="INITIAL_STOCK"
+        title="Import Initial Stock from Excel"
+        templateType="initial-stock"
+        onSuccess={() => setRefreshKey((prev) => prev + 1)}
+      />
+
+      <MonthlyReportModal
+        isOpen={isMonthlyReportModalOpen}
+        onClose={() => setIsMonthlyReportModalOpen(false)}
       />
 
       <AdjustmentModal

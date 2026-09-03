@@ -240,6 +240,12 @@ export const ItemDetail = () => {
             <p style={{ fontWeight: 600, color: '#1E293B', margin: '4px 0 0' }}>{item.modelNumber || '—'}</p>
           </div>
           <div>
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase' }}>Material Type</span>
+            <div style={{ marginTop: '4px' }}>
+              <StatusBadge type="material" status={item.materialType || 'MAIN_MATERIAL'} />
+            </div>
+          </div>
+          <div>
             <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase' }}>Tracking Type</span>
             <div style={{ marginTop: '4px' }}><StatusBadge type="tracking" status={item.trackingType} /></div>
           </div>

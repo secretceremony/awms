@@ -115,10 +115,10 @@ export const OutgoingDetailModal: React.FC<OutgoingDetailModalProps> = ({
               </div>
             </div>
 
-            {/* Manual Dispatch Reason */}
+            {/* Dispatch Purpose */}
             {movement.notes && (
               <div style={{ padding: '0.75rem 1rem', backgroundColor: '#EFF6FF', border: '1px solid #DBEAFE', borderRadius: '6px', fontSize: '0.875rem' }}>
-                <span style={{ fontWeight: 600, color: '#1E40AF' }}>Manual Dispatch Reason: </span>
+                <span style={{ fontWeight: 600, color: '#1E40AF' }}>Purpose: </span>
                 <span style={{ color: '#1E3A8A' }}>{movement.notes}</span>
               </div>
             )}

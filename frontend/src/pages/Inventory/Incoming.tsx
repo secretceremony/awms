@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PaginatedTable, type Column } from '../../components/PaginatedTable.js';
 import { apiClient } from '../../api/client.js';
-import { Eye, Plus } from 'lucide-react';
+import { Eye, Plus, Upload } from 'lucide-react';
 import { Button, PageHeader, Select, Input, StatusBadge } from '../../components/ui/index.js';
 import { AddIncomingModal } from '../../components/inventory/AddIncomingModal.js';
 import { IncomingDetailModal } from '../../components/inventory/IncomingDetailModal.js';
+import { ExcelImportModal } from '../../components/common/ExcelImportModal.js';
 import { FilterBar, FilterPanel, type ActiveFilter } from '../../components/filters/index.js';
 
 interface StockMovement {
@@ -75,6 +76,7 @@ export const Incoming: React.FC = () => {
 
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedMovementId, setSelectedMovementId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -329,13 +331,22 @@ export const Incoming: React.FC = () => {
         title="Incoming Stock & Returns"
         description="Manage goods receipts from external suppliers and returns from projects into warehouses."
         actions={
-          <Button
-            variant="primary"
-            onClick={() => setIsAddModalOpen(true)}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-          >
-            <Plus size={18} /> Add Incoming / Return
-          </Button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Button
+              variant="secondary"
+              onClick={() => setIsImportModalOpen(true)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Upload size={16} /> Import Excel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => setIsAddModalOpen(true)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+            >
+              <Plus size={18} /> Add Incoming / Return
+            </Button>
+          </div>
         }
       />
 
@@ -440,6 +451,16 @@ export const Incoming: React.FC = () => {
       <AddIncomingModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
+        onSuccess={() => setRefreshTrigger((prev) => prev + 1)}
+      />
+
+      {/* Excel Import Modal */}
+      <ExcelImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        importType="INCOMING"
+        title="Import Incoming Movements from Excel"
+        templateType="incoming"
         onSuccess={() => setRefreshTrigger((prev) => prev + 1)}
       />
 

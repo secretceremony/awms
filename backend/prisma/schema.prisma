@@ -21,6 +21,13 @@ enum TrackingType {
   BULK
 }
 
+enum MaterialType {
+  MAIN_MATERIAL
+  CONSUMABLE
+  TOOLS
+  HSE_MATERIAL
+}
+
 
 
 enum MovementType {
@@ -181,6 +188,7 @@ model Item {
   unitId       Int          @map("unit_id")
   unit         Unit         @relation(fields: [unitId], references: [id])
   trackingType TrackingType @map("tracking_type")
+  materialType MaterialType? @default(MAIN_MATERIAL) @map("material_type")
   isActive     Boolean      @default(true) @map("is_active")
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")

@@ -9,9 +9,10 @@ import {
 import { PaginatedTable, type Column } from '../../components/PaginatedTable.js';
 import { AddOutgoingModal } from '../../components/outgoing/AddOutgoingModal.js';
 import { OutgoingDetailModal } from '../../components/outgoing/OutgoingDetailModal.js';
+import { ExcelImportModal } from '../../components/common/ExcelImportModal.js';
 import { FilterBar, FilterPanel, type ActiveFilter } from '../../components/filters/index.js';
 import { apiClient } from '../../api/client.js';
-import { Plus, Eye, Warehouse, Building } from 'lucide-react';
+import { Plus, Eye, Warehouse, Building, Upload } from 'lucide-react';
 
 export interface OutgoingMovementItem {
   id: number;
@@ -88,6 +89,7 @@ export const Outgoing: React.FC = () => {
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedMovementId, setSelectedMovementId] = useState<number | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
@@ -290,7 +292,7 @@ export const Outgoing: React.FC = () => {
     },
     {
       key: 'notes',
-      header: 'Reason',
+      header: 'Purpose',
       render: (m: OutgoingMovement) => (
         <span
           style={{
@@ -330,16 +332,25 @@ export const Outgoing: React.FC = () => {
         title="Outgoing Stock Movements"
         description="Dispatch items and serialized assets from warehouse inventory to active client projects"
         actions={
-          <Button variant="primary" onClick={() => setIsAddModalOpen(true)}>
-            <Plus size={16} /> Add Outgoing
-          </Button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Button
+              variant="secondary"
+              onClick={() => setIsImportModalOpen(true)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Upload size={16} /> Import Excel
+            </Button>
+            <Button variant="primary" onClick={() => setIsAddModalOpen(true)}>
+              <Plus size={16} /> Add Outgoing
+            </Button>
+          </div>
         }
       />
 
       <FilterBar
         searchValue={search}
         onSearchChange={(val) => updateFilters({ search: val })}
-        searchPlaceholder="Search item, brand, MN, SN, project, or reason..."
+        searchPlaceholder="Search item, brand, MN, SN, project, or purpose..."
         primaryFilter={
           <div style={{ width: '200px' }}>
             <Select
@@ -434,6 +445,15 @@ export const Outgoing: React.FC = () => {
       <AddOutgoingModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
+        onSuccess={() => setRefreshTrigger((prev) => prev + 1)}
+      />
+
+      <ExcelImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        importType="OUTGOING"
+        title="Import Outgoing Movements from Excel"
+        templateType="outgoing"
         onSuccess={() => setRefreshTrigger((prev) => prev + 1)}
       />
 

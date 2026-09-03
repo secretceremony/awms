@@ -92,7 +92,7 @@ export const AddOutgoingModal: React.FC<AddOutgoingModalProps> = ({
       return;
     }
     if (!notes.trim()) {
-      setErrorMsg('Manual Dispatch Reason is mandatory');
+      setErrorMsg('Purpose is mandatory for outgoing stock dispatch');
       return;
     }
     setErrorMsg(null);
@@ -205,7 +205,7 @@ export const AddOutgoingModal: React.FC<AddOutgoingModalProps> = ({
       return;
     }
     if (!notes.trim()) {
-      setErrorMsg('Manual Dispatch Reason is mandatory');
+      setErrorMsg('Purpose is mandatory for outgoing stock dispatch');
       return;
     }
     if (selectedItems.length === 0) {
@@ -297,7 +297,7 @@ export const AddOutgoingModal: React.FC<AddOutgoingModalProps> = ({
                 >
                   1
                 </span>
-                Destination &amp; Reason
+                Destination &amp; Purpose
               </div>
               <ArrowRight size={14} color="#94A3B8" />
               <div
@@ -329,7 +329,7 @@ export const AddOutgoingModal: React.FC<AddOutgoingModalProps> = ({
               </div>
             </div>
 
-            {/* STEP 1: DESTINATION & REASON */}
+            {/* STEP 1: DESTINATION & PURPOSE */}
             {step === 1 && (
               <div>
                 <div className="form-grid" style={{ marginBottom: '1rem' }}>
@@ -373,7 +373,7 @@ export const AddOutgoingModal: React.FC<AddOutgoingModalProps> = ({
                   />
                 )}
 
-                <FormField label="Dispatch Reason / Purpose *" style={{ marginBottom: 0 }}>
+                <FormField label="Purpose *" style={{ marginBottom: 0 }}>
                   <Textarea
                     placeholder="e.g. Field installation batch #1, Site replacement under emergency request..."
                     required

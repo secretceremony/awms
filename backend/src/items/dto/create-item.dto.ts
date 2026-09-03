@@ -1,5 +1,5 @@
 import { IsString, IsNotEmpty, IsOptional, IsInt, IsEnum, IsBoolean } from 'class-validator';
-import { TrackingType } from '../../../generated/prisma/client.js';
+import { TrackingType, MaterialType } from '../../../generated/prisma/client.js';
 
 export class CreateItemDto {
   @IsString()
@@ -21,6 +21,10 @@ export class CreateItemDto {
   @IsEnum(TrackingType)
   @IsNotEmpty()
   trackingType: TrackingType;
+
+  @IsEnum(MaterialType)
+  @IsOptional()
+  materialType?: MaterialType;
 
   @IsBoolean()
   @IsOptional()

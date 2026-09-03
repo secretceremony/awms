@@ -632,4 +632,408 @@ export class ExportsService {
 
     return workbook;
   }
+
+  async generateMonthlyReport(month: number, year: number): Promise<ExcelJS.Workbook> {
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'PT ALSSA Corporindo (AWMS)';
+    workbook.lastModifiedBy = 'AWMS System';
+    workbook.created = new Date();
+    workbook.modified = new Date();
+
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
+    const monthLabel = `${monthNames[month - 1]} ${year}`;
+
+    const startDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
+    const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+
+    // Fetch movements for the period
+    const movements = await this.prisma.stockMovement.findMany({
+      where: {
+        movementDate: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      include: {
+        sourceWarehouse: true,
+        destinationWarehouse: true,
+        project: { include: { client: true, clientContact: true } },
+        deliveryOrder: true,
+        createdBy: true,
+        items: {
+          include: {
+            item: { include: { unit: true } },
+            movementSerials: { include: { itemSerial: true } },
+          },
+        },
+      },
+      orderBy: { movementDate: 'asc' },
+    });
+
+    const incomingMovements = movements.filter((m) => m.movementType === 'INCOMING');
+    const returnMovements = movements.filter((m) => m.movementType === 'RETURN');
+    const outgoingMovements = movements.filter((m) => m.movementType === 'OUTGOING');
+    const adjustmentMovements = movements.filter((m) => m.movementType === 'ADJUSTMENT');
+
+    // 1. Summary Sheet
+    const summarySheet = workbook.addWorksheet('Summary');
+    summarySheet.columns = [
+      { header: 'Metric Category', key: 'metric', width: 35 },
+      { header: 'Value / Count', key: 'value', width: 25 },
+      { header: 'Notes / Remarks', key: 'notes', width: 40 },
+    ];
+    this.styleHeaderRow(summarySheet.getRow(1));
+
+    summarySheet.addRow({ metric: 'Reporting Period', value: monthLabel, notes: `From ${this.formatDate(startDate)} to ${this.formatDate(endDate)}` });
+    summarySheet.addRow({ metric: 'Total Stock Movements', value: movements.length, notes: 'All registered transactions in period' });
+    summarySheet.addRow({ metric: 'Incoming Transactions (Supplier / Master)', value: incomingMovements.length, notes: 'Direct warehouse stock receipts' });
+    summarySheet.addRow({ metric: 'Project Return Transactions', value: returnMovements.length, notes: 'Returned assets from client project sites' });
+    summarySheet.addRow({ metric: 'Outgoing Dispatches', value: outgoingMovements.length, notes: 'Site deliveries & project allocations' });
+    summarySheet.addRow({ metric: 'Physical Stock Adjustments', value: adjustmentMovements.length, notes: 'Opname / condition updates' });
+
+    // Quantities calculation
+    let bulkQtyIn = 0;
+    let bulkQtyOut = 0;
+    let serialUnitsIn = 0;
+    let serialUnitsOut = 0;
+    let serialUnitsReturned = 0;
+
+    for (const m of incomingMovements) {
+      for (const mi of m.items) {
+        if (mi.item.trackingType === 'BULK') bulkQtyIn += mi.quantity;
+        else serialUnitsIn += mi.quantity;
+      }
+    }
+
+    for (const m of returnMovements) {
+      for (const mi of m.items) {
+        if (mi.item.trackingType === 'SERIALIZED') serialUnitsReturned += mi.quantity;
+      }
+    }
+
+    for (const m of outgoingMovements) {
+      for (const mi of m.items) {
+        if (mi.item.trackingType === 'BULK') bulkQtyOut += mi.quantity;
+        else serialUnitsOut += mi.quantity;
+      }
+    }
+
+    summarySheet.addRow({ metric: 'Bulk Quantity Received In', value: bulkQtyIn, notes: 'Total units (various UoMs)' });
+    summarySheet.addRow({ metric: 'Bulk Quantity Dispatched Out', value: bulkQtyOut, notes: 'Total units (various UoMs)' });
+    summarySheet.addRow({ metric: 'Serialized Units Received In', value: serialUnitsIn, notes: 'Devices with unique SN' });
+    summarySheet.addRow({ metric: 'Serialized Units Dispatched Out', value: serialUnitsOut, notes: 'Devices deployed to project sites' });
+    summarySheet.addRow({ metric: 'Serialized Units Returned', value: serialUnitsReturned, notes: 'Devices returned to warehouse' });
+
+    // Serial conditions
+    const [standbyGoodCount, underRepairCount] = await Promise.all([
+      this.prisma.itemSerial.count({ where: { state: 'STANDBY_GOOD' } }),
+      this.prisma.itemSerial.count({ where: { state: 'UNDER_REPAIR' } }),
+    ]);
+
+    summarySheet.addRow({ metric: 'Current Standby Good Devices', value: standbyGoodCount, notes: 'Ready for site deployment' });
+    summarySheet.addRow({ metric: 'Current Under Repair Devices', value: underRepairCount, notes: 'Faulty / in maintenance' });
+
+    this.autoFitColumns(summarySheet);
+
+    // 2. Incoming Sheet
+    const incSheet = workbook.addWorksheet('Incoming');
+    incSheet.columns = [
+      { header: 'Movement Date', key: 'date' },
+      { header: 'Movement No', key: 'number' },
+      { header: 'Type', key: 'type' },
+      { header: 'Destination Warehouse', key: 'warehouse' },
+      { header: 'Item Name', key: 'itemName' },
+      { header: 'Material Type', key: 'materialType' },
+      { header: 'Brand', key: 'brand' },
+      { header: 'Model Number', key: 'modelNumber' },
+      { header: 'Serial Number', key: 'serialNumber' },
+      { header: 'Quantity', key: 'quantity' },
+      { header: 'Unit', key: 'unit' },
+      { header: 'Condition', key: 'condition' },
+      { header: 'Reference', key: 'reference' },
+      { header: 'Created By', key: 'createdBy' },
+      { header: 'Notes', key: 'notes' },
+    ];
+    this.styleHeaderRow(incSheet.getRow(1));
+
+    for (const m of incomingMovements) {
+      for (const mi of m.items) {
+        if (mi.item.trackingType === 'SERIALIZED' && mi.movementSerials.length > 0) {
+          for (const ms of mi.movementSerials) {
+            incSheet.addRow({
+              date: this.formatDate(m.movementDate),
+              number: m.movementNumber,
+              type: 'INCOMING',
+              warehouse: m.destinationWarehouse?.name || '—',
+              itemName: mi.item.name,
+              materialType: mi.item.materialType || 'MAIN_MATERIAL',
+              brand: mi.item.brand || '—',
+              modelNumber: mi.item.modelNumber || '—',
+              serialNumber: ms.itemSerial?.serialNumber || '—',
+              quantity: 1,
+              unit: mi.item.unit?.symbol || 'pcs',
+              condition: ms.itemSerial?.conditionLabel || 'Good',
+              reference: m.referenceNumber || '—',
+              createdBy: m.createdBy?.name || 'System',
+              notes: m.notes || '—',
+            });
+          }
+        } else {
+          incSheet.addRow({
+            date: this.formatDate(m.movementDate),
+            number: m.movementNumber,
+            type: 'INCOMING',
+            warehouse: m.destinationWarehouse?.name || '—',
+            itemName: mi.item.name,
+            materialType: mi.item.materialType || 'MAIN_MATERIAL',
+            brand: mi.item.brand || '—',
+            modelNumber: mi.item.modelNumber || '—',
+            serialNumber: '—',
+            quantity: mi.quantity,
+            unit: mi.item.unit?.symbol || 'pcs',
+            condition: 'Good',
+            reference: m.referenceNumber || '—',
+            createdBy: m.createdBy?.name || 'System',
+            notes: m.notes || '—',
+          });
+        }
+      }
+    }
+    this.autoFitColumns(incSheet);
+
+    // 3. Returns Sheet
+    const retSheet = workbook.addWorksheet('Returns');
+    retSheet.columns = [
+      { header: 'Movement Date', key: 'date' },
+      { header: 'Movement No', key: 'number' },
+      { header: 'Origin Project / Site', key: 'project' },
+      { header: 'Client', key: 'client' },
+      { header: 'Destination Warehouse', key: 'warehouse' },
+      { header: 'Item Name', key: 'itemName' },
+      { header: 'Material Type', key: 'materialType' },
+      { header: 'Serial Number', key: 'serialNumber' },
+      { header: 'Quantity', key: 'quantity' },
+      { header: 'Unit', key: 'unit' },
+      { header: 'Returned Condition', key: 'condition' },
+      { header: 'Reference', key: 'reference' },
+      { header: 'Created By', key: 'createdBy' },
+      { header: 'Notes', key: 'notes' },
+    ];
+    this.styleHeaderRow(retSheet.getRow(1));
+
+    for (const m of returnMovements) {
+      for (const mi of m.items) {
+        if (mi.item.trackingType === 'SERIALIZED' && mi.movementSerials.length > 0) {
+          for (const ms of mi.movementSerials) {
+            retSheet.addRow({
+              date: this.formatDate(m.movementDate),
+              number: m.movementNumber,
+              project: m.project?.name || '—',
+              client: m.project?.client?.name || '—',
+              warehouse: m.destinationWarehouse?.name || '—',
+              itemName: mi.item.name,
+              materialType: mi.item.materialType || 'MAIN_MATERIAL',
+              serialNumber: ms.itemSerial?.serialNumber || '—',
+              quantity: 1,
+              unit: mi.item.unit?.symbol || 'pcs',
+              condition: ms.itemSerial?.conditionLabel || 'Good',
+              reference: m.referenceNumber || '—',
+              createdBy: m.createdBy?.name || 'System',
+              notes: m.notes || '—',
+            });
+          }
+        } else {
+          retSheet.addRow({
+            date: this.formatDate(m.movementDate),
+            number: m.movementNumber,
+            project: m.project?.name || '—',
+            client: m.project?.client?.name || '—',
+            warehouse: m.destinationWarehouse?.name || '—',
+            itemName: mi.item.name,
+            materialType: mi.item.materialType || 'MAIN_MATERIAL',
+            serialNumber: '—',
+            quantity: mi.quantity,
+            unit: mi.item.unit?.symbol || 'pcs',
+            condition: 'Good',
+            reference: m.referenceNumber || '—',
+            createdBy: m.createdBy?.name || 'System',
+            notes: m.notes || '—',
+          });
+        }
+      }
+    }
+    this.autoFitColumns(retSheet);
+
+    // 4. Outgoing Sheet
+    const outSheet = workbook.addWorksheet('Outgoing');
+    outSheet.columns = [
+      { header: 'Movement Date', key: 'date' },
+      { header: 'Movement No', key: 'number' },
+      { header: 'DO Number', key: 'doNumber' },
+      { header: 'Source Warehouse', key: 'warehouse' },
+      { header: 'Destination Project', key: 'project' },
+      { header: 'Client', key: 'client' },
+      { header: 'PIC / Attn', key: 'pic' },
+      { header: 'Item Name', key: 'itemName' },
+      { header: 'Material Type', key: 'materialType' },
+      { header: 'Serial Number', key: 'serialNumber' },
+      { header: 'Quantity', key: 'quantity' },
+      { header: 'Unit', key: 'unit' },
+      { header: 'Purpose', key: 'purpose' },
+      { header: 'Created By', key: 'createdBy' },
+    ];
+    this.styleHeaderRow(outSheet.getRow(1));
+
+    for (const m of outgoingMovements) {
+      for (const mi of m.items) {
+        if (mi.item.trackingType === 'SERIALIZED' && mi.movementSerials.length > 0) {
+          for (const ms of mi.movementSerials) {
+            outSheet.addRow({
+              date: this.formatDate(m.movementDate),
+              number: m.movementNumber,
+              doNumber: m.deliveryOrder?.doNumber || 'Manual Outgoing',
+              warehouse: m.sourceWarehouse?.name || '—',
+              project: m.project?.name || '—',
+              client: m.project?.client?.name || '—',
+              pic: m.project?.clientContact?.name || '—',
+              itemName: mi.item.name,
+              materialType: mi.item.materialType || 'MAIN_MATERIAL',
+              serialNumber: ms.itemSerial?.serialNumber || '—',
+              quantity: 1,
+              unit: mi.item.unit?.symbol || 'pcs',
+              purpose: m.notes || 'Deployment for site installation',
+              createdBy: m.createdBy?.name || 'System',
+            });
+          }
+        } else {
+          outSheet.addRow({
+            date: this.formatDate(m.movementDate),
+            number: m.movementNumber,
+            doNumber: m.deliveryOrder?.doNumber || 'Manual Outgoing',
+            warehouse: m.sourceWarehouse?.name || '—',
+            project: m.project?.name || '—',
+            client: m.project?.client?.name || '—',
+            pic: m.project?.clientContact?.name || '—',
+            itemName: mi.item.name,
+            materialType: mi.item.materialType || 'MAIN_MATERIAL',
+            serialNumber: '—',
+            quantity: mi.quantity,
+            unit: mi.item.unit?.symbol || 'pcs',
+            purpose: m.notes || 'Deployment for site installation',
+            createdBy: m.createdBy?.name || 'System',
+          });
+        }
+      }
+    }
+    this.autoFitColumns(outSheet);
+
+    // 5. Adjustments Sheet
+    const adjSheet = workbook.addWorksheet('Adjustments');
+    adjSheet.columns = [
+      { header: 'Movement Date', key: 'date' },
+      { header: 'Movement No', key: 'number' },
+      { header: 'Warehouse Location', key: 'warehouse' },
+      { header: 'Item Name', key: 'itemName' },
+      { header: 'Material Type', key: 'materialType' },
+      { header: 'Serial Number', key: 'serialNumber' },
+      { header: 'Adjusted Quantity', key: 'quantity' },
+      { header: 'Unit', key: 'unit' },
+      { header: 'Purpose / Reason', key: 'purpose' },
+      { header: 'Created By', key: 'createdBy' },
+    ];
+    this.styleHeaderRow(adjSheet.getRow(1));
+
+    for (const m of adjustmentMovements) {
+      for (const mi of m.items) {
+        adjSheet.addRow({
+          date: this.formatDate(m.movementDate),
+          number: m.movementNumber,
+          warehouse: m.destinationWarehouse?.name || m.sourceWarehouse?.name || '—',
+          itemName: mi.item.name,
+          materialType: mi.item.materialType || 'MAIN_MATERIAL',
+          serialNumber: mi.movementSerials[0]?.itemSerial?.serialNumber || '—',
+          quantity: mi.quantity,
+          unit: mi.item.unit?.symbol || 'pcs',
+          purpose: m.notes || 'Physical inventory reconciliation',
+          createdBy: m.createdBy?.name || 'System',
+        });
+      }
+    }
+    this.autoFitColumns(adjSheet);
+
+    // 6. Current Stock Position Sheet
+    const posSheet = workbook.addWorksheet('Current Stock Position');
+    posSheet.columns = [
+      { header: 'Item Name', key: 'itemName' },
+      { header: 'Material Type', key: 'materialType' },
+      { header: 'Brand', key: 'brand' },
+      { header: 'Model Number', key: 'modelNumber' },
+      { header: 'Tracking Type', key: 'trackingType' },
+      { header: 'Current Location', key: 'location' },
+      { header: 'Serial Number', key: 'serialNumber' },
+      { header: 'Quantity on Hand', key: 'quantity' },
+      { header: 'Unit', key: 'unit' },
+      { header: 'Condition', key: 'condition' },
+      { header: 'Status', key: 'status' },
+    ];
+    this.styleHeaderRow(posSheet.getRow(1));
+
+    // Serialized stock
+    const currentSerials = await this.prisma.itemSerial.findMany({
+      include: {
+        item: { include: { unit: true } },
+        currentWarehouse: true,
+        currentProject: true,
+      },
+      orderBy: [{ itemId: 'asc' }, { serialNumber: 'asc' }],
+    });
+
+    for (const s of currentSerials) {
+      posSheet.addRow({
+        itemName: s.item?.name || '—',
+        materialType: s.item?.materialType || 'MAIN_MATERIAL',
+        brand: s.item?.brand || '—',
+        modelNumber: s.item?.modelNumber || '—',
+        trackingType: 'SERIALIZED',
+        location: s.currentProject ? `Project: ${s.currentProject.name}` : (s.currentWarehouse?.name || '—'),
+        serialNumber: s.serialNumber,
+        quantity: 1,
+        unit: s.item?.unit?.symbol || 'pcs',
+        condition: s.conditionLabel || s.state,
+        status: s.currentProjectId ? 'DEPLOY' : (s.state || 'STANDBY_GOOD'),
+      });
+    }
+
+    // Bulk stock
+    const currentBulk = await this.prisma.warehouseStock.findMany({
+      where: { quantity: { gt: 0 } },
+      include: {
+        item: { include: { unit: true } },
+        warehouse: true,
+      },
+      orderBy: [{ itemId: 'asc' }],
+    });
+
+    for (const b of currentBulk) {
+      posSheet.addRow({
+        itemName: b.item.name,
+        materialType: b.item.materialType || 'MAIN_MATERIAL',
+        brand: b.item.brand || '—',
+        modelNumber: b.item.modelNumber || '—',
+        trackingType: 'BULK',
+        location: b.warehouse?.name || '—',
+        serialNumber: '—',
+        quantity: b.quantity,
+        unit: b.item.unit?.symbol || 'pcs',
+        condition: 'Good',
+        status: 'AVAILABLE',
+      });
+    }
+    this.autoFitColumns(posSheet);
+
+    return workbook;
+  }
 }

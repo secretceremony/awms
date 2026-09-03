@@ -162,7 +162,7 @@ export const MovementDetailModal: React.FC<MovementDetailModalProps> = ({
                   fontSize: '13px',
                 }}
               >
-                <strong style={{ color: '#1F2839' }}>Reason / Remarks:</strong> {movement.notes}
+                <strong style={{ color: '#1F2839' }}>Purpose / Remarks:</strong> {movement.notes}
               </div>
             )}
 

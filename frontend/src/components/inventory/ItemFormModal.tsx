@@ -2,12 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Modal, FormField, Input, Select, Button, SegmentedControl, ConfirmModal } from '../ui/index.js';
 import { apiClient } from '../../api/client.js';
 
+export type MaterialType = 'MAIN_MATERIAL' | 'CONSUMABLE' | 'TOOLS' | 'HSE_MATERIAL';
+
 export interface Item {
   id: number;
   name: string;
   brand: string | null;
   modelNumber: string | null;
   trackingType: 'BULK' | 'SERIALIZED';
+  materialType?: MaterialType | null;
   unitId: number;
   unit?: { id: number; name: string; symbol: string | null };
   isActive: boolean;
@@ -34,6 +37,7 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({
     brand: '',
     modelNumber: '',
     trackingType: null as 'BULK' | 'SERIALIZED' | null,
+    materialType: 'MAIN_MATERIAL' as MaterialType,
     unitId: '',
   });
 
@@ -71,6 +75,7 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({
           brand: item.brand || '',
           modelNumber: item.modelNumber || '',
           trackingType: item.trackingType,
+          materialType: (item.materialType || 'MAIN_MATERIAL') as MaterialType,
           unitId: String(item.unitId || item.unit?.id || ''),
         };
         setFormData(init);
@@ -81,6 +86,7 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({
           brand: '',
           modelNumber: '',
           trackingType: null, // Rule 10: No default tracking type! User must explicitly choose.
+          materialType: 'MAIN_MATERIAL' as MaterialType,
           unitId: '',
         };
         setFormData(init);
@@ -128,6 +134,7 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({
         brand: formData.brand.trim() || undefined,
         modelNumber: formData.modelNumber.trim() || undefined,
         trackingType: formData.trackingType,
+        materialType: formData.materialType,
         unitId: Number(formData.unitId),
       };
 
@@ -173,6 +180,45 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
+            </FormField>
+
+            <FormField label="Material Type" required>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+                {[
+                  { value: 'MAIN_MATERIAL', label: 'Main Material' },
+                  { value: 'CONSUMABLE', label: 'Consumable' },
+                  { value: 'TOOLS', label: 'Tools' },
+                  { value: 'HSE_MATERIAL', label: 'HSE Material' },
+                ].map((opt) => (
+                  <label
+                    key={opt.value}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 12px',
+                      border: formData.materialType === opt.value ? '2px solid #2250A1' : '1px solid #E2E8F0',
+                      borderRadius: '6px',
+                      backgroundColor: formData.materialType === opt.value ? '#EFF6FF' : '#FFFFFF',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem',
+                      fontWeight: formData.materialType === opt.value ? 600 : 500,
+                      color: formData.materialType === opt.value ? '#2250A1' : '#334155',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="materialType"
+                      value={opt.value}
+                      checked={formData.materialType === opt.value}
+                      onChange={() => setFormData({ ...formData, materialType: opt.value as MaterialType })}
+                      style={{ accentColor: '#2250A1' }}
+                    />
+                    {opt.label}
+                  </label>
+                ))}
+              </div>
             </FormField>
 
             <FormField label="Tracking Type" required>

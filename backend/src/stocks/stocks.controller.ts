@@ -10,12 +10,14 @@ export class StocksController {
   getStockList(
     @Query() paginationDto: PaginationDto,
     @Query('trackingType') trackingType?: string,
+    @Query('materialType') materialType?: string,
     @Query('warehouseId') warehouseId?: number,
     @Query('status') status?: string,
   ) {
     return this.stocksService.getStockList({
       ...paginationDto,
       trackingType,
+      materialType,
       warehouseId,
       status,
     });
