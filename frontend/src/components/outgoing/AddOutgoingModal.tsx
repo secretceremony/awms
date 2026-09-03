@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, FormField, Input, Select, Textarea, Button, ConfirmModal } from '../ui/index.js';
+import { Modal, FormField, Input, Select, Textarea, Button, ConfirmModal, QuantityStepper } from '../ui/index.js';
 import { apiClient } from '../../api/client.js';
 import { ArrowRight, ArrowLeft, Trash2 } from 'lucide-react';
 import { ProjectSnapshotCard } from '../common/ProjectSnapshotCard.js';
@@ -542,23 +542,20 @@ export const AddOutgoingModal: React.FC<AddOutgoingModalProps> = ({
 
                               <td style={{ textAlign: 'center' }}>
                                 {si.trackingType === 'BULK' ? (
-                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                    <Input
-                                      type="number"
-                                      min="1"
-                                      max={si.maxAvailableQty}
+                                  <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                    <QuantityStepper
                                       value={si.quantity}
-                                      onChange={(e) =>
-                                        handleBulkQtyChange(idx, parseInt(e.target.value, 10) || 1)
-                                      }
-                                      style={{ width: '65px', padding: '3px 6px', textAlign: 'center' }}
+                                      min={1}
+                                      max={si.maxAvailableQty}
+                                      onChange={(val) => handleBulkQtyChange(idx, val)}
+                                      size="sm"
                                     />
-                                    <span style={{ fontSize: '0.75rem', color: '#64748B' }}>
-                                      / {si.maxAvailableQty}
+                                    <span style={{ fontSize: '0.7rem', color: '#64748B' }}>
+                                      avail: {si.maxAvailableQty} {si.unitSymbol}
                                     </span>
                                   </div>
                                 ) : (
-                                  <span style={{ fontWeight: 700, color: '#2250A1' }}>
+                                  <span style={{ fontWeight: 700, color: '#2250A1', fontSize: '0.8rem' }}>
                                     {si.quantity} Unit(s)
                                   </span>
                                 )}

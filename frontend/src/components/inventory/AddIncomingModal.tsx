@@ -3,12 +3,12 @@ import {
   Modal,
   FormField,
   Input,
-  NumberInput,
   Select,
   Textarea,
   Button,
   SegmentedControl,
   ConfirmModal,
+  QuantityStepper,
 } from '../ui/index.js';
 import { Plus, Trash2, ClipboardList, RotateCcw, PackageCheck, CheckSquare, Square}  from 'lucide-react';
 import { apiClient } from '../../api/client.js';
@@ -106,12 +106,14 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
     [sn: string]: { selected: boolean; conditionLabel: string; notes: string };
   }>({});
 
-  const [initialStateSnapshot, setInitialStateSnapshot] = useState('');
+  const [initialRegular, setInitialRegular] = useState(regularForm);
+  const [initialReturn, setInitialReturn] = useState(returnForm);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   // Multi-paste modal for regular incoming
   const [pasteModalOpen, setPasteModalOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');
+  const [pasteCondition, setPasteCondition] = useState<string>('Standby Good');
   const [pasteError, setPasteError] = useState<string | null>(null);
 
   const [isSaving, setIsSaving] = useState(false);
@@ -148,6 +150,9 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
         referenceNumber: '',
         notes: '',
       };
+      setRegularForm(rInit);
+      setInitialRegular(rInit);
+
       const retInit = {
         movementDate: new Date().toISOString().split('T')[0],
         projectId: '',
@@ -155,17 +160,16 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
         referenceNumber: '',
         notes: '',
       };
-      setRegularForm(rInit);
       setReturnForm(retInit);
+      setInitialReturn(retInit);
       setProjectInventory([]);
       setSelectedBulkReturns({});
       setSelectedSerialReturns({});
-      setSnSearch('');
-      setErrorMsg(null);
       setPasteModalOpen(false);
       setPasteText('');
+      setPasteCondition('Standby Good');
       setPasteError(null);
-      setInitialStateSnapshot(JSON.stringify({ sourceType: 'REGULAR', rInit, retInit }));
+      setErrorMsg(null);
 
       setTimeout(() => {
         whSelectRef.current?.focus();
@@ -214,15 +218,15 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
     fetchProjectInventory();
   }, [sourceType, returnForm.projectId]);
 
-  const currentSnapshot = JSON.stringify({
-    sourceType,
-    regularForm,
-    returnForm,
-    selectedBulkReturns,
-    selectedSerialReturns,
-  });
+  const selectedRegularItem = items.find((i) => String(i.id) === regularForm.itemId);
+  const isRegularSerialized = selectedRegularItem?.trackingType === 'SERIALIZED';
 
-  const isDirty = currentSnapshot !== initialStateSnapshot && initialStateSnapshot !== '';
+  const isDirty =
+    sourceType === 'REGULAR'
+      ? JSON.stringify(regularForm) !== JSON.stringify(initialRegular)
+      : JSON.stringify(returnForm) !== JSON.stringify(initialReturn) ||
+        Object.keys(selectedBulkReturns).length > 0 ||
+        Object.values(selectedSerialReturns).some((s) => s.selected);
 
   const handleRequestClose = () => {
     if (isDirty) {
@@ -233,9 +237,6 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
   };
 
   // --- Regular Incoming Handlers ---
-  const selectedRegularItem = items.find((i) => String(i.id) === regularForm.itemId);
-  const isRegularSerialized = selectedRegularItem?.trackingType === 'SERIALIZED';
-
   const handleAddSerialField = () => {
     setRegularForm((prev) => ({
       ...prev,
@@ -256,6 +257,13 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
       updated[index] = { ...updated[index], [field]: value };
       return { ...prev, serialRows: updated };
     });
+  };
+
+  const handleSetAllRegularConditions = (condition: string) => {
+    setRegularForm((prev) => ({
+      ...prev,
+      serialRows: prev.serialRows.map((r) => ({ ...r, conditionLabel: condition })),
+    }));
   };
 
   const handleProcessPaste = () => {
@@ -286,7 +294,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
         seen.add(line);
         newRows.push({
           serialNumber: line,
-          conditionLabel: 'Standby Good',
+          conditionLabel: pasteCondition || 'Standby Good',
           notes: '',
         });
       }
@@ -642,13 +650,15 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                   </FormField>
 
                   {!isRegularSerialized ? (
-                    <FormField label="Quantity" required style={{ marginBottom: 0 }}>
-                      <NumberInput
-                        min={1}
-                        required
-                        value={regularForm.quantity}
-                        onChange={(val) => setRegularForm({ ...regularForm, quantity: val || 1 })}
-                      />
+                    <FormField label="Quantity *" required style={{ marginBottom: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '4px' }}>
+                        <QuantityStepper
+                          min={1}
+                          value={regularForm.quantity}
+                          onChange={(val) => setRegularForm({ ...regularForm, quantity: val || 1 })}
+                          unitSymbol={selectedRegularItem?.unit?.symbol || 'pcs'}
+                        />
+                      </div>
                     </FormField>
                   ) : (
                     <FormField label="Serial Count" style={{ marginBottom: 0 }}>
@@ -665,40 +675,91 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                     style={{
                       border: '1px solid #E2E8F0',
                       borderRadius: '6px',
-                      padding: '1rem',
+                      padding: '0.85rem 1rem',
                       backgroundColor: '#F8FAFC',
                       marginBottom: '1rem',
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                      <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600, color: '#1E293B' }}>
-                        Serial Numbers ({regularForm.serialRows.length})
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '8px' }}>
+                      <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: '#1E293B' }}>
+                        Serial Numbers &amp; Conditions ({regularForm.serialRows.length})
                       </h4>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setPasteModalOpen(true)}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                      >
-                        <ClipboardList size={14} /> Multi-SN Paste
-                      </Button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 600 }}>Set all:</span>
+                        <button
+                          type="button"
+                          onClick={() => handleSetAllRegularConditions('Standby Good')}
+                          style={{
+                            padding: '2px 6px',
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                            borderRadius: '3px',
+                            border: '1px solid #A7F3D0',
+                            backgroundColor: '#ECFDF5',
+                            color: '#059669',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Good
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSetAllRegularConditions('Standby Bad')}
+                          style={{
+                            padding: '2px 6px',
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                            borderRadius: '3px',
+                            border: '1px solid #FECACA',
+                            backgroundColor: '#FEF2F2',
+                            color: '#DC2626',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Bad
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSetAllRegularConditions('Under Repair')}
+                          style={{
+                            padding: '2px 6px',
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                            borderRadius: '3px',
+                            border: '1px solid #FDE68A',
+                            backgroundColor: '#FFFBEB',
+                            color: '#D97706',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Repair
+                        </button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setPasteModalOpen(true)}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', fontSize: '0.75rem' }}
+                        >
+                          <ClipboardList size={13} /> Batch Paste
+                        </Button>
+                      </div>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto' }}>
                       {regularForm.serialRows.map((row, idx) => (
-                        <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <div key={idx} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                           <Input
                             placeholder={`Serial #${idx + 1}`}
                             required
                             value={row.serialNumber}
                             onChange={(e) => handleSerialChange(idx, 'serialNumber', e.target.value)}
-                            style={{ flex: 2 }}
+                            style={{ flex: 2, padding: '4px 8px', fontSize: '0.8rem' }}
                           />
                           <Select
                             value={row.conditionLabel}
                             onChange={(e) => handleSerialChange(idx, 'conditionLabel', e.target.value)}
-                            style={{ flex: 1.5 }}
+                            style={{ flex: 1.5, padding: '4px 8px', fontSize: '0.8rem' }}
                           >
                             <option value="Standby Good">Standby Good</option>
                             <option value="Standby Bad">Standby Bad</option>
@@ -708,7 +769,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                             placeholder="Notes (optional)"
                             value={row.notes}
                             onChange={(e) => handleSerialChange(idx, 'notes', e.target.value)}
-                            style={{ flex: 2 }}
+                            style={{ flex: 2, padding: '4px 8px', fontSize: '0.8rem' }}
                           />
                           {regularForm.serialRows.length > 1 && (
                             <button
@@ -716,7 +777,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                               onClick={() => handleRemoveSerialField(idx)}
                               style={{ border: 'none', background: 'transparent', color: '#EF4444', cursor: 'pointer', padding: '4px' }}
                             >
-                              <Trash2 size={16} />
+                              <Trash2 size={15} />
                             </button>
                           )}
                         </div>
@@ -728,9 +789,9 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                       variant="ghost"
                       size="sm"
                       onClick={handleAddSerialField}
-                      style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      style={{ marginTop: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', padding: '2px 6px' }}
                     >
-                      <Plus size={14} /> Add Row
+                      <Plus size={13} /> Add Row
                     </Button>
                   </div>
                 )}
@@ -852,20 +913,12 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                                     {b.availableQty} {b.unitSymbol}
                                   </td>
                                   <td>
-                                    <Input
-                                      type="number"
-                                      min="0"
+                                    <QuantityStepper
+                                      min={0}
                                       max={b.availableQty}
-                                      placeholder="0"
-                                      value={selectedBulkReturns[b.itemId] || ''}
-                                      onChange={(e) =>
-                                        handleBulkReturnQtyChange(
-                                          b.itemId,
-                                          parseInt(e.target.value, 10) || 0,
-                                          b.availableQty,
-                                        )
-                                      }
-                                      style={{ width: '100px', padding: '4px 8px' }}
+                                      value={selectedBulkReturns[b.itemId] || 0}
+                                      onChange={(val) => handleBulkReturnQtyChange(b.itemId, val, b.availableQty)}
+                                      size="sm"
                                     />
                                   </td>
                                 </tr>
@@ -1046,6 +1099,17 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
       >
         <div className="modal-body">
           {pasteError && <div className="alert-error" style={{ marginBottom: '1rem' }}>{pasteError}</div>}
+          <FormField label="Condition for Pasted Units" required>
+            <Select
+              value={pasteCondition}
+              onChange={(e) => setPasteCondition(e.target.value)}
+            >
+              <option value="Standby Good">Standby Good (Ready for deployment)</option>
+              <option value="Standby Bad">Standby Bad (Defective / Damaged)</option>
+              <option value="Under Repair">Under Repair (Needs maintenance)</option>
+            </Select>
+          </FormField>
+
           <FormField label="Paste Serial Numbers (One per line)" required>
             <Textarea
               rows={8}

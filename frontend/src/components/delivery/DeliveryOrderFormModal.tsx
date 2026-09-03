@@ -7,6 +7,7 @@ import {
   Textarea,
   Button,
   ConfirmModal,
+  QuantityStepper,
 } from '../ui/index.js';
 import { apiClient } from '../../api/client.js';
 import {
@@ -730,18 +731,20 @@ export const DeliveryOrderFormModal: React.FC<DeliveryOrderFormModalProps> = ({
 
                               <td style={{ textAlign: 'center' }}>
                                 {si.trackingType === 'BULK' ? (
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    max={si.maxAvailable}
-                                    value={si.quantity}
-                                    onChange={(e) =>
-                                      handleItemPropertyChange(idx, 'quantity', parseInt(e.target.value, 10) || 1)
-                                    }
-                                    style={{ width: '60px', padding: '3px 6px', textAlign: 'center' }}
-                                  />
+                                  <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                    <QuantityStepper
+                                      value={si.quantity}
+                                      min={1}
+                                      max={si.maxAvailable}
+                                      onChange={(val) => handleItemPropertyChange(idx, 'quantity', val)}
+                                      size="sm"
+                                    />
+                                    <span style={{ fontSize: '0.7rem', color: '#64748B' }}>
+                                      avail: {si.maxAvailable} {si.unitSymbol}
+                                    </span>
+                                  </div>
                                 ) : (
-                                  <span style={{ fontWeight: 700, color: '#2250A1' }}>
+                                  <span style={{ fontWeight: 700, color: '#2250A1', fontSize: '0.8rem' }}>
                                     {si.quantity} {si.unitSymbol}
                                   </span>
                                 )}
