@@ -12,8 +12,11 @@ import { ProjectFormModal, type Project } from '../components/project/ProjectFor
 import { FilterBar, type ActiveFilter } from '../components/filters/index.js';
 import { apiClient } from '../api/client.js';
 import { Plus, Edit2, CheckCircle2, RotateCcw, Trash2, MapPin, Building } from 'lucide-react';
+import { useAuth } from '../context/AuthContext.js';
+import { canManageMasterData } from '../utils/permissions.js';
 
 export const Projects: React.FC = () => {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // URL state
@@ -263,48 +266,54 @@ export const Projects: React.FC = () => {
       header: 'Actions',
       render: (p: Project) => (
         <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-          {p.status === 'ACTIVE' && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleEdit(p)}
-              title="Edit Project"
-            >
-              <Edit2 size={14} />
-            </Button>
-          )}
+          {canManageMasterData(user?.role) ? (
+            <>
+              {p.status === 'ACTIVE' && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleEdit(p)}
+                  title="Edit Project"
+                >
+                  <Edit2 size={14} />
+                </Button>
+              )}
 
-          {p.status === 'ACTIVE' ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleCompleteProject(p)}
-              title="Complete Project"
-              style={{ color: '#10B981' }}
-            >
-              <CheckCircle2 size={14} />
-            </Button>
+              {p.status === 'ACTIVE' ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleCompleteProject(p)}
+                  title="Complete Project"
+                  style={{ color: '#10B981' }}
+                >
+                  <CheckCircle2 size={14} />
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleReactivate(p)}
+                  title="Reactivate Project"
+                  style={{ color: '#2250A1' }}
+                >
+                  <RotateCcw size={14} />
+                </Button>
+              )}
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleDelete(p)}
+                title="Delete Project"
+                style={{ color: '#6B7280' }}
+              >
+                <Trash2 size={14} />
+              </Button>
+            </>
           ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleReactivate(p)}
-              title="Reactivate Project"
-              style={{ color: '#2250A1' }}
-            >
-              <RotateCcw size={14} />
-            </Button>
+            <span style={{ color: '#9CA3AF', fontSize: '0.8rem' }}>—</span>
           )}
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleDelete(p)}
-            title="Delete Project"
-            style={{ color: '#6B7280' }}
-          >
-            <Trash2 size={14} />
-          </Button>
         </div>
       ),
     },
@@ -316,9 +325,11 @@ export const Projects: React.FC = () => {
         title="Project Management"
         description="Client operational contracts, site codes, assigned external reference numbers, and active dispatch locations"
         actions={
-          <Button variant="primary" onClick={handleCreate}>
-            <Plus size={16} /> Add Project
-          </Button>
+          canManageMasterData(user?.role) ? (
+            <Button variant="primary" onClick={handleCreate}>
+              <Plus size={16} /> Add Project
+            </Button>
+          ) : undefined
         }
       />
 

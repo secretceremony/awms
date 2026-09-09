@@ -15,6 +15,7 @@ import { UpdateProjectDto } from './dto/update-project.dto.js';
 import { UpdateProjectStatusDto } from './dto/update-project-status.dto.js';
 import { ProjectsPaginationDto } from './dto/projects-pagination.dto.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import { Roles } from '../common/decorators/roles.decorator.js';
 import type { AuthenticatedUser } from '../items/items.controller.js';
 
 @Controller('projects')
@@ -22,6 +23,7 @@ export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
   @Post()
+  @Roles('SUPER_ADMIN', 'ADMIN')
   create(
     @Body() createProjectDto: CreateProjectDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -40,6 +42,7 @@ export class ProjectsController {
   }
 
   @Patch(':id')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateProjectDto: UpdateProjectDto,
@@ -49,6 +52,7 @@ export class ProjectsController {
   }
 
   @Patch(':id/status')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateStatusDto: UpdateProjectStatusDto,
@@ -58,6 +62,7 @@ export class ProjectsController {
   }
 
   @Patch(':id/reactivate')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   reactivate(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -66,6 +71,7 @@ export class ProjectsController {
   }
 
   @Delete(':id')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   delete(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,

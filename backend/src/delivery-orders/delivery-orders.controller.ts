@@ -14,12 +14,14 @@ import { CreateDeliveryOrderDto } from './dto/create-delivery-order.dto.js';
 import { UpdateDeliveryOrderDto } from './dto/update-delivery-order.dto.js';
 import { DeliveryOrdersPaginationDto } from './dto/delivery-orders-pagination.dto.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import { Roles } from '../common/decorators/roles.decorator.js';
 
 @Controller('delivery-orders')
 export class DeliveryOrdersController {
   constructor(private readonly deliveryOrdersService: DeliveryOrdersService) {}
 
   @Post('draft')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   createDraft(
     @Body() createDto: CreateDeliveryOrderDto,
     @CurrentUser() user: any,
@@ -43,6 +45,7 @@ export class DeliveryOrdersController {
   }
 
   @Patch(':id/draft')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   updateDraft(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateDto: UpdateDeliveryOrderDto,
@@ -52,6 +55,7 @@ export class DeliveryOrdersController {
   }
 
   @Delete(':id/draft')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   cancelDraft(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: any,
@@ -60,6 +64,7 @@ export class DeliveryOrdersController {
   }
 
   @Post(':id/issue')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   issueDeliveryOrder(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: any,

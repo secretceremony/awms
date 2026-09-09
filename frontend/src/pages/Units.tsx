@@ -10,8 +10,11 @@ import { PaginatedTable, type Column } from '../components/PaginatedTable.js';
 import { UnitFormModal, type Unit } from '../components/unit/UnitFormModal.js';
 import { apiClient } from '../api/client.js';
 import { Plus, Edit2, Ban, CheckCircle, Trash2 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext.js';
+import { canManageMasterData } from '../utils/permissions.js';
 
 export const Units: React.FC = () => {
+  const { user } = useAuth();
   const [statusFilter, setStatusFilter] = useState('all');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
@@ -159,39 +162,45 @@ export const Units: React.FC = () => {
       header: 'Actions',
       render: (unit: Unit) => (
         <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-          <Button variant="ghost" size="sm" onClick={() => handleEdit(unit)} title="Edit Unit">
-            <Edit2 size={14} />
-          </Button>
-          {unit.isActive ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleDeactivate(unit)}
-              title="Deactivate Unit"
-              style={{ color: '#EF4444' }}
-            >
-              <Ban size={14} />
-            </Button>
+          {canManageMasterData(user?.role) ? (
+            <>
+              <Button variant="ghost" size="sm" onClick={() => handleEdit(unit)} title="Edit Unit">
+                <Edit2 size={14} />
+              </Button>
+              {unit.isActive ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDeactivate(unit)}
+                  title="Deactivate Unit"
+                  style={{ color: '#EF4444' }}
+                >
+                  <Ban size={14} />
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleReactivate(unit)}
+                  title="Reactivate Unit"
+                  style={{ color: '#10B981' }}
+                >
+                  <CheckCircle size={14} />
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleDelete(unit)}
+                title="Delete Unit"
+                style={{ color: '#6B7280' }}
+              >
+                <Trash2 size={14} />
+              </Button>
+            </>
           ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleReactivate(unit)}
-              title="Reactivate Unit"
-              style={{ color: '#10B981' }}
-            >
-              <CheckCircle size={14} />
-            </Button>
+            <span style={{ color: '#9CA3AF', fontSize: '0.8rem' }}>—</span>
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleDelete(unit)}
-            title="Delete Unit"
-            style={{ color: '#6B7280' }}
-          >
-            <Trash2 size={14} />
-          </Button>
         </div>
       ),
     },
@@ -203,9 +212,11 @@ export const Units: React.FC = () => {
         title="Units of Measurement"
         description="Standardized units and lowercase symbols for bulk and serialized inventory items"
         actions={
-          <Button variant="primary" onClick={handleCreate}>
-            <Plus size={16} /> Add Unit
-          </Button>
+          canManageMasterData(user?.role) ? (
+            <Button variant="primary" onClick={handleCreate}>
+              <Plus size={16} /> Add Unit
+            </Button>
+          ) : undefined
         }
       />
 

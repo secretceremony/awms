@@ -3,6 +3,8 @@ import { Modal, FormField, Input, Button, StatusBadge } from '../ui/index.js';
 import { apiClient } from '../../api/client.js';
 import type { Client, ClientContact } from './ClientFormModal.js';
 import { Plus, Edit2, Ban, CheckCircle, Trash2, User } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext.js';
+import { canManageMasterData } from '../../utils/permissions.js';
 
 export interface ClientContactsModalProps {
   isOpen: boolean;
@@ -17,6 +19,7 @@ export const ClientContactsModal: React.FC<ClientContactsModalProps> = ({
   client,
   onUpdate,
 }) => {
+  const { user } = useAuth();
   const [contacts, setContacts] = useState<ClientContact[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -154,9 +157,11 @@ export const ClientContactsModal: React.FC<ClientContactsModalProps> = ({
               <div style={{ fontSize: '0.875rem', color: '#6B7280' }}>
                 Contact persons for delivery order Attn & logistics requests.
               </div>
-              <Button variant="primary" size="sm" onClick={handleOpenAdd}>
-                <Plus size={14} /> Add Contact
-              </Button>
+              {canManageMasterData(user?.role) && (
+                <Button variant="primary" size="sm" onClick={handleOpenAdd}>
+                  <Plus size={14} /> Add Contact
+                </Button>
+              )}
             </div>
 
             {isLoading ? (
@@ -166,7 +171,9 @@ export const ClientContactsModal: React.FC<ClientContactsModalProps> = ({
                 <User size={32} style={{ color: '#9CA3AF', marginBottom: '0.5rem' }} />
                 <div style={{ fontWeight: 600, color: '#374151' }}>No Contacts Yet</div>
                 <div style={{ fontSize: '0.85rem', color: '#6B7280', marginTop: '0.25rem' }}>
-                  Click "Add Contact" above to add contact persons for this client.
+                  {canManageMasterData(user?.role)
+                    ? 'Click "Add Contact" above to add contact persons for this client.'
+                    : 'No contact persons listed for this client.'}
                 </div>
               </div>
             ) : (
@@ -198,29 +205,31 @@ export const ClientContactsModal: React.FC<ClientContactsModalProps> = ({
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Button variant="ghost" size="sm" onClick={() => handleOpenEdit(contact)} title="Edit Contact">
-                        <Edit2 size={14} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleToggleStatus(contact)}
-                        title={contact.isActive ? 'Deactivate Contact' : 'Reactivate Contact'}
-                        style={{ color: contact.isActive ? '#EF4444' : '#10B981' }}
-                      >
-                        {contact.isActive ? <Ban size={14} /> : <CheckCircle size={14} />}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteContact(contact)}
-                        title="Delete Contact"
-                        style={{ color: '#6B7280' }}
-                      >
-                        <Trash2 size={14} />
-                      </Button>
-                    </div>
+                    {canManageMasterData(user?.role) && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Button variant="ghost" size="sm" onClick={() => handleOpenEdit(contact)} title="Edit Contact">
+                          <Edit2 size={14} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleToggleStatus(contact)}
+                          title={contact.isActive ? 'Deactivate Contact' : 'Reactivate Contact'}
+                          style={{ color: contact.isActive ? '#EF4444' : '#10B981' }}
+                        >
+                          {contact.isActive ? <Ban size={14} /> : <CheckCircle size={14} />}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteContact(contact)}
+                          title="Delete Contact"
+                          style={{ color: '#6B7280' }}
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

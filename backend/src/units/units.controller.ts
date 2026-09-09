@@ -16,6 +16,7 @@ import { CreateUnitDto } from './dto/create-unit.dto.js';
 import { UpdateUnitDto } from './dto/update-unit.dto.js';
 import { UnitsPaginationDto } from './dto/units-pagination.dto.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import { Roles } from '../common/decorators/roles.decorator.js';
 import type { AuthenticatedUser } from '../items/items.controller.js';
 
 @Controller('units')
@@ -23,6 +24,7 @@ export class UnitsController {
   constructor(private readonly unitsService: UnitsService) {}
 
   @Post()
+  @Roles('SUPER_ADMIN', 'ADMIN')
   create(
     @Body() createUnitDto: CreateUnitDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -41,6 +43,7 @@ export class UnitsController {
   }
 
   @Patch(':id')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateUnitDto: UpdateUnitDto,
@@ -50,6 +53,7 @@ export class UnitsController {
   }
 
   @Patch(':id/deactivate')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   deactivate(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -59,6 +63,7 @@ export class UnitsController {
 
   @Delete(':id/deactivate')
   @HttpCode(HttpStatus.OK)
+  @Roles('SUPER_ADMIN', 'ADMIN')
   deactivateLegacy(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -67,6 +72,7 @@ export class UnitsController {
   }
 
   @Patch(':id/reactivate')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   reactivate(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -75,6 +81,7 @@ export class UnitsController {
   }
 
   @Delete(':id')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   delete(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,

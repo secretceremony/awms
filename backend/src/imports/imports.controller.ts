@@ -13,6 +13,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { ImportsService } from './imports.service.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import { Roles } from '../common/decorators/roles.decorator.js';
 
 interface AuthenticatedUser {
   id: number;
@@ -48,6 +49,7 @@ export class ImportsController {
   }
 
   @Post('validate')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   @UseInterceptors(FileInterceptor('file'))
   async validateFile(
     @UploadedFile() file: Express.Multer.File,
@@ -64,6 +66,7 @@ export class ImportsController {
   }
 
   @Post('confirm')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   async confirmImport(
     @CurrentUser() user: AuthenticatedUser,
     @Body('importType') importType: 'INITIAL_STOCK' | 'INCOMING' | 'OUTGOING',

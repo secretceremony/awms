@@ -5,6 +5,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthGuard } from './auth.guard.js';
+import { RolesGuard } from '../common/guards/roles.guard.js';
 
 import { AuditLogsModule } from '../audit-logs/audit-logs.module.js';
 
@@ -34,6 +35,10 @@ import { AuditLogsModule } from '../audit-logs/audit-logs.module.js';
     {
       provide: APP_GUARD,
       useClass: AuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
     },
   ],
   exports: [AuthService],

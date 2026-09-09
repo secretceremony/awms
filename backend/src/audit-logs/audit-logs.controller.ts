@@ -13,7 +13,7 @@ import { RolesGuard } from '../common/guards/roles.guard.js';
 
 @Controller('audit-logs')
 @UseGuards(RolesGuard)
-@Roles('ADMIN_LOGISTICS')
+@Roles('SUPER_ADMIN')
 export class AuditLogsController {
   constructor(private readonly auditLogsService: AuditLogsService) {}
 

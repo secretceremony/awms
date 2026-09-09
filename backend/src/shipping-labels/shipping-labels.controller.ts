@@ -17,12 +17,14 @@ import {
 } from './dto/create-shipping-label.dto.js';
 import { ShippingLabelsPaginationDto } from './dto/shipping-labels-pagination.dto.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import { Roles } from '../common/decorators/roles.decorator.js';
 
 @Controller('shipping-labels')
 export class ShippingLabelsController {
   constructor(private readonly shippingLabelsService: ShippingLabelsService) {}
 
   @Post()
+  @Roles('SUPER_ADMIN', 'ADMIN')
   create(
     @CurrentUser() user: any,
     @Body() createShippingLabelDto: CreateShippingLabelDto,
@@ -41,6 +43,7 @@ export class ShippingLabelsController {
   }
 
   @Patch(':id')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   update(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: any,
@@ -50,6 +53,7 @@ export class ShippingLabelsController {
   }
 
   @Delete(':id')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   remove(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: any,

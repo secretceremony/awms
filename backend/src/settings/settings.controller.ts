@@ -11,6 +11,7 @@ import { RolesGuard } from '../common/guards/roles.guard.js';
 
 @Controller('settings')
 @UseGuards(RolesGuard)
+@Roles('SUPER_ADMIN')
 export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
 
@@ -20,7 +21,6 @@ export class SettingsController {
   }
 
   @Patch('company')
-  @Roles('ADMIN_LOGISTICS')
   updateCompanySettings(
     @Body() dto: UpdateCompanySettingsDto,
     @CurrentUser() user: any,
@@ -29,7 +29,6 @@ export class SettingsController {
   }
 
   @Patch('inventory')
-  @Roles('ADMIN_LOGISTICS')
   updateInventorySettings(
     @Body() dto: UpdateInventorySettingsDto,
     @CurrentUser() user: any,
@@ -38,7 +37,6 @@ export class SettingsController {
   }
 
   @Patch('delivery')
-  @Roles('ADMIN_LOGISTICS')
   updateDeliverySettings(
     @Body() dto: UpdateDeliverySettingsDto,
     @CurrentUser() user: any,

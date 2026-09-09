@@ -13,8 +13,11 @@ import { ClientContactsModal } from '../components/client/ClientContactsModal.js
 import { FilterBar, FilterPanel, type ActiveFilter } from '../components/filters/index.js';
 import { apiClient } from '../api/client.js';
 import { Plus, Edit2, Ban, CheckCircle, Trash2, Users } from 'lucide-react';
+import { useAuth } from '../context/AuthContext.js';
+import { canManageMasterData } from '../utils/permissions.js';
 
 export const Clients: React.FC = () => {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // URL state
@@ -249,46 +252,52 @@ export const Clients: React.FC = () => {
       header: 'Actions',
       render: (client: Client) => (
         <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleEdit(client)}
-            title="Edit Client"
-          >
-            <Edit2 size={14} />
-          </Button>
+          {canManageMasterData(user?.role) ? (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleEdit(client)}
+                title="Edit Client"
+              >
+                <Edit2 size={14} />
+              </Button>
 
-          {client.isActive ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleDeactivate(client)}
-              title="Deactivate Client"
-              style={{ color: '#EF4444' }}
-            >
-              <Ban size={14} />
-            </Button>
+              {client.isActive ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDeactivate(client)}
+                  title="Deactivate Client"
+                  style={{ color: '#EF4444' }}
+                >
+                  <Ban size={14} />
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleReactivate(client)}
+                  title="Reactivate Client"
+                  style={{ color: '#10B981' }}
+                >
+                  <CheckCircle size={14} />
+                </Button>
+              )}
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleDelete(client)}
+                title="Delete Client"
+                style={{ color: '#6B7280' }}
+              >
+                <Trash2 size={14} />
+              </Button>
+            </>
           ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleReactivate(client)}
-              title="Reactivate Client"
-              style={{ color: '#10B981' }}
-            >
-              <CheckCircle size={14} />
-            </Button>
+            <span style={{ color: '#9CA3AF', fontSize: '0.8rem' }}>—</span>
           )}
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleDelete(client)}
-            title="Delete Client"
-            style={{ color: '#6B7280' }}
-          >
-            <Trash2 size={14} />
-          </Button>
         </div>
       ),
     },
@@ -300,9 +309,11 @@ export const Clients: React.FC = () => {
         title="Client Management"
         description="Business clients, contract partner profiles, and designated PIC directories"
         actions={
-          <Button variant="primary" onClick={handleCreate}>
-            <Plus size={16} /> Add Client
-          </Button>
+          canManageMasterData(user?.role) ? (
+            <Button variant="primary" onClick={handleCreate}>
+              <Plus size={16} /> Add Client
+            </Button>
+          ) : undefined
         }
       />
 

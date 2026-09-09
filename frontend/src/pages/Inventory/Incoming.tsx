@@ -8,6 +8,8 @@ import { AddIncomingModal } from '../../components/inventory/AddIncomingModal.js
 import { IncomingDetailModal } from '../../components/inventory/IncomingDetailModal.js';
 import { ExcelImportModal } from '../../components/common/ExcelImportModal.js';
 import { FilterBar, FilterPanel, type ActiveFilter } from '../../components/filters/index.js';
+import { useAuth } from '../../context/AuthContext.js';
+import { canManageMovements } from '../../utils/permissions.js';
 
 interface StockMovement {
   id: number;
@@ -60,6 +62,8 @@ interface StockMovement {
 
 export const Incoming: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { user } = useAuth();
+  const canManage = canManageMovements(user?.role);
 
   // URL State
   const search = searchParams.get('search') || '';
@@ -331,22 +335,24 @@ export const Incoming: React.FC = () => {
         title="Incoming Stock & Returns"
         description="Manage goods receipts from external suppliers and returns from projects into warehouses."
         actions={
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <Button
-              variant="secondary"
-              onClick={() => setIsImportModalOpen(true)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              <Upload size={16} /> Import Excel
-            </Button>
-            <Button
-              variant="primary"
-              onClick={() => setIsAddModalOpen(true)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-            >
-              <Plus size={18} /> Add Incoming / Return
-            </Button>
-          </div>
+          canManage ? (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Button
+                variant="secondary"
+                onClick={() => setIsImportModalOpen(true)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Upload size={16} /> Import Excel
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => setIsAddModalOpen(true)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+              >
+                <Plus size={18} /> Add Incoming / Return
+              </Button>
+            </div>
+          ) : undefined
         }
       />
 

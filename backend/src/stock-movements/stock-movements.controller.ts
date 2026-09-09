@@ -13,12 +13,14 @@ import { CreateAdjustmentDto } from './dto/create-adjustment.dto.js';
 import { CreateOutgoingDto } from './dto/create-outgoing.dto.js';
 import { PaginationDto } from '../common/dto/pagination.dto.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import { Roles } from '../common/decorators/roles.decorator.js';
 
 @Controller('stock-movements')
 export class StockMovementsController {
   constructor(private readonly stockMovementsService: StockMovementsService) {}
 
   @Post()
+  @Roles('SUPER_ADMIN', 'ADMIN')
   createMovement(
     @Body() createDto: CreateStockMovementDto,
     @CurrentUser() user: any,
@@ -27,6 +29,7 @@ export class StockMovementsController {
   }
 
   @Post('adjustment')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   createAdjustment(
     @Body() adjustmentDto: CreateAdjustmentDto,
     @CurrentUser() user: any,
@@ -35,6 +38,7 @@ export class StockMovementsController {
   }
 
   @Post('outgoing')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   createOutgoing(
     @Body() createDto: CreateOutgoingDto,
     @CurrentUser() user: any,
@@ -107,6 +111,7 @@ export class StockMovementsController {
   }
 
   @Post('incoming')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   createIncoming(
     @Body() createDto: CreateStockMovementDto,
     @CurrentUser() user: any,

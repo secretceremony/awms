@@ -12,8 +12,11 @@ import { WarehouseFormModal, type Warehouse } from '../components/warehouse/Ware
 import { FilterBar, type ActiveFilter } from '../components/filters/index.js';
 import { apiClient } from '../api/client.js';
 import { Plus, Edit2, Ban, CheckCircle, Trash2, MapPin } from 'lucide-react';
+import { useAuth } from '../context/AuthContext.js';
+import { canManageMasterData } from '../utils/permissions.js';
 
 export const Warehouses: React.FC = () => {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // URL state
@@ -210,46 +213,52 @@ export const Warehouses: React.FC = () => {
       header: 'Actions',
       render: (warehouse: Warehouse) => (
         <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleEdit(warehouse)}
-            title="Edit Warehouse"
-          >
-            <Edit2 size={14} />
-          </Button>
+          {canManageMasterData(user?.role) ? (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleEdit(warehouse)}
+                title="Edit Warehouse"
+              >
+                <Edit2 size={14} />
+              </Button>
 
-          {warehouse.isActive ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleDeactivate(warehouse)}
-              title="Deactivate Warehouse"
-              style={{ color: '#EF4444' }}
-            >
-              <Ban size={14} />
-            </Button>
+              {warehouse.isActive ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDeactivate(warehouse)}
+                  title="Deactivate Warehouse"
+                  style={{ color: '#EF4444' }}
+                >
+                  <Ban size={14} />
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleReactivate(warehouse)}
+                  title="Reactivate Warehouse"
+                  style={{ color: '#10B981' }}
+                >
+                  <CheckCircle size={14} />
+                </Button>
+              )}
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleDelete(warehouse)}
+                title="Delete Warehouse"
+                style={{ color: '#6B7280' }}
+              >
+                <Trash2 size={14} />
+              </Button>
+            </>
           ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleReactivate(warehouse)}
-              title="Reactivate Warehouse"
-              style={{ color: '#10B981' }}
-            >
-              <CheckCircle size={14} />
-            </Button>
+            <span style={{ color: '#9CA3AF', fontSize: '0.8rem' }}>—</span>
           )}
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleDelete(warehouse)}
-            title="Delete Warehouse"
-            style={{ color: '#6B7280' }}
-          >
-            <Trash2 size={14} />
-          </Button>
         </div>
       ),
     },
@@ -261,9 +270,11 @@ export const Warehouses: React.FC = () => {
         title="Warehouses"
         description="Physical storage hubs, city associations, and distribution points"
         actions={
-          <Button variant="primary" onClick={handleCreate}>
-            <Plus size={16} /> Add Warehouse
-          </Button>
+          canManageMasterData(user?.role) ? (
+            <Button variant="primary" onClick={handleCreate}>
+              <Plus size={16} /> Add Warehouse
+            </Button>
+          ) : undefined
         }
       />
 

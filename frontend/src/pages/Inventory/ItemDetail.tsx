@@ -5,6 +5,8 @@ import { PaginatedTable, type Column } from '../../components/PaginatedTable.js'
 import { PageHeader, Button, Card, StatusBadge } from '../../components/ui/index.js';
 import { ArrowLeft, Edit2, RotateCcw, Boxes, Warehouse, Briefcase } from 'lucide-react';
 import { ItemFormModal, type Item } from '../../components/inventory/ItemFormModal.js';
+import { useAuth } from '../../context/AuthContext.js';
+import { canManageInventory } from '../../utils/permissions.js';
 
 interface ItemSerial {
   id: number;
@@ -55,6 +57,8 @@ interface ItemBalanceResponse {
 export const ItemDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canManage = canManageInventory(user?.role);
 
   const [item, setItem] = useState<Item | null>(null);
   const [balanceData, setBalanceData] = useState<ItemBalanceResponse | null>(null);
@@ -221,9 +225,11 @@ export const ItemDetail = () => {
         actions={
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             <StatusBadge status={item.isActive} />
-            <Button variant="primary" size="sm" onClick={() => setIsEditModalOpen(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <Edit2 size={14} /> Edit Item
-            </Button>
+            {canManage && (
+              <Button variant="primary" size="sm" onClick={() => setIsEditModalOpen(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <Edit2 size={14} /> Edit Item
+              </Button>
+            )}
           </div>
         }
       />

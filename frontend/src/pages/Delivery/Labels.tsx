@@ -14,8 +14,11 @@ import {
 } from '../../utils/shippingLabelPdf.js';
 
 import { formatDateTime } from '../../utils/datetime.js';
+import { useAuth } from '../../context/AuthContext.js';
+import { canManageDeliveries } from '../../utils/permissions.js';
 
 export const Labels: React.FC = () => {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // URL state
@@ -359,26 +362,30 @@ export const Labels: React.FC = () => {
           >
             <Eye size={15} />
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setEditingLabel(l);
-              setIsFormModalOpen(true);
-            }}
-            title="Edit Label"
-          >
-            <Edit2 size={15} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setLabelToDelete(l)}
-            title="Delete Label"
-            style={{ color: '#EF4444' }}
-          >
-            <Trash2 size={15} />
-          </Button>
+          {canManageDeliveries(user?.role) && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setEditingLabel(l);
+                  setIsFormModalOpen(true);
+                }}
+                title="Edit Label"
+              >
+                <Edit2 size={15} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setLabelToDelete(l)}
+                title="Delete Label"
+                style={{ color: '#EF4444' }}
+              >
+                <Trash2 size={15} />
+              </Button>
+            </>
+          )}
         </div>
       ),
     },
@@ -390,16 +397,18 @@ export const Labels: React.FC = () => {
         title="Shipping Labels"
         description="Generate, batch print, and download package shipping labels from issued delivery orders or standalone shipments."
         actions={
-          <Button
-            variant="primary"
-            onClick={() => {
-              setEditingLabel(null);
-              setIsFormModalOpen(true);
-            }}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-          >
-            <Plus size={16} /> Generate Shipping Label
-          </Button>
+          canManageDeliveries(user?.role) ? (
+            <Button
+              variant="primary"
+              onClick={() => {
+                setEditingLabel(null);
+                setIsFormModalOpen(true);
+              }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Plus size={16} /> Generate Shipping Label
+            </Button>
+          ) : undefined
         }
       />
 

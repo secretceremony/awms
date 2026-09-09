@@ -17,6 +17,7 @@ import { UpdateWarehouseDto } from './dto/update-warehouse.dto.js';
 import { WarehousesPaginationDto } from './dto/warehouses-pagination.dto.js';
 import { PaginationDto } from '../common/dto/pagination.dto.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import { Roles } from '../common/decorators/roles.decorator.js';
 import type { AuthenticatedUser } from '../items/items.controller.js';
 
 @Controller('warehouses')
@@ -24,6 +25,7 @@ export class WarehousesController {
   constructor(private readonly warehousesService: WarehousesService) {}
 
   @Post()
+  @Roles('SUPER_ADMIN', 'ADMIN')
   create(
     @Body() createWarehouseDto: CreateWarehouseDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -50,6 +52,7 @@ export class WarehousesController {
   }
 
   @Patch(':id')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateWarehouseDto: UpdateWarehouseDto,
@@ -59,6 +62,7 @@ export class WarehousesController {
   }
 
   @Patch(':id/deactivate')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   deactivate(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -68,6 +72,7 @@ export class WarehousesController {
 
   @Delete(':id/deactivate')
   @HttpCode(HttpStatus.OK)
+  @Roles('SUPER_ADMIN', 'ADMIN')
   deactivateLegacy(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -76,6 +81,7 @@ export class WarehousesController {
   }
 
   @Patch(':id/reactivate')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   reactivate(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -84,6 +90,7 @@ export class WarehousesController {
   }
 
   @Delete(':id')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   delete(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,

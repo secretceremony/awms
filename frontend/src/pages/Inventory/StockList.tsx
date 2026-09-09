@@ -11,6 +11,8 @@ import { ExcelImportModal } from '../../components/common/ExcelImportModal.js';
 import { MonthlyReportModal } from '../../components/common/MonthlyReportModal.js';
 import { FilterBar, FilterPanel, type ActiveFilter } from '../../components/filters/index.js';
 import { downloadAllDataWorkbook } from '../../utils/exportWorkbook.js';
+import { useAuth } from '../../context/AuthContext.js';
+import { canManageInventory } from '../../utils/permissions.js';
 
 
 interface StockRow {
@@ -52,6 +54,8 @@ interface ItemSummaryData {
 export const StockList: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { user } = useAuth();
+  const canManage = canManageInventory(user?.role);
 
   // URL state
   const search = searchParams.get('search') || '';
@@ -351,20 +355,22 @@ export const StockList: React.FC = () => {
             <Eye size={14} />
           </Button>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleEditItem(r.itemId);
-            }}
-            title="Edit Item Master"
-            style={{ padding: '3px 6px' }}
-          >
-            <Edit2 size={14} />
-          </Button>
+          {canManage && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEditItem(r.itemId);
+              }}
+              title="Edit Item Master"
+              style={{ padding: '3px 6px' }}
+            >
+              <Edit2 size={14} />
+            </Button>
+          )}
 
-          {r.locationType === 'WAREHOUSE' && (
+          {canManage && r.locationType === 'WAREHOUSE' && (
             <Button
               variant="ghost"
               size="sm"
@@ -425,34 +431,38 @@ export const StockList: React.FC = () => {
               {isExporting ? <Loader2 className="animate-spin" size={15} /> : <Download size={15} />}
               {isExporting ? 'Exporting...' : 'Export All (.xlsx)'}
             </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setIsImportModalOpen(true)}
-              title="Import initial stock via Excel (.xlsx)"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              <Upload size={15} /> Import Excel
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setIsInitialStockModalOpen(true)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              <Layers size={15} /> Initial Stock
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => {
-                setEditingItem(null);
-                setIsItemModalOpen(true);
-              }}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              <Plus size={15} /> + Add Item Master
-            </Button>
+            {canManage && (
+              <>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setIsImportModalOpen(true)}
+                  title="Import initial stock via Excel (.xlsx)"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Upload size={15} /> Import Excel
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setIsInitialStockModalOpen(true)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Layers size={15} /> Initial Stock
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    setEditingItem(null);
+                    setIsItemModalOpen(true);
+                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Plus size={15} /> + Add Item Master
+                </Button>
+              </>
+            )}
           </div>
         }
       />

@@ -17,6 +17,7 @@ import { UpdateClientDto } from './dto/update-customer.dto.js';
 import { CreateClientContactDto, UpdateClientContactDto } from './dto/client-contact.dto.js';
 import { ClientsPaginationDto } from './dto/customers-pagination.dto.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import { Roles } from '../common/decorators/roles.decorator.js';
 import type { AuthenticatedUser } from '../items/items.controller.js';
 
 @Controller(['clients', 'customers'])
@@ -24,6 +25,7 @@ export class CustomersController {
   constructor(private readonly customersService: CustomersService) {}
 
   @Post()
+  @Roles('SUPER_ADMIN', 'ADMIN')
   create(
     @Body() createClientDto: CreateClientDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -42,6 +44,7 @@ export class CustomersController {
   }
 
   @Patch(':id')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateClientDto: UpdateClientDto,
@@ -51,6 +54,7 @@ export class CustomersController {
   }
 
   @Patch(':id/deactivate')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   deactivate(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -60,6 +64,7 @@ export class CustomersController {
 
   @Delete(':id/deactivate')
   @HttpCode(HttpStatus.OK)
+  @Roles('SUPER_ADMIN', 'ADMIN')
   deactivateLegacy(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -68,6 +73,7 @@ export class CustomersController {
   }
 
   @Patch(':id/reactivate')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   reactivate(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -76,6 +82,7 @@ export class CustomersController {
   }
 
   @Delete(':id')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   delete(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
@@ -94,6 +101,7 @@ export class CustomersController {
   }
 
   @Post(':id/contacts')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   addContact(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CreateClientContactDto,
@@ -103,6 +111,7 @@ export class CustomersController {
   }
 
   @Patch(':id/contacts/:contactId')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   updateContact(
     @Param('id', ParseIntPipe) id: number,
     @Param('contactId', ParseIntPipe) contactId: number,
@@ -113,6 +122,7 @@ export class CustomersController {
   }
 
   @Patch(':id/contacts/:contactId/deactivate')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   deactivateContact(
     @Param('id', ParseIntPipe) id: number,
     @Param('contactId', ParseIntPipe) contactId: number,
@@ -122,6 +132,7 @@ export class CustomersController {
   }
 
   @Patch(':id/contacts/:contactId/reactivate')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   reactivateContact(
     @Param('id', ParseIntPipe) id: number,
     @Param('contactId', ParseIntPipe) contactId: number,
@@ -131,6 +142,7 @@ export class CustomersController {
   }
 
   @Delete(':id/contacts/:contactId')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   deleteContact(
     @Param('id', ParseIntPipe) id: number,
     @Param('contactId', ParseIntPipe) contactId: number,

@@ -22,6 +22,8 @@ import {
   Warehouse,
   Building,
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext.js';
+import { canManageDeliveries } from '../../utils/permissions.js';
 
 export interface DeliveryOrderListItem {
   id: number;
@@ -56,6 +58,7 @@ export interface DeliveryOrderListItem {
 }
 
 export const Orders: React.FC = () => {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // URL state
@@ -385,7 +388,7 @@ export const Orders: React.FC = () => {
             <Eye size={15} />
           </Button>
 
-          {item.status === 'DRAFT' && (
+          {item.status === 'DRAFT' && canManageDeliveries(user?.role) && (
             <>
               <Button
                 variant="ghost"
@@ -429,9 +432,11 @@ export const Orders: React.FC = () => {
         title="Delivery Orders"
         description="Official dispatch documentation, client project allocations, and verifiable item transfer manifests"
         actions={
-          <Button variant="primary" onClick={handleCreate}>
-            <Plus size={16} /> Create Delivery Order
-          </Button>
+          canManageDeliveries(user?.role) ? (
+            <Button variant="primary" onClick={handleCreate}>
+              <Plus size={16} /> Create Delivery Order
+            </Button>
+          ) : undefined
         }
       />
 

@@ -16,6 +16,7 @@ import { PaginationDto } from '../common/dto/pagination.dto.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { CreateItemDto } from './dto/create-item.dto.js';
 import { UpdateItemDto } from './dto/update-item.dto.js';
+import { Roles } from '../common/decorators/roles.decorator.js';
 
 interface AuthenticatedUser {
   id: number;
@@ -29,6 +30,7 @@ export class ItemsController {
   constructor(private readonly itemsService: ItemsService) {}
 
   @Post()
+  @Roles('SUPER_ADMIN', 'ADMIN')
   create(
     @Body() createItemDto: CreateItemDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -75,6 +77,7 @@ export class ItemsController {
   }
 
   @Patch(':id')
+  @Roles('SUPER_ADMIN', 'ADMIN')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateItemDto: UpdateItemDto,
@@ -85,6 +88,7 @@ export class ItemsController {
 
   @Delete(':id/deactivate')
   @HttpCode(HttpStatus.OK)
+  @Roles('SUPER_ADMIN', 'ADMIN')
   deactivate(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,

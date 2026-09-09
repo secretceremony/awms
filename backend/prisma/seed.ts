@@ -56,7 +56,7 @@ async function main() {
 
     console.log('✓ Cleared old test and development records');
 
-    console.log('--- 1. Seeding Logistics Admin User ---');
+    console.log('--- 1. Seeding Users (SUPER_ADMIN, ADMIN, READ_ONLY) ---');
     const rawPassword = process.env.SEED_ADMIN_PASSWORD || 'AlssaAdmin2026!';
     const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin.logistics@alssa.com';
     const hashedPassword = await bcrypt.hash(rawPassword.trim(), 10);
@@ -66,18 +66,54 @@ async function main() {
       update: {
         name: 'Roberta Pungki',
         password: hashedPassword,
-        role: 'ADMIN_LOGISTICS',
+        role: 'SUPER_ADMIN',
         isActive: true,
       },
       create: {
         email: adminEmail,
         name: 'Roberta Pungki',
         password: hashedPassword,
-        role: 'ADMIN_LOGISTICS',
+        role: 'SUPER_ADMIN',
         isActive: true,
       },
     });
-    console.log(`✓ Seeded Admin: Roberta Pungki (${adminEmail})`);
+    console.log(`✓ Seeded Super Admin: Roberta Pungki (${adminEmail})`);
+
+    const opsAdmin = await prisma.user.upsert({
+      where: { email: 'admin.ops@alssa.com' },
+      update: {
+        name: 'Operations Admin',
+        password: hashedPassword,
+        role: 'ADMIN',
+        isActive: true,
+      },
+      create: {
+        email: 'admin.ops@alssa.com',
+        name: 'Operations Admin',
+        password: hashedPassword,
+        role: 'ADMIN',
+        isActive: true,
+      },
+    });
+    console.log(`✓ Seeded Admin: Operations Admin (admin.ops@alssa.com)`);
+
+    const readOnlyUser = await prisma.user.upsert({
+      where: { email: 'viewer@alssa.com' },
+      update: {
+        name: 'Warehouse Viewer',
+        password: hashedPassword,
+        role: 'READ_ONLY',
+        isActive: true,
+      },
+      create: {
+        email: 'viewer@alssa.com',
+        name: 'Warehouse Viewer',
+        password: hashedPassword,
+        role: 'READ_ONLY',
+        isActive: true,
+      },
+    });
+    console.log(`✓ Seeded Read Only User: Warehouse Viewer (viewer@alssa.com)`);
 
     console.log('--- 2. Seeding Master Units ---');
     const defaultUnits = [
