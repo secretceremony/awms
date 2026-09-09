@@ -12,8 +12,9 @@ datasource db {
 }
 
 enum Role {
-  ADMIN_LOGISTICS
-  USER
+  SUPER_ADMIN
+  ADMIN
+  READ_ONLY
 }
 
 enum TrackingType {
@@ -62,7 +63,7 @@ model User {
   email     String   @unique
   password  String
   name      String
-  role      Role     @default(USER)
+  role      Role     @default(READ_ONLY)
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -262,6 +263,7 @@ model StockMovement {
   movementNumber         String       @unique @map("movement_number")
   movementType           MovementType @map("movement_type")
   referenceNumber        String?      @map("reference_number")
+  ptsNumber              String?      @map("pts_number")
   sourceWarehouseId      Int?         @map("source_warehouse_id")
   sourceWarehouse        Warehouse?   @relation("sourceWarehouseRelation", fields: [sourceWarehouseId], references: [id])
   destinationWarehouseId Int?         @map("destination_warehouse_id")
@@ -346,6 +348,7 @@ model DeliveryOrder {
   projectLocation   String?   @map("project_location")
   siteCode          String?   @map("site_code")
   referenceNumber   String?   @map("reference_number")
+  ptsNumber         String?   @map("pts_number")
   warehouseName     String?   @map("warehouse_name")
   warehouseCityCode String?   @map("warehouse_city_code")
   snapshots         Json?

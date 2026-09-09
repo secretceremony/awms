@@ -16,6 +16,8 @@ import {
   Send,
 } from 'lucide-react';
 import { generateDoPdfFilename, downloadDeliveryOrderPdf } from '../../utils/deliveryOrderPdf.js';
+import { useAuth } from '../../context/AuthContext.js';
+import { canManageDeliveries } from '../../utils/permissions.js';
 
 
 export interface DeliveryOrderDetailModalProps {
@@ -35,6 +37,7 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
   onDraftCancelled,
   onIssuedSuccess,
 }) => {
+  const { user } = useAuth();
   const [deliveryOrder, setDeliveryOrder] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -171,6 +174,7 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
   const siteCode = deliveryOrder?.siteCode || deliveryOrder?.project?.siteCode;
   const location = deliveryOrder?.projectLocation || deliveryOrder?.project?.location || '—';
   const refNumber = deliveryOrder?.referenceNumber || deliveryOrder?.project?.referenceNumber || '—';
+  const ptsNumber = deliveryOrder?.ptsNumber || deliveryOrder?.stockMovement?.ptsNumber || deliveryOrder?.snapshots?.ptsNumber || null;
   const warehouseName = deliveryOrder?.warehouseName || deliveryOrder?.sourceWarehouse?.name || '—';
   const cityCode = deliveryOrder?.warehouseCityCode || deliveryOrder?.sourceWarehouse?.cityCode || '—';
 
@@ -262,6 +266,11 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
                 <div style={{ fontSize: '0.75rem', color: '#2250A1', fontFamily: 'monospace', fontWeight: 700 }}>
                   Ref: {refNumber}
                 </div>
+                {ptsNumber && (
+                  <div style={{ fontSize: '0.75rem', color: '#0891B2', fontFamily: 'monospace', fontWeight: 700, marginTop: '2px' }}>
+                    PTS: {ptsNumber}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -412,7 +421,7 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
 
       <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          {isDraft && (
+          {isDraft && canManageDeliveries(user?.role) && (
             <Button
               variant="ghost"
               onClick={handleCancelDraft}
@@ -424,7 +433,7 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
         </div>
 
         <div style={{ display: 'flex', gap: '8px' }}>
-          {isDraft && (
+          {isDraft && canManageDeliveries(user?.role) && (
             <>
               <Button
                 variant="secondary"

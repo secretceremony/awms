@@ -60,6 +60,10 @@ export class CreateDeliveryOrderDto {
   @IsString()
   notes?: string;
 
+  @IsOptional()
+  @IsString()
+  ptsNumber?: string;
+
   @IsArray({ message: 'Items list is required' })
   @ValidateNested({ each: true })
   @Type(() => DeliveryOrderItemDto)

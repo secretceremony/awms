@@ -83,7 +83,7 @@ export class ShippingLabelsService {
         createdById: userId,
       },
       include: {
-        deliveryOrder: { select: { id: true, doNumber: true, status: true } },
+        deliveryOrder: { select: { id: true, doNumber: true, status: true, ptsNumber: true } },
         createdBy: { select: { id: true, name: true, email: true } },
       },
     });
@@ -147,7 +147,7 @@ export class ShippingLabelsService {
         take,
         orderBy: { createdAt: 'desc' },
         include: {
-          deliveryOrder: { select: { id: true, doNumber: true, status: true } },
+          deliveryOrder: { select: { id: true, doNumber: true, status: true, ptsNumber: true } },
           createdBy: { select: { id: true, name: true, email: true } },
         },
       }),
@@ -173,7 +173,7 @@ export class ShippingLabelsService {
     const label = await this.prisma.shippingLabel.findUnique({
       where: { id },
       include: {
-        deliveryOrder: { select: { id: true, doNumber: true, status: true, date: true, activity: true } },
+        deliveryOrder: { select: { id: true, doNumber: true, status: true, date: true, activity: true, ptsNumber: true } },
         createdBy: { select: { id: true, name: true, email: true } },
       },
     });

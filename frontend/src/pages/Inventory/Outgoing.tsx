@@ -14,6 +14,8 @@ import { ExcelImportModal } from '../../components/common/ExcelImportModal.js';
 import { FilterBar, FilterPanel, type ActiveFilter } from '../../components/filters/index.js';
 import { apiClient } from '../../api/client.js';
 import { Plus, Eye, Warehouse, Building, Upload } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext.js';
+import { canManageMovements, canManageDeliveries } from '../../utils/permissions.js';
 
 export interface OutgoingMovementItem {
   id: number;
@@ -48,6 +50,7 @@ export interface OutgoingMovement {
   movementDate: string;
   notes: string | null;
   referenceNumber: string | null;
+  ptsNumber?: string | null;
   sourceWarehouse?: {
     id: number;
     name: string;
@@ -73,6 +76,7 @@ export interface OutgoingMovement {
 }
 
 export const Outgoing: React.FC = () => {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // URL state
@@ -220,11 +224,30 @@ export const Outgoing: React.FC = () => {
             <Building size={14} style={{ color: '#0891B2', flexShrink: 0 }} />
             <span>{m.project?.name || '—'}</span>
           </div>
-          {m.project?.siteCode && (
-            <span style={{ fontSize: '0.75rem', color: '#0891B2', fontWeight: 700 }}>
-              Site: {m.project.siteCode}
-            </span>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '2px' }}>
+            {m.project?.siteCode && (
+              <span style={{ fontSize: '0.75rem', color: '#0891B2', fontWeight: 700 }}>
+                Site: {m.project.siteCode}
+              </span>
+            )}
+            {m.ptsNumber && (
+              <span
+                style={{
+                  fontSize: '0.7rem',
+                  fontFamily: 'monospace',
+                  fontWeight: 700,
+                  padding: '1px 5px',
+                  borderRadius: '3px',
+                  backgroundColor: 'rgba(34, 80, 161, 0.08)',
+                  color: '#2250A1',
+                  border: '1px solid rgba(34, 80, 161, 0.2)',
+                }}
+                title="Project Tracking System Number"
+              >
+                PTS: {m.ptsNumber}
+              </span>
+            )}
+          </div>
         </div>
       ),
     },
@@ -267,18 +290,20 @@ export const Outgoing: React.FC = () => {
             >
               Not Created
             </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setCreateDoMovementId(m.id);
-                setIsCreateDoOpen(true);
-              }}
-              style={{ padding: '2px 6px', fontSize: '0.7rem', color: '#2250A1', fontWeight: 600 }}
-              title="Create Delivery Order from this Outgoing"
-            >
-              + Create DO
-            </Button>
+            {canManageDeliveries(user?.role) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setCreateDoMovementId(m.id);
+                  setIsCreateDoOpen(true);
+                }}
+                style={{ padding: '2px 6px', fontSize: '0.7rem', color: '#2250A1', fontWeight: 600 }}
+                title="Create Delivery Order from this Outgoing"
+              >
+                + Create DO
+              </Button>
+            )}
           </div>
         );
       },
@@ -366,18 +391,20 @@ export const Outgoing: React.FC = () => {
         title="Outgoing Stock Movements"
         description="Dispatch items and serialized assets from warehouse inventory to active client projects"
         actions={
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <Button
-              variant="secondary"
-              onClick={() => setIsImportModalOpen(true)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              <Upload size={16} /> Import Excel
-            </Button>
-            <Button variant="primary" onClick={() => setIsAddModalOpen(true)}>
-              <Plus size={16} /> Add Outgoing
-            </Button>
-          </div>
+          canManageMovements(user?.role) ? (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Button
+                variant="secondary"
+                onClick={() => setIsImportModalOpen(true)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Upload size={16} /> Import Excel
+              </Button>
+              <Button variant="primary" onClick={() => setIsAddModalOpen(true)}>
+                <Plus size={16} /> Add Outgoing
+              </Button>
+            </div>
+          ) : undefined
         }
       />
 

@@ -40,6 +40,7 @@ export const DeliveryOrderPrintView: React.FC<DeliveryOrderPrintViewProps> = ({
   const siteCode = deliveryOrder.siteCode || snapshot.project?.siteCode || deliveryOrder.project?.siteCode || '';
   const projectLocation = deliveryOrder.projectLocation || snapshot.project?.location || deliveryOrder.project?.location || '—';
   const refNumber = deliveryOrder.referenceNumber || snapshot.project?.referenceNumber || deliveryOrder.project?.referenceNumber || '—';
+  const ptsNumber = deliveryOrder.ptsNumber || snapshot.ptsNumber || deliveryOrder.stockMovement?.ptsNumber || null;
   const activity = deliveryOrder.activity || snapshot.activity || 'General Dispatch';
   const warehouseName = deliveryOrder.warehouseName || snapshot.warehouse?.name || deliveryOrder.sourceWarehouse?.name || '—';
   const cityCode = deliveryOrder.warehouseCityCode || snapshot.warehouse?.cityCode || deliveryOrder.sourceWarehouse?.cityCode || '—';
@@ -282,6 +283,17 @@ export const DeliveryOrderPrintView: React.FC<DeliveryOrderPrintViewProps> = ({
                     {refNumber}
                   </td>
                 </tr>
+                {ptsNumber && (
+                  <tr>
+                    <td style={{ fontWeight: 'bold', color: '#334155', padding: '2px 0', verticalAlign: 'top' }}>
+                      PTS Number
+                    </td>
+                    <td style={{ padding: '2px 0', verticalAlign: 'top' }}>:</td>
+                    <td style={{ padding: '2px 0', color: '#0891B2', fontFamily: 'monospace', fontWeight: 'bold' }}>
+                      {ptsNumber}
+                    </td>
+                  </tr>
+                )}
                 <tr>
                   <td style={{ fontWeight: 'bold', color: '#334155', padding: '2px 0', verticalAlign: 'top' }}>
                     Activity

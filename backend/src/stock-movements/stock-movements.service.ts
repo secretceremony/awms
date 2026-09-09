@@ -78,6 +78,7 @@ export class StockMovementsService {
       const searchConditions: any[] = [
         { movementNumber: { contains: s, mode: 'insensitive' } },
         { referenceNumber: { contains: s, mode: 'insensitive' } },
+        { ptsNumber: { contains: s, mode: 'insensitive' } },
         { notes: { contains: s, mode: 'insensitive' } },
         { sourceWarehouse: { name: { contains: s, mode: 'insensitive' } } },
         { destinationWarehouse: { name: { contains: s, mode: 'insensitive' } } },
@@ -724,6 +725,7 @@ export class StockMovementsService {
           sourceWarehouseId: inferredWarehouseId,
           projectId,
           referenceNumber: project.referenceNumber || null,
+          ptsNumber: dto.ptsNumber?.trim() || null,
           notes: notes?.trim() || null,
           createdById: userId,
         },

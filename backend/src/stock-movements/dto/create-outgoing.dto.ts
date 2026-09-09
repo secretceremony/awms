@@ -32,6 +32,10 @@ export class CreateOutgoingDto {
   notes?: string;
 
   @IsOptional()
+  @IsString()
+  ptsNumber?: string;
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   deliveryOrderId?: number;

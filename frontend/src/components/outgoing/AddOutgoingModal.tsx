@@ -37,6 +37,7 @@ export const AddOutgoingModal: React.FC<AddOutgoingModalProps> = ({
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [movementDate, setMovementDate] = useState(new Date().toISOString().split('T')[0]);
+  const [ptsNumber, setPtsNumber] = useState('');
   const [notes, setNotes] = useState('');
 
   // Step 2 State
@@ -64,6 +65,7 @@ export const AddOutgoingModal: React.FC<AddOutgoingModalProps> = ({
       setStep(1);
       setSelectedProjectId('');
       setMovementDate(new Date().toISOString().split('T')[0]);
+      setPtsNumber('');
       setNotes('');
       setSelectedItems([]);
       setEstablishedWarehouseId(null);
@@ -76,6 +78,7 @@ export const AddOutgoingModal: React.FC<AddOutgoingModalProps> = ({
   const isDirty =
     Boolean(selectedProjectId) ||
     Boolean(notes) ||
+    Boolean(ptsNumber) ||
     selectedItems.length > 0;
 
   const handleRequestClose = () => {
@@ -182,11 +185,27 @@ export const AddOutgoingModal: React.FC<AddOutgoingModalProps> = ({
     }
   };
 
-  const handleRemoveSelectedItem = (index: number) => {
-    const updated = selectedItems.filter((_, i) => i !== index);
+  const handleRemoveItem = (index: number) => {
+    const updated = selectedItems.filter((_, idx) => idx !== index);
     setSelectedItems(updated);
     if (updated.length === 0) {
       setEstablishedWarehouseId(null);
+    }
+  };
+
+  const handleRemoveSerial = (itemIdx: number, sn: string) => {
+    const current = selectedItems[itemIdx];
+    const newSns = (current.serialNumbers || []).filter((s) => s !== sn);
+    if (newSns.length === 0) {
+      handleRemoveItem(itemIdx);
+    } else {
+      const updated = [...selectedItems];
+      updated[itemIdx] = {
+        ...current,
+        quantity: newSns.length,
+        serialNumbers: newSns,
+      };
+      setSelectedItems(updated);
     }
   };
 
@@ -226,6 +245,7 @@ export const AddOutgoingModal: React.FC<AddOutgoingModalProps> = ({
       await apiClient.post('/stock-movements/outgoing', {
         projectId: Number(selectedProjectId),
         movementDate,
+        ptsNumber: ptsNumber.trim() || undefined,
         notes: notes.trim(),
         items: itemsPayload,
       });
@@ -373,6 +393,21 @@ export const AddOutgoingModal: React.FC<AddOutgoingModalProps> = ({
                   />
                 )}
 
+                <div className="form-grid" style={{ marginBottom: '1rem' }}>
+                  <FormField
+                    label="PTS Number (Project Tracking System)"
+                    helperText="Optional reference number for tracking against external Project Tracking System"
+                    style={{ marginBottom: 0 }}
+                  >
+                    <Input
+                      type="text"
+                      placeholder="e.g. PTS-2026-089"
+                      value={ptsNumber}
+                      onChange={(e) => setPtsNumber(e.target.value)}
+                    />
+                  </FormField>
+                </div>
+
                 <FormField label="Purpose *" style={{ marginBottom: 0 }}>
                   <Textarea
                     placeholder="e.g. Field installation batch #1, Site replacement under emergency request..."
@@ -517,17 +552,34 @@ export const AddOutgoingModal: React.FC<AddOutgoingModalProps> = ({
                                         <span
                                           key={sn}
                                           style={{
-                                            fontFamily: 'monospace',
-                                            fontWeight: 700,
-                                            fontSize: '0.75rem',
-                                            backgroundColor: '#F5F3FF',
-                                            color: '#7C3AED',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '3px',
                                             padding: '1px 5px',
+                                            backgroundColor: '#E2E8F0',
                                             borderRadius: '3px',
-                                            border: '1px solid #DDD6FE',
+                                            fontFamily: 'monospace',
+                                            fontSize: '0.7rem',
+                                            color: '#334155',
                                           }}
                                         >
                                           {sn}
+                                          <button
+                                            type="button"
+                                            onClick={() => handleRemoveSerial(idx, sn)}
+                                            style={{
+                                              border: 'none',
+                                              background: 'transparent',
+                                              cursor: 'pointer',
+                                              padding: 0,
+                                              fontSize: '0.75rem',
+                                              lineHeight: 1,
+                                              color: '#94A3B8',
+                                            }}
+                                            title="Remove serial"
+                                          >
+                                            ×
+                                          </button>
                                         </span>
                                       ))}
                                     </div>
@@ -565,7 +617,7 @@ export const AddOutgoingModal: React.FC<AddOutgoingModalProps> = ({
                               <td style={{ textAlign: 'center' }}>
                                 <button
                                   type="button"
-                                  onClick={() => handleRemoveSelectedItem(idx)}
+                                  onClick={() => handleRemoveItem(idx)}
                                   style={{
                                     border: 'none',
                                     background: 'transparent',

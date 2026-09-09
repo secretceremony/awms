@@ -223,6 +223,11 @@ export const ShippingLabelPrintView: React.FC<ShippingLabelPrintViewProps> = ({
           <div style={{ fontWeight: 900, fontFamily: 'monospace', fontSize: isA5 ? '10pt' : '8pt', color: '#000000' }}>
             {label.referenceNumber || '—'}
           </div>
+          {label.deliveryOrder?.ptsNumber && (
+            <div style={{ fontSize: isA5 ? '8pt' : '6.5pt', fontWeight: 700, color: '#2563EB', marginTop: '1px' }}>
+              PTS: {label.deliveryOrder.ptsNumber}
+            </div>
+          )}
         </div>
 
         <div

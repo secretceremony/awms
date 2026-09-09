@@ -104,6 +104,25 @@ export const OutgoingDetailModal: React.FC<OutgoingDetailModalProps> = ({
                 <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>
                   Client: {movement.project?.client?.name || '—'}
                 </div>
+                {movement.ptsNumber && (
+                  <div style={{ marginTop: '4px' }}>
+                    <span
+                      style={{
+                        fontSize: '0.75rem',
+                        fontFamily: 'monospace',
+                        fontWeight: 700,
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        backgroundColor: 'rgba(34, 80, 161, 0.1)',
+                        color: '#2250A1',
+                        border: '1px solid rgba(34, 80, 161, 0.2)',
+                      }}
+                      title="Project Tracking System Number"
+                    >
+                      PTS: {movement.ptsNumber}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div>

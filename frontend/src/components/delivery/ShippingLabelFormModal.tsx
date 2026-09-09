@@ -38,6 +38,7 @@ export interface ShippingLabel {
     id: number;
     doNumber: string | null;
     status: string;
+    ptsNumber?: string | null;
   };
   createdBy?: {
     id: number;

@@ -270,6 +270,7 @@ export class DeliveryOrdersService {
 
     let project: any;
     let sourceWarehouseId: number;
+    let ptsNumber: string | null = dto.ptsNumber?.trim() || null;
 
     if (dto.stockMovementId) {
       const stockMovement = await this.prisma.stockMovement.findUnique({
@@ -317,6 +318,7 @@ export class DeliveryOrdersService {
         throw new BadRequestException('Source warehouse is missing from the Outgoing transaction.');
       }
       sourceWarehouseId = inferredWhId;
+      ptsNumber = stockMovement.ptsNumber || ptsNumber;
     } else {
       const validated = await this.validateAndInferWarehouse(dto.projectId, dto.items);
       project = validated.project;
@@ -336,6 +338,7 @@ export class DeliveryOrdersService {
           clientId: project.clientId,
           sourceWarehouseId,
           stockMovementId: dto.stockMovementId || null,
+          ptsNumber,
           createdById: userId,
         },
       });
@@ -626,6 +629,7 @@ export class DeliveryOrdersService {
           siteCode: project.siteCode,
           referenceNumber: project.referenceNumber,
         },
+        ptsNumber: deliveryOrder.ptsNumber || deliveryOrder.stockMovement?.ptsNumber || null,
         warehouse: warehouse
           ? {
               id: warehouse.id,
@@ -789,7 +793,7 @@ export class DeliveryOrdersService {
           sourceWarehouse: { select: { id: true, name: true, cityCode: true, location: true } },
           createdBy: { select: { id: true, name: true, email: true } },
           issuedBy: { select: { id: true, name: true, email: true } },
-          stockMovement: { select: { id: true, movementNumber: true, movementDate: true, notes: true } },
+          stockMovement: { select: { id: true, movementNumber: true, movementDate: true, ptsNumber: true, notes: true } },
           items: {
             include: {
               item: {
