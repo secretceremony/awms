@@ -18,6 +18,8 @@ import { Labels } from './pages/Delivery/Labels.js';
 import { DeliveryOrderPrintPage } from './pages/Delivery/Print.js';
 import { Logs } from './pages/Logs.js';
 import { Settings } from './pages/Settings.js';
+import { Units } from './pages/Units.js';
+import { Users } from './pages/Users.js';
 import { PageTitleUpdater } from './components/common/PageTitleUpdater.js';
 
 function App() {
@@ -47,11 +49,14 @@ function App() {
               <Route path="/projects" element={<Projects />} />
               <Route path="/clients" element={<Clients />} />
               <Route path="/customers" element={<Navigate to="/clients" replace />} />
-              <Route path="/units" element={<Navigate to="/settings?tab=units" replace />} />
+              <Route path="/units" element={<Units />} />
               <Route path="/delivery-orders" element={<Orders />} />
               <Route path="/shipping-labels" element={<Labels />} />
 
               {/* Admin-only Protected Sub-routes */}
+              <Route element={<ProtectedRoute requiredPermission="manage_users" />}>
+                <Route path="/users" element={<Users />} />
+              </Route>
               <Route element={<ProtectedRoute requiredPermission="view_audit_logs" />}>
                 <Route path="/logs" element={<Logs />} />
               </Route>

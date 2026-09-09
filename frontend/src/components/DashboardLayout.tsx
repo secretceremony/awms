@@ -18,9 +18,10 @@ import {
   History,
   Menu,
   X,
+  Ruler,
 } from 'lucide-react';
 import { Button } from './ui/index.js';
-import { canAccessSettings, canAccessLogs } from '../utils/permissions.js';
+import { canAccessSettings, canAccessLogs, canManageUsers } from '../utils/permissions.js';
 
 export const DashboardLayout = () => {
   const { user, logout } = useAuth();
@@ -48,6 +49,7 @@ export const DashboardLayout = () => {
     { to: '/clients', label: 'Clients', icon: Users },
     { to: '/warehouses', label: 'Warehouses', icon: Warehouse },
     { to: '/projects', label: 'Projects', icon: Briefcase },
+    { to: '/units', label: 'Units', icon: Ruler },
     { type: 'header', label: 'Inventory' },
     { to: '/inventory', label: 'Stock List', icon: Boxes },
     { to: '/inventory/incoming', label: 'Incoming', icon: ArrowDownLeft },
@@ -56,8 +58,11 @@ export const DashboardLayout = () => {
     { type: 'header', label: 'Deliveries' },
     { to: '/delivery-orders', label: 'Delivery Orders', icon: Truck },
     { to: '/shipping-labels', label: 'Shipping Labels', icon: Tag },
-    ...((canAccessLogs(user?.role) || canAccessSettings(user?.role))
+    ...((canAccessLogs(user?.role) || canAccessSettings(user?.role) || canManageUsers(user?.role))
       ? [{ type: 'header', label: 'System' }]
+      : []),
+    ...(canManageUsers(user?.role)
+      ? [{ to: '/users', label: 'User Management', icon: Users }]
       : []),
     ...(canAccessLogs(user?.role)
       ? [{ to: '/logs', label: 'Activity Logs', icon: FileText }]
