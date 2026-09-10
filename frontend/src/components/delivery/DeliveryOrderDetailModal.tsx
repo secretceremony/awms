@@ -3,6 +3,7 @@ import { Modal, Button, StatusBadge, ConfirmModal } from '../ui/index.js';
 import { DeliveryOrderPrintView } from './DeliveryOrderPrintView.js';
 import { apiClient } from '../../api/client.js';
 import { formatDateTime } from '../../utils/datetime.js';
+import { useToast } from '../../context/ToastContext.js';
 import {
   Calendar,
   Building,
@@ -18,7 +19,6 @@ import {
 import { generateDoPdfFilename, downloadDeliveryOrderPdf } from '../../utils/deliveryOrderPdf.js';
 import { useAuth } from '../../context/AuthContext.js';
 import { canManageDeliveries } from '../../utils/permissions.js';
-
 
 export interface DeliveryOrderDetailModalProps {
   isOpen: boolean;
@@ -38,6 +38,7 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
   onIssuedSuccess,
 }) => {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [deliveryOrder, setDeliveryOrder] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -58,11 +59,14 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
     onConfirm: async () => {},
   });
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Success dialog after issuing DO
   const [showIssueSuccess, setShowIssueSuccess] = useState(false);
+
+  // Hidden print container
+  const printContainerRef = useRef<HTMLDivElement>(null);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
-
-  const printContainerRef = useRef<HTMLDivElement>(null);
 
   const fetchDetail = async () => {
     if (!deliveryOrderId) return;
@@ -73,7 +77,9 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
       setDeliveryOrder(data);
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'Failed to load Delivery Order details');
+      const msg = err.message || 'Failed to load Delivery Order details';
+      setErrorMsg(msg);
+      showToast({ type: 'error', message: msg });
     } finally {
       setIsLoading(false);
     }
@@ -106,9 +112,15 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
           await fetchDetail();
           setConfirmConfig((prev: any) => ({ ...prev, isOpen: false }));
           setShowIssueSuccess(true);
+          showToast({
+            type: 'success',
+            message: 'Delivery Order issued successfully',
+          });
           if (onIssuedSuccess) onIssuedSuccess();
         } catch (err: any) {
-          setErrorMsg(err.message || 'Failed to issue Delivery Order');
+          const msg = err.message || 'Failed to issue Delivery Order';
+          setErrorMsg(msg);
+          showToast({ type: 'error', message: msg });
         } finally {
           setIsProcessing(false);
         }
@@ -130,10 +142,16 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
           setIsProcessing(true);
           await apiClient.delete(`/delivery-orders/${deliveryOrder.id}/draft`);
           setConfirmConfig((prev: any) => ({ ...prev, isOpen: false }));
+          showToast({
+            type: 'success',
+            message: 'Delivery Order draft cancelled',
+          });
           onClose();
           if (onDraftCancelled) onDraftCancelled();
         } catch (err: any) {
-          setErrorMsg(err.message || 'Failed to cancel draft');
+          const msg = err.message || 'Failed to cancel draft';
+          setErrorMsg(msg);
+          showToast({ type: 'error', message: msg });
         } finally {
           setIsProcessing(false);
         }
@@ -158,14 +176,19 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
       } catch (err) {
         console.warn('Failed to log print audit:', err);
       }
+      showToast({
+        type: 'success',
+        message: 'PDF downloaded successfully',
+      });
     } catch (err: any) {
       console.error('PDF Generation Error:', err);
-      setPdfError(err.message || 'Failed to generate PDF file. Please try browser Print.');
+      const msg = err.message || 'Failed to generate PDF file. Please try browser Print.';
+      setPdfError(msg);
+      showToast({ type: 'error', message: msg });
     } finally {
       setIsDownloadingPdf(false);
     }
   };
-
 
   const clientName = deliveryOrder?.clientCompanyName || deliveryOrder?.client?.name || '—';
   const clientType = deliveryOrder?.clientType || deliveryOrder?.client?.clientType || 'OTHER';
@@ -179,320 +202,341 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
   const cityCode = deliveryOrder?.warehouseCityCode || deliveryOrder?.sourceWarehouse?.cityCode || '—';
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={`Delivery Order — ${deliveryOrder?.doNumber || `Draft #${deliveryOrderId}`}`}
-      maxWidth="850px"
-    >
-      <div className="modal-body" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
-        {errorMsg && (
-          <div className="alert-error" style={{ marginBottom: '1rem' }}>
-            {errorMsg}
-          </div>
-        )}
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title={`Delivery Order — ${deliveryOrder?.doNumber || `Draft #${deliveryOrderId}`}`}
+        maxWidth="850px"
+      >
+        <Modal.Body>
+          {errorMsg && (
+            <div className="alert-error" style={{ marginBottom: '1rem' }}>
+              {errorMsg}
+            </div>
+          )}
 
-        {isLoading || !deliveryOrder ? (
-          <div style={{ textAlign: 'center', padding: '3rem', color: '#6B7280' }}>
-            Loading Delivery Order details...
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            {/* Header info card */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
-                gap: '1rem',
-                padding: '1.25rem',
-                backgroundColor: '#F9FAFB',
-                border: '1px solid #E5E7EB',
-                borderRadius: '8px',
-              }}
-            >
-              <div>
-                <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>Document Status</div>
-                <div style={{ marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <StatusBadge status={deliveryOrder.status} />
-                  {isIssued && (
-                    <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600 }}>
-                      ✓ Stock Decremented
+          {isLoading || !deliveryOrder ? (
+            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary, #6B7280)' }}>
+              Loading Delivery Order details...
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {/* Header info card */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+                  gap: '1rem',
+                  padding: '1.25rem',
+                  backgroundColor: 'var(--accent-secondary-bg, #F9FAFB)',
+                  border: '1px solid var(--card-border, #E5E7EB)',
+                  borderRadius: 'var(--border-radius-sm, 8px)',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #6B7280)' }}>Document Status</div>
+                  <div style={{ marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <StatusBadge status={deliveryOrder.status} />
+                    {isIssued && (
+                      <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600 }}>
+                        ✓ Stock Decremented
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #6B7280)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Calendar size={13} /> DO Date &amp; Time
+                  </div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary, #1F2839)', marginTop: '2px' }}>
+                    {formatDateTime(deliveryOrder.date, cityCode || warehouseName)}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #6B7280)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Building size={13} /> Client / Company
+                  </div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary, #1F2839)', marginTop: '2px' }}>
+                    {clientName}{' '}
+                    <span
+                      style={{
+                        fontSize: '0.7rem',
+                        padding: '1px 6px',
+                        borderRadius: '3px',
+                        backgroundColor: clientType === 'PHM' ? 'rgba(34, 80, 161, 0.1)' : 'var(--accent-secondary-bg, #E5E7EB)',
+                        color: clientType === 'PHM' ? 'var(--primary-color, #2250A1)' : 'var(--text-secondary, #4B5563)',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {clientType}
                     </span>
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #6B7280)' }}>
+                    Attn: {attnName}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #6B7280)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <WarehouseIcon size={13} /> Source Warehouse
+                  </div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary, #1F2839)', marginTop: '2px' }}>
+                    {warehouseName} {cityCode && cityCode !== '—' ? `(${cityCode})` : ''}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #6B7280)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <FileText size={13} /> Project &amp; Site
+                  </div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary, #1F2839)', marginTop: '2px' }}>
+                    {projectName}
+                  </div>
+                  {siteCode && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--primary-color, #2250A1)', fontWeight: 600 }}>
+                      Code: {siteCode}
+                    </div>
+                  )}
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #6B7280)' }}>
+                    Loc: {location}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #6B7280)' }}>References</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-primary, #1F2839)', marginTop: '2px' }}>
+                    Ref: <strong>{refNumber}</strong>
+                  </div>
+                  {ptsNumber && (
+                    <div style={{ fontSize: '0.8rem', color: '#B45309', fontWeight: 600 }}>
+                      PTS: {ptsNumber}
+                    </div>
                   )}
                 </div>
               </div>
 
-              <div>
-                <div style={{ fontSize: '0.75rem', color: '#6B7280', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Calendar size={13} /> DO Date &amp; Time
-                </div>
-                <div style={{ fontWeight: 600, color: '#1F2839', marginTop: '2px' }}>
-                  {formatDateTime(deliveryOrder.date, cityCode || warehouseName)}
-                </div>
-              </div>
-
-              <div>
-                <div style={{ fontSize: '0.75rem', color: '#6B7280', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Building size={13} /> Client / Company
-                </div>
-                <div style={{ fontWeight: 600, color: '#1F2839', marginTop: '2px' }}>
-                  {clientName}{' '}
-                  <span
-                    style={{
-                      fontSize: '0.7rem',
-                      padding: '1px 6px',
-                      borderRadius: '3px',
-                      backgroundColor: clientType === 'PHM' ? 'rgba(34, 80, 161, 0.1)' : '#E5E7EB',
-                      color: clientType === 'PHM' ? '#2250A1' : '#4B5563',
-                      fontWeight: 700,
-                    }}
-                  >
-                    {clientType}
-                  </span>
-                </div>
-                <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>Attn: {attnName}</div>
-              </div>
-
-              <div>
-                <div style={{ fontSize: '0.75rem', color: '#6B7280', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <FileText size={13} /> Project & Reference
-                </div>
-                <div style={{ fontWeight: 600, color: '#1F2839', marginTop: '2px' }}>
-                  {projectName} {siteCode ? `[${siteCode}]` : ''}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>
-                  {location}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: '#2250A1', fontFamily: 'monospace', fontWeight: 700 }}>
-                  Ref: {refNumber}
-                </div>
-                {ptsNumber && (
-                  <div style={{ fontSize: '0.75rem', color: '#0891B2', fontFamily: 'monospace', fontWeight: 700, marginTop: '2px' }}>
-                    PTS: {ptsNumber}
+              {/* Activity & Notes */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 2fr',
+                  gap: '1rem',
+                  padding: '1rem',
+                  backgroundColor: 'var(--card-bg, #FFFFFF)',
+                  border: '1px solid var(--card-border, #E5E7EB)',
+                  borderRadius: 'var(--border-radius-sm, 6px)',
+                  fontSize: '0.85rem',
+                }}
+              >
+                <div>
+                  <span style={{ fontWeight: 600, color: 'var(--text-secondary, #4B5563)' }}>Activity Type:</span>
+                  <div style={{ marginTop: '2px', fontWeight: 600, color: 'var(--text-primary, #1F2839)' }}>
+                    {deliveryOrder.activity || 'General Dispatch'}
                   </div>
-                )}
+                </div>
+                <div>
+                  <span style={{ fontWeight: 600, color: 'var(--text-secondary, #4B5563)' }}>Notes / Purpose:</span>
+                  <div style={{ marginTop: '2px', color: 'var(--text-primary, #1F2839)', whiteSpace: 'pre-wrap' }}>
+                    {deliveryOrder.notes || '—'}
+                  </div>
+                </div>
               </div>
 
+              {/* Items Table */}
               <div>
-                <div style={{ fontSize: '0.75rem', color: '#6B7280', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <WarehouseIcon size={13} /> Source Warehouse
-                </div>
-                <div style={{ fontWeight: 600, color: '#2250A1', marginTop: '2px' }}>
-                  {warehouseName} [{cityCode}]
+                <h4 style={{ margin: '0 0 8px 0', fontSize: '0.9rem', color: 'var(--text-primary, #1F2839)' }}>
+                  Dispatched Items ({deliveryOrder.items?.length || 0})
+                </h4>
+                <div style={{ border: '1px solid var(--card-border, #E5E7EB)', borderRadius: 'var(--border-radius-sm, 6px)', overflow: 'hidden' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: 'var(--accent-secondary-bg, #F9FAFB)', borderBottom: '1px solid var(--card-border, #E5E7EB)', textAlign: 'left', color: 'var(--text-secondary, #6B7280)' }}>
+                        <th style={{ padding: '8px 12px' }}>Item</th>
+                        <th style={{ padding: '8px 12px' }}>Type</th>
+                        <th style={{ padding: '8px 12px' }}>Quantity</th>
+                        <th style={{ padding: '8px 12px' }}>PIC / Remarks</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(deliveryOrder.items || []).map((it: any, idx: number) => {
+                        const isSer = it.item?.trackingType === 'SERIALIZED' || it.trackingType === 'SERIALIZED';
+                        const serials: string[] = it.serials || (it.itemSerials || []).map((is: any) => is.itemSerial?.serialNumber || is.serialNumber);
+
+                        return (
+                          <tr key={idx} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                            <td style={{ padding: '8px 12px' }}>
+                              <div style={{ fontWeight: 600, color: 'var(--text-primary, #1F2839)' }}>
+                                {it.itemName || it.item?.name || 'Item'}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #6B7280)' }}>
+                                {[it.brand || it.item?.brand, it.modelNumber || it.item?.modelNumber].filter(Boolean).join(' • ')}
+                              </div>
+                              {isSer && serials && serials.length > 0 && (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
+                                  {serials.map((sn, sIdx) => (
+                                    <span
+                                      key={sIdx}
+                                      style={{
+                                        fontFamily: 'monospace',
+                                        fontSize: '0.725rem',
+                                        fontWeight: 600,
+                                        padding: '1px 5px',
+                                        backgroundColor: 'var(--accent-secondary-bg, #F3F4F6)',
+                                        border: '1px solid var(--card-border, #E5E7EB)',
+                                        borderRadius: '3px',
+                                        color: 'var(--text-primary, #1F2839)',
+                                      }}
+                                    >
+                                      {sn}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </td>
+                            <td style={{ padding: '8px 12px' }}>
+                              <span
+                                style={{
+                                  fontSize: '0.7rem',
+                                  padding: '2px 6px',
+                                  borderRadius: '3px',
+                                  fontWeight: 600,
+                                  backgroundColor: isSer ? 'rgba(126, 34, 206, 0.1)' : 'rgba(3, 105, 161, 0.1)',
+                                  color: isSer ? '#7E22CE' : '#0369A1',
+                                }}
+                              >
+                                {isSer ? 'SERIALIZED' : 'BULK'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '8px 12px', fontWeight: 600, color: 'var(--text-primary, #1F2839)' }}>
+                              {it.quantity} {it.unitSymbol || it.unit || it.item?.unit?.symbol || 'pcs'}
+                            </td>
+                            <td style={{ padding: '8px 12px', fontSize: '0.8rem', color: 'var(--text-secondary, #4B5563)' }}>
+                              {it.pic && <div>PIC: {it.pic}</div>}
+                              {it.remarks && <div>Remarks: {it.remarks}</div>}
+                              {!it.pic && !it.remarks && <span style={{ color: '#9CA3AF' }}>—</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
-              <div>
-                <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>Activity</div>
-                <div style={{ fontWeight: 600, color: '#1F2839', marginTop: '2px' }}>
-                  {deliveryOrder.activity}
-                </div>
-              </div>
-            </div>
-
-            {/* Related Outgoing Movement Link */}
-            {deliveryOrder.stockMovement && (
+              {/* Metadata audit footer */}
               <div
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  padding: '8px 12px',
-                  backgroundColor: '#EFF6FF',
-                  border: '1px solid #BFDBFE',
-                  borderRadius: '6px',
-                  fontSize: '0.825rem',
+                  fontSize: '0.75rem',
+                  color: 'var(--text-secondary, #9CA3AF)',
+                  paddingTop: '8px',
+                  borderTop: '1px solid var(--card-border, #E5E7EB)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <FileText size={16} color="#2250A1" />
-                  <span>
-                    Linked to Outgoing Movement:{' '}
-                    <strong style={{ fontFamily: 'monospace', color: '#1E40AF' }}>
-                      {deliveryOrder.stockMovement.movementNumber}
-                    </strong>{' '}
-                    ({new Date(deliveryOrder.stockMovement.movementDate).toLocaleDateString('en-GB')})
-                  </span>
+                <div>
+                  Created: {formatDateTime(deliveryOrder.createdAt, cityCode || warehouseName)}
+                  {deliveryOrder.createdBy && ` by ${deliveryOrder.createdBy.name}`}
+                </div>
+                {deliveryOrder.issuedAt && (
+                  <div>
+                    Issued: {formatDateTime(deliveryOrder.issuedAt, cityCode || warehouseName)}
+                    {deliveryOrder.issuedBy && ` by ${deliveryOrder.issuedBy.name}`}
+                  </div>
+                )}
+              </div>
+
+              {/* Hidden Print Document Wrapper for PDF Generation */}
+              <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+                <div ref={printContainerRef}>
+                  <DeliveryOrderPrintView deliveryOrder={deliveryOrder} />
                 </div>
               </div>
-            )}
+            </div>
+          )}
+        </Modal.Body>
 
-            {/* Notes if present */}
-            {deliveryOrder.notes && (
-              <div style={{ padding: '0.75rem 1rem', backgroundColor: '#EFF6FF', border: '1px solid #DBEAFE', borderRadius: '6px', fontSize: '0.875rem' }}>
-                <span style={{ fontWeight: 600, color: '#1E40AF' }}>Notes: </span>
-                <span style={{ color: '#1E3A8A' }}>{deliveryOrder.notes}</span>
-              </div>
-            )}
-
-            {/* Items Table */}
+        <Modal.Footer>
+          <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <div style={{ fontWeight: 600, fontSize: '0.95rem', color: '#1F2839', marginBottom: '0.5rem' }}>
-                Dispatched Items ({deliveryOrder.items?.length || 0})
-              </div>
-
-              <div style={{ border: '1px solid #E5E7EB', borderRadius: '6px', overflow: 'hidden' }}>
-                <table className="data-table" style={{ margin: 0, fontSize: '0.85rem' }}>
-                  <thead>
-                    <tr>
-                      <th>Item / Brand</th>
-                      <th>Model Number</th>
-                      <th>Type</th>
-                      <th>Serial Numbers</th>
-                      <th>Qty</th>
-                      <th>Unit</th>
-                      <th>PIC</th>
-                      <th>Remarks</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(deliveryOrder.items || []).map((item: any) => {
-                      const snList = (item.itemSerials || []).map(
-                        (s: any) => s.serialNumber || s.itemSerial?.serialNumber,
-                      );
-
-                      return (
-                        <tr key={item.id}>
-                          <td>
-                            <div style={{ fontWeight: 600, color: '#1F2839' }}>
-                              {item.itemName || item.item?.name}
-                            </div>
-                            <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>
-                              {item.brand || item.item?.brand || '—'}
-                            </div>
-                          </td>
-                          <td>{item.modelNumber || item.item?.modelNumber || '—'}</td>
-                          <td>
-                            <span
-                              style={{
-                                fontSize: '0.75rem',
-                                fontWeight: 700,
-                                color: (item.trackingType || item.item?.trackingType) === 'BULK' ? '#047857' : '#2250A1',
-                              }}
-                            >
-                              {item.trackingType || item.item?.trackingType}
-                            </span>
-                          </td>
-                          <td>
-                            {snList.length > 0 ? (
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                                {snList.map((sn: string, idx: number) => (
-                                  <span
-                                    key={idx}
-                                    style={{
-                                      padding: '1px 6px',
-                                      borderRadius: '3px',
-                                      fontFamily: 'monospace',
-                                      fontSize: '0.75rem',
-                                      fontWeight: 700,
-                                      backgroundColor: 'rgba(34, 80, 161, 0.08)',
-                                      color: '#2250A1',
-                                    }}
-                                  >
-                                    {sn}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : (
-                              <span style={{ color: '#9CA3AF' }}>—</span>
-                            )}
-                          </td>
-                          <td style={{ fontWeight: 700 }}>{item.quantity}</td>
-                          <td>{item.unitSymbol || item.item?.unit?.symbol || item.unitName || item.item?.unit?.name || 'pcs'}</td>
-                          <td>{item.pic || '—'}</td>
-                          <td>{item.remarks || '—'}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              {isDraft && canManageDeliveries(user?.role) && (
+                <Button
+                  variant="ghost"
+                  onClick={handleCancelDraft}
+                  style={{ color: '#EF4444', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <Trash2 size={14} /> Cancel Draft
+                </Button>
+              )}
             </div>
 
-            {/* Hidden Print Container for native window print */}
-            <div style={{ display: 'none' }}>
-              <div ref={printContainerRef}>
-                <DeliveryOrderPrintView deliveryOrder={deliveryOrder} />
-              </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {isDraft && canManageDeliveries(user?.role) && (
+                <>
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      onClose();
+                      if (onEditDraft) onEditDraft(deliveryOrder.id);
+                    }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <Edit2 size={14} /> Edit Draft
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={handleIssue}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#059669' }}
+                  >
+                    <Send size={14} /> Issue Delivery Order
+                  </Button>
+                </>
+              )}
+
+              {isIssued && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  {pdfError && (
+                    <span style={{ fontSize: '0.8rem', color: '#DC2626', marginRight: '4px' }}>
+                      {pdfError}
+                    </span>
+                  )}
+                  <Button
+                    variant="secondary"
+                    onClick={handlePrint}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Printer size={15} /> Print (A4)
+                  </Button>
+                  <Button
+                    variant="primary"
+                    disabled={isDownloadingPdf}
+                    onClick={handleDownloadPdf}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    {isDownloadingPdf ? (
+                      <>
+                        <Loader2 className="animate-spin" size={15} /> Preparing PDF...
+                      </>
+                    ) : (
+                      <>
+                        <Download size={15} /> Download PDF
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              <Button variant="secondary" onClick={onClose}>
+                Close
+              </Button>
             </div>
           </div>
-        )}
-      </div>
-
-      <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          {isDraft && canManageDeliveries(user?.role) && (
-            <Button
-              variant="ghost"
-              onClick={handleCancelDraft}
-              style={{ color: '#EF4444', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-            >
-              <Trash2 size={14} /> Cancel Draft
-            </Button>
-          )}
-        </div>
-
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {isDraft && canManageDeliveries(user?.role) && (
-            <>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  onClose();
-                  if (onEditDraft) onEditDraft(deliveryOrder.id);
-                }}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-              >
-                <Edit2 size={14} /> Edit Draft
-              </Button>
-              <Button
-                variant="primary"
-                onClick={handleIssue}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#059669' }}
-              >
-                <Send size={14} /> Issue Delivery Order
-              </Button>
-            </>
-          )}
-
-          {isIssued && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              {pdfError && (
-                <span style={{ fontSize: '0.8rem', color: '#DC2626', marginRight: '4px' }}>
-                  {pdfError}
-                </span>
-              )}
-              <Button
-                variant="secondary"
-                onClick={handlePrint}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-              >
-                <Printer size={15} /> Print (A4)
-              </Button>
-              <Button
-                variant="primary"
-                disabled={isDownloadingPdf}
-                onClick={handleDownloadPdf}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-              >
-                {isDownloadingPdf ? (
-                  <>
-                    <Loader2 className="animate-spin" size={15} /> Preparing PDF...
-                  </>
-                ) : (
-                  <>
-                    <Download size={15} /> Download PDF
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
-
-          <Button variant="secondary" onClick={onClose}>
-            Close
-          </Button>
-        </div>
-      </div>
+        </Modal.Footer>
+      </Modal>
 
       <ConfirmModal
         isOpen={confirmConfig.isOpen}
@@ -512,7 +556,7 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
         title="Delivery Order Issued Successfully"
         maxWidth="500px"
       >
-        <div className="modal-body" style={{ textAlign: 'center', padding: '1.5rem 1rem' }}>
+        <Modal.Body style={{ textAlign: 'center', padding: '1.5rem 1rem' }}>
           <div
             style={{
               display: 'inline-flex',
@@ -526,7 +570,7 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
             <Send size={28} />
           </div>
 
-          <h3 style={{ margin: '0 0 8px 0', fontSize: '1.1rem', color: '#1E293B' }}>
+          <h3 style={{ margin: '0 0 8px 0', fontSize: '1.1rem', color: 'var(--text-primary, #1E293B)' }}>
             Official DO Number Generated
           </h3>
 
@@ -535,8 +579,8 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
               fontFamily: 'monospace',
               fontSize: '1rem',
               fontWeight: 700,
-              backgroundColor: '#EFF6FF',
-              color: '#2250A1',
+              backgroundColor: 'var(--accent-primary-light, #EFF6FF)',
+              color: 'var(--primary-color, #2250A1)',
               padding: '8px 14px',
               borderRadius: '6px',
               border: '1px solid #BFDBFE',
@@ -547,49 +591,53 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
             {deliveryOrder?.doNumber || 'DO Issued'}
           </div>
 
-          <p style={{ fontSize: '0.85rem', color: '#64748B', margin: 0 }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary, #64748B)', margin: 0 }}>
             Warehouse stocks have been decremented and serialized assets relocated to the project. Choose an option below:
           </p>
-        </div>
+        </Modal.Body>
 
-        <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Button variant="secondary" onClick={() => setShowIssueSuccess(false)}>
-            Close
-          </Button>
+        <Modal.Footer>
+          <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Button variant="secondary" onClick={() => setShowIssueSuccess(false)}>
+              Close
+            </Button>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setShowIssueSuccess(false);
-                handlePrint();
-              }}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              <Printer size={15} /> Print Now
-            </Button>
-            <Button
-              variant="primary"
-              disabled={isDownloadingPdf}
-              onClick={async () => {
-                await handleDownloadPdf();
-                setShowIssueSuccess(false);
-              }}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              {isDownloadingPdf ? (
-                <>
-                  <Loader2 className="animate-spin" size={15} /> Preparing PDF...
-                </>
-              ) : (
-                <>
-                  <Download size={15} /> Download PDF
-                </>
-              )}
-            </Button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setShowIssueSuccess(false);
+                  handlePrint();
+                }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Printer size={15} /> Print Now
+              </Button>
+              <Button
+                variant="primary"
+                disabled={isDownloadingPdf}
+                onClick={async () => {
+                  await handleDownloadPdf();
+                  setShowIssueSuccess(false);
+                }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                {isDownloadingPdf ? (
+                  <>
+                    <Loader2 className="animate-spin" size={15} /> Preparing PDF...
+                  </>
+                ) : (
+                  <>
+                    <Download size={15} /> Download PDF
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
-        </div>
+        </Modal.Footer>
       </Modal>
-    </Modal>
+    </>
   );
 };
+
+export default DeliveryOrderDetailModal;

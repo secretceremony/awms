@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button } from '../ui/index.js';
+import { useToast } from '../../context/ToastContext.js';
 import { apiClient } from '../../api/client.js';
 import { RotateCcw, PackageCheck } from 'lucide-react';
 
@@ -14,6 +15,7 @@ export const IncomingDetailModal: React.FC<IncomingDetailModalProps> = ({
   movementId,
   onClose,
 }) => {
+  const { showToast } = useToast();
   const [movement, setMovement] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -24,8 +26,9 @@ export const IncomingDetailModal: React.FC<IncomingDetailModalProps> = ({
       try {
         const res: any = await apiClient.get(`/stock-movements/incoming/${movementId}`);
         setMovement(res?.data || res);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to load movement detail:', err);
+        showToast({ type: 'error', message: err.message || 'Failed to load movement details' });
       } finally {
         setIsLoading(false);
       }
@@ -36,7 +39,7 @@ export const IncomingDetailModal: React.FC<IncomingDetailModalProps> = ({
     } else {
       setMovement(null);
     }
-  }, [isOpen, movementId]);
+  }, [isOpen, movementId, showToast]);
 
   // Expand items for display (for serialized items with multiple SNs, expand into individual SN rows)
   const detailRows: Array<{
@@ -102,7 +105,7 @@ export const IncomingDetailModal: React.FC<IncomingDetailModalProps> = ({
       }
       maxWidth="800px"
     >
-      <div className="modal-body">
+      <Modal.Body>
         {isLoading || !movement ? (
           <div style={{ textAlign: 'center', padding: '2rem', color: '#6B7280' }}>
             Loading movement details...
@@ -306,13 +309,13 @@ export const IncomingDetailModal: React.FC<IncomingDetailModalProps> = ({
             </div>
           </div>
         )}
-      </div>
+      </Modal.Body>
 
-      <div className="modal-footer">
+      <Modal.Footer>
         <Button variant="secondary" onClick={onClose}>
           Close
         </Button>
-      </div>
+      </Modal.Footer>
     </Modal>
   );
 };

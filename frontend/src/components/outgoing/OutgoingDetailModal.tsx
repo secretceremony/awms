@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button } from '../ui/index.js';
+import { useToast } from '../../context/ToastContext.js';
 import { apiClient } from '../../api/client.js';
 import { Warehouse, Building, User, Calendar, FileText, Plus } from 'lucide-react';
 
@@ -16,6 +17,7 @@ export const OutgoingDetailModal: React.FC<OutgoingDetailModalProps> = ({
   movementId,
   onCreateDo,
 }) => {
+  const { showToast } = useToast();
   const [movement, setMovement] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -30,7 +32,9 @@ export const OutgoingDetailModal: React.FC<OutgoingDetailModalProps> = ({
         setMovement(data);
       } catch (err: any) {
         console.error(err);
-        setErrorMsg(err.message || 'Failed to load outgoing movement details');
+        const msg = err.message || 'Failed to load outgoing movement details';
+        setErrorMsg(msg);
+        showToast({ type: 'error', message: msg });
       } finally {
         setIsLoading(false);
       }
@@ -39,7 +43,7 @@ export const OutgoingDetailModal: React.FC<OutgoingDetailModalProps> = ({
     if (isOpen && movementId) {
       fetchDetail();
     }
-  }, [isOpen, movementId]);
+  }, [isOpen, movementId, showToast]);
 
   if (!isOpen) return null;
 
@@ -52,7 +56,7 @@ export const OutgoingDetailModal: React.FC<OutgoingDetailModalProps> = ({
       title={`Outgoing Movement — ${movement?.movementNumber || 'Loading...'}`}
       maxWidth="750px"
     >
-      <div className="modal-body" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+      <Modal.Body style={{ maxHeight: '75vh', overflowY: 'auto' }}>
         {errorMsg && <div className="alert-error" style={{ marginBottom: '1rem' }}>{errorMsg}</div>}
 
         {isLoading || !movement ? (
@@ -268,13 +272,13 @@ export const OutgoingDetailModal: React.FC<OutgoingDetailModalProps> = ({
             </div>
           </div>
         )}
-      </div>
+      </Modal.Body>
 
-      <div className="modal-footer">
+      <Modal.Footer>
         <Button variant="secondary" onClick={onClose}>
           Close
         </Button>
-      </div>
+      </Modal.Footer>
     </Modal>
   );
 };
