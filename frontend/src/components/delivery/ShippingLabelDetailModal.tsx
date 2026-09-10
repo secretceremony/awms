@@ -8,6 +8,7 @@ import {
   downloadShippingLabelPdf,
   generateShippingLabelFilename,
 } from '../../utils/shippingLabelPdf.js';
+import { useToast } from '../../context/ToastContext.js';
 
 export interface ShippingLabelDetailModalProps {
   isOpen: boolean;
@@ -91,15 +92,18 @@ export const ShippingLabelDetailModal: React.FC<ShippingLabelDetailModalProps> =
     }
   };
 
+  const { showToast } = useToast();
+
   const handleDownloadPdf = async () => {
     if (!printContainerRef.current) return;
     setIsPdfGenerating(true);
     try {
       const filename = generateShippingLabelFilename(shippingLabel);
       await downloadShippingLabelPdf(printContainerRef.current, filename, isA5 ? 'A5' : 'A6');
+      showToast({ type: 'success', message: 'Shipping label PDF downloaded successfully' });
     } catch (err) {
       console.error('Failed to generate shipping label PDF:', err);
-      alert('Failed to generate PDF. Please try printing directly.');
+      showToast({ type: 'error', message: 'Failed to generate PDF. Please try printing directly.' });
     } finally {
       setIsPdfGenerating(false);
     }

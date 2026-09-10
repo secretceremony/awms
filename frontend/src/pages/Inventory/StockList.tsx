@@ -12,6 +12,7 @@ import { MonthlyReportModal } from '../../components/common/MonthlyReportModal.j
 import { FilterBar, FilterPanel, type ActiveFilter } from '../../components/filters/index.js';
 import { downloadAllDataWorkbook } from '../../utils/exportWorkbook.js';
 import { useAuth } from '../../context/AuthContext.js';
+import { useToast } from '../../context/ToastContext.js';
 import { canManageInventory } from '../../utils/permissions.js';
 
 
@@ -77,6 +78,7 @@ export const StockList: React.FC = () => {
   const [isInitialStockModalOpen, setIsInitialStockModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isMonthlyReportModalOpen, setIsMonthlyReportModalOpen] = useState(false);
+  const { showToast } = useToast();
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
   const [adjustContext, setAdjustContext] = useState<{ itemId: number | null; warehouseId: number | null }>({
     itemId: null,
@@ -88,9 +90,10 @@ export const StockList: React.FC = () => {
     setIsExporting(true);
     try {
       await downloadAllDataWorkbook();
+      showToast({ type: 'success', message: 'Data export downloaded successfully' });
     } catch (err: any) {
       console.error(err);
-      alert(err.message || 'Export failed');
+      showToast({ type: 'error', message: err.message || 'Export failed' });
     } finally {
       setIsExporting(false);
     }

@@ -8,6 +8,7 @@ import { MovementDetailModal } from '../../components/history/MovementDetailModa
 import { AdjustmentModal } from '../../components/history/AdjustmentModal.js';
 import { FilterBar, FilterPanel, type ActiveFilter } from '../../components/filters/index.js';
 import { downloadAllDataWorkbook } from '../../utils/exportWorkbook.js';
+import { useToast } from '../../context/ToastContext.js';
 
 
 interface StockMovement {
@@ -73,7 +74,7 @@ export const MovementHistory: React.FC = () => {
   const [warehouses, setWarehouses] = useState<{ id: number; name: string; cityCode?: string | null }[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Modals
+  const { showToast } = useToast();
   const [selectedMovementId, setSelectedMovementId] = useState<number | null>(null);
   const [isAdjustmentModalOpen, setIsAdjustmentModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -82,9 +83,10 @@ export const MovementHistory: React.FC = () => {
     setIsExporting(true);
     try {
       await downloadAllDataWorkbook();
+      showToast({ type: 'success', message: 'Data export downloaded successfully' });
     } catch (err: any) {
       console.error(err);
-      alert(err.message || 'Export failed');
+      showToast({ type: 'error', message: err.message || 'Export failed' });
     } finally {
       setIsExporting(false);
     }

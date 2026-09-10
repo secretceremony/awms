@@ -12,6 +12,7 @@ import { ProjectFormModal, type Project } from '../components/project/ProjectFor
 import { FilterBar, type ActiveFilter } from '../components/filters/index.js';
 import { apiClient } from '../api/client.js';
 import { Plus, Edit2, CheckCircle2, RotateCcw, Trash2, MapPin, Building } from 'lucide-react';
+import { useToast } from '../context/ToastContext.js';
 import { useAuth } from '../context/AuthContext.js';
 import { canManageMasterData } from '../utils/permissions.js';
 
@@ -77,6 +78,8 @@ export const Projects: React.FC = () => {
     });
   }
 
+  const { showToast } = useToast();
+
   const handleCreate = () => {
     setSelectedProject(null);
     setIsFormModalOpen(true);
@@ -84,7 +87,10 @@ export const Projects: React.FC = () => {
 
   const handleEdit = (project: Project) => {
     if (project.status === 'COMPLETED') {
-      alert('Completed projects are read-only. Reactivate the project to make edits.');
+      showToast({
+        type: 'warning',
+        message: 'Completed projects are read-only. Reactivate the project to make edits.',
+      });
       return;
     }
     setSelectedProject(project);

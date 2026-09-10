@@ -13,6 +13,7 @@ import { FilterBar, type ActiveFilter } from '../components/filters/index.js';
 import { apiClient } from '../api/client.js';
 import { Plus, Edit2, Ban, CheckCircle, Shield, UserCheck, ShieldAlert, Eye } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.js';
+import { useToast } from '../context/ToastContext.js';
 import { canManageUsers } from '../utils/permissions.js';
 
 export const Users: React.FC = () => {
@@ -68,6 +69,8 @@ export const Users: React.FC = () => {
     setSearchParams(new URLSearchParams());
   };
 
+  const { showToast } = useToast();
+
   const handleCreate = () => {
     setSelectedUser(null);
     setIsFormModalOpen(true);
@@ -90,10 +93,13 @@ export const Users: React.FC = () => {
         try {
           setIsProcessing(true);
           await apiClient.patch(`/users/${u.id}`, { isActive: false });
+          showToast({ type: 'success', message: `User "${u.name}" deactivated` });
           setRefreshTrigger((prev) => prev + 1);
           setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
         } catch (err: any) {
-          setActionError(err.message || 'Failed to deactivate user');
+          const msg = err.message || 'Failed to deactivate user';
+          setActionError(msg);
+          showToast({ type: 'error', message: msg });
         } finally {
           setIsProcessing(false);
         }
@@ -113,10 +119,13 @@ export const Users: React.FC = () => {
         try {
           setIsProcessing(true);
           await apiClient.patch(`/users/${u.id}`, { isActive: true });
+          showToast({ type: 'success', message: `User "${u.name}" reactivated` });
           setRefreshTrigger((prev) => prev + 1);
           setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
         } catch (err: any) {
-          setActionError(err.message || 'Failed to reactivate user');
+          const msg = err.message || 'Failed to reactivate user';
+          setActionError(msg);
+          showToast({ type: 'error', message: msg });
         } finally {
           setIsProcessing(false);
         }

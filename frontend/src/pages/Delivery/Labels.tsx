@@ -15,10 +15,12 @@ import {
 
 import { formatDateTime } from '../../utils/datetime.js';
 import { useAuth } from '../../context/AuthContext.js';
+import { useToast } from '../../context/ToastContext.js';
 import { canManageDeliveries } from '../../utils/permissions.js';
 
 export const Labels: React.FC = () => {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // URL state
@@ -159,9 +161,10 @@ export const Labels: React.FC = () => {
     try {
       const filename = generateMultiShippingLabelsFilename(selectedLabels.size);
       await downloadShippingLabelPdf(batchPrintRef.current, filename);
+      showToast({ type: 'success', message: 'Labels PDF downloaded successfully' });
     } catch (err) {
       console.error('Failed to download batch labels PDF:', err);
-      alert('Failed to generate PDF. Please try printing directly.');
+      showToast({ type: 'error', message: 'Failed to generate PDF. Please try printing directly.' });
     } finally {
       setIsBatchPdfGenerating(false);
     }

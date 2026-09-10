@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, FormField, Input, Select, Button, ConfirmModal } from '../ui/index.js';
 import { apiClient } from '../../api/client.js';
+import { useToast } from '../../context/ToastContext.js';
 import type { UserRole } from '../../utils/permissions.js';
 
 export interface ManagedUser {
@@ -85,6 +86,8 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
     }
   };
 
+  const { showToast } = useToast();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -126,6 +129,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
           payload.password = password;
         }
         await apiClient.patch(`/users/${user.id}`, payload);
+        showToast({ type: 'success', message: `User "${name}" updated successfully` });
       } else {
         // Create user
         await apiClient.post('/users', {
@@ -134,13 +138,16 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
           password,
           role,
         });
+        showToast({ type: 'success', message: `User "${name}" created successfully` });
       }
 
       onSuccess();
       onClose();
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'Failed to save user');
+      const msg = err.message || 'Failed to save user';
+      setErrorMsg(msg);
+      showToast({ type: 'error', message: msg });
     } finally {
       setIsSaving(false);
     }

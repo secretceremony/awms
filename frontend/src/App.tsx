@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext.js';
+import { ToastProvider } from './context/ToastContext.js';
 import { ProtectedRoute } from './components/ProtectedRoute.js';
 import { DashboardLayout } from './components/DashboardLayout.js';
 import { Login } from './pages/Login.js';
@@ -25,48 +26,50 @@ import { PageTitleUpdater } from './components/common/PageTitleUpdater.js';
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <PageTitleUpdater />
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/login" element={<Login />} />
+      <ToastProvider>
+        <BrowserRouter>
+          <PageTitleUpdater />
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/login" element={<Login />} />
 
-          {/* Protected Routes */}
-          <Route element={<ProtectedRoute />}>
-            {/* Standalone Print Page Route */}
-            <Route path="/delivery-orders/:id/print" element={<DeliveryOrderPrintPage />} />
+            {/* Protected Routes */}
+            <Route element={<ProtectedRoute />}>
+              {/* Standalone Print Page Route */}
+              <Route path="/delivery-orders/:id/print" element={<DeliveryOrderPrintPage />} />
 
-            <Route element={<DashboardLayout />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/inventory" element={<StockList />} />
-              <Route path="/inventory/item/:id" element={<ItemDetail />} />
+              <Route element={<DashboardLayout />}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/inventory" element={<StockList />} />
+                <Route path="/inventory/item/:id" element={<ItemDetail />} />
 
-              <Route path="/inventory/incoming" element={<Incoming />} />
-              <Route path="/inventory/incoming/:id" element={<IncomingDetail />} />
-              <Route path="/inventory/movements" element={<MovementHistory />} />
-              <Route path="/inventory/outgoing" element={<Outgoing />} />
-              <Route path="/warehouses" element={<Warehouses />} />
-              <Route path="/projects" element={<Projects />} />
-              <Route path="/clients" element={<Clients />} />
-              <Route path="/customers" element={<Navigate to="/clients" replace />} />
-              <Route path="/units" element={<Units />} />
-              <Route path="/delivery-orders" element={<Orders />} />
-              <Route path="/shipping-labels" element={<Labels />} />
+                <Route path="/inventory/incoming" element={<Incoming />} />
+                <Route path="/inventory/incoming/:id" element={<IncomingDetail />} />
+                <Route path="/inventory/movements" element={<MovementHistory />} />
+                <Route path="/inventory/outgoing" element={<Outgoing />} />
+                <Route path="/warehouses" element={<Warehouses />} />
+                <Route path="/projects" element={<Projects />} />
+                <Route path="/clients" element={<Clients />} />
+                <Route path="/customers" element={<Navigate to="/clients" replace />} />
+                <Route path="/units" element={<Units />} />
+                <Route path="/delivery-orders" element={<Orders />} />
+                <Route path="/shipping-labels" element={<Labels />} />
 
-              {/* Admin-only Protected Sub-routes */}
-              <Route element={<ProtectedRoute requiredPermission="manage_users" />}>
-                <Route path="/users" element={<Users />} />
-              </Route>
-              <Route element={<ProtectedRoute requiredPermission="view_audit_logs" />}>
-                <Route path="/logs" element={<Logs />} />
-              </Route>
-              <Route element={<ProtectedRoute requiredPermission="manage_settings" />}>
-                <Route path="/settings" element={<Settings />} />
+                {/* Admin-only Protected Sub-routes */}
+                <Route element={<ProtectedRoute requiredPermission="manage_users" />}>
+                  <Route path="/users" element={<Users />} />
+                </Route>
+                <Route element={<ProtectedRoute requiredPermission="view_audit_logs" />}>
+                  <Route path="/logs" element={<Logs />} />
+                </Route>
+                <Route element={<ProtectedRoute requiredPermission="manage_settings" />}>
+                  <Route path="/settings" element={<Settings />} />
+                </Route>
               </Route>
             </Route>
-          </Route>
-        </Routes>
-      </BrowserRouter>
+          </Routes>
+        </BrowserRouter>
+      </ToastProvider>
     </AuthProvider>
   );
 }
