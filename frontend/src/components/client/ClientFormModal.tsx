@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, FormField, Input, Textarea, Button, SegmentedControl, ConfirmModal } from '../ui/index.js';
 import { apiClient } from '../../api/client.js';
+import { useToast } from '../../context/ToastContext.js';
 import { User } from 'lucide-react';
 
 export interface ClientContact {
@@ -106,14 +107,18 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
     }
   };
 
+  const { showToast } = useToast();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     setErrorMsg(null);
 
+    const clientName = formData.name.trim();
+
     try {
       const payload: any = {
-        name: formData.name.trim(),
+        name: clientName,
         clientType: formData.clientType,
         email: formData.email.trim() || undefined,
         phone: formData.phone.trim() || undefined,
@@ -130,15 +135,19 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
 
       if (client) {
         await apiClient.patch(`/clients/${client.id}`, payload);
+        showToast({ type: 'success', message: `Client "${clientName}" updated successfully` });
       } else {
         await apiClient.post('/clients', payload);
+        showToast({ type: 'success', message: `Client "${clientName}" created successfully` });
       }
 
       onSuccess();
       onClose();
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'Failed to save client');
+      const msg = err.message || 'Failed to save client';
+      setErrorMsg(msg);
+      showToast({ type: 'error', message: msg });
     } finally {
       setIsSaving(false);
     }
@@ -153,15 +162,15 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
         maxWidth="580px"
       >
         <form onSubmit={handleSubmit}>
-          <div className="modal-body">
+          <Modal.Body>
             {errorMsg && (
-              <div className="alert-error" style={{ marginBottom: '1rem' }}>
+              <div className="alert-error">
                 {errorMsg}
               </div>
             )}
 
             {/* Client Company Info */}
-            <div style={{ marginBottom: '1rem' }}>
+            <div>
               <FormField label="Company Name" required>
                 <Input
                   ref={nameInputRef}
@@ -258,16 +267,16 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                 </div>
               </div>
             )}
-          </div>
+          </Modal.Body>
 
-          <div className="modal-footer">
+          <Modal.Footer>
             <Button variant="secondary" type="button" onClick={handleRequestClose} disabled={isSaving}>
               Cancel
             </Button>
             <Button variant="primary" type="submit" isLoading={isSaving}>
               {client ? 'Save Changes' : 'Create Client'}
             </Button>
-          </div>
+          </Modal.Footer>
         </form>
       </Modal>
 

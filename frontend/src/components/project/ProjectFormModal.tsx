@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, FormField, Input, Select, Button, ConfirmModal } from '../ui/index.js';
 import { apiClient } from '../../api/client.js';
+import { useToast } from '../../context/ToastContext.js';
 
 export interface Project {
   id: number;
@@ -140,6 +141,8 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
     }
   };
 
+  const { showToast } = useToast();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.clientId) {
@@ -158,9 +161,11 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
     setIsSaving(true);
     setErrorMsg(null);
 
+    const projectName = formData.name.trim();
+
     try {
       const payload = {
-        name: formData.name.trim(),
+        name: projectName,
         clientId: Number(formData.clientId),
         clientContactId: formData.clientContactId ? Number(formData.clientContactId) : null,
         referenceNumber: formData.referenceNumber.trim() || undefined,
@@ -172,15 +177,19 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
 
       if (project) {
         await apiClient.patch(`/projects/${project.id}`, payload);
+        showToast({ type: 'success', message: `Project "${projectName}" updated successfully` });
       } else {
         await apiClient.post('/projects', payload);
+        showToast({ type: 'success', message: `Project "${projectName}" created successfully` });
       }
 
       onSuccess();
       onClose();
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'Failed to save project');
+      const msg = err.message || 'Failed to save project';
+      setErrorMsg(msg);
+      showToast({ type: 'error', message: msg });
     } finally {
       setIsSaving(false);
     }
@@ -195,9 +204,9 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
         maxWidth="600px"
       >
         <form onSubmit={handleSubmit}>
-          <div className="modal-body">
+          <Modal.Body>
             {errorMsg && (
-              <div className="alert-error" style={{ marginBottom: '1rem' }}>
+              <div className="alert-error">
                 {errorMsg}
               </div>
             )}
@@ -312,16 +321,16 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
                 </FormField>
               )}
             </div>
-          </div>
+          </Modal.Body>
 
-          <div className="modal-footer">
+          <Modal.Footer>
             <Button variant="secondary" type="button" onClick={handleRequestClose} disabled={isSaving}>
               Cancel
             </Button>
             <Button variant="primary" type="submit" isLoading={isSaving}>
               {project ? 'Save Changes' : 'Create Project'}
             </Button>
-          </div>
+          </Modal.Footer>
         </form>
       </Modal>
 

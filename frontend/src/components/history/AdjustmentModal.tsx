@@ -11,6 +11,7 @@ import {
   SearchableSelect,
 } from '../ui/index.js';
 import { apiClient } from '../../api/client.js';
+import { useToast } from '../../context/ToastContext.js';
 import { CheckSquare, Square } from 'lucide-react';
 
 interface ItemOption {
@@ -235,6 +236,8 @@ export const AdjustmentModal: React.FC<AdjustmentModalProps> = ({
     }));
   };
 
+  const { showToast } = useToast();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.warehouseId) {
@@ -274,6 +277,11 @@ export const AdjustmentModal: React.FC<AdjustmentModalProps> = ({
           reason: formData.reason.trim(),
           serials: serialsPayload,
         });
+
+        showToast({
+          type: 'success',
+          message: `Adjusted condition for ${serialsPayload.length} serial(s) successfully`,
+        });
       } else {
         const delta = Number(formData.adjustmentSign) * Number(formData.adjustmentMagnitude);
         if (delta === 0) {
@@ -287,13 +295,20 @@ export const AdjustmentModal: React.FC<AdjustmentModalProps> = ({
           reason: formData.reason.trim(),
           adjustmentQty: delta,
         });
+
+        showToast({
+          type: 'success',
+          message: `Adjusted bulk stock by ${delta > 0 ? '+' : ''}${delta} ${selectedItem?.unit?.symbol || ''} successfully`,
+        });
       }
 
       onSuccess();
       onClose();
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'Failed to record adjustment');
+      const msg = err.message || 'Failed to record adjustment';
+      setErrorMsg(msg);
+      showToast({ type: 'error', message: msg });
     } finally {
       setIsSaving(false);
     }
@@ -312,9 +327,9 @@ export const AdjustmentModal: React.FC<AdjustmentModalProps> = ({
         maxWidth="680px"
       >
         <form onSubmit={handleSubmit}>
-          <div className="modal-body" style={{ maxHeight: '72vh', overflowY: 'auto' }}>
+          <Modal.Body style={{ maxHeight: '72vh', overflowY: 'auto' }}>
             {errorMsg && (
-              <div className="alert-error" style={{ marginBottom: '1rem' }}>
+              <div className="alert-error">
                 {errorMsg}
               </div>
             )}
@@ -589,16 +604,16 @@ export const AdjustmentModal: React.FC<AdjustmentModalProps> = ({
                 onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
               />
             </FormField>
-          </div>
+          </Modal.Body>
 
-          <div className="modal-footer">
+          <Modal.Footer>
             <Button variant="secondary" type="button" onClick={handleRequestClose} disabled={isSaving}>
               Cancel
             </Button>
             <Button variant="primary" type="submit" isLoading={isSaving}>
               Submit Adjustment
             </Button>
-          </div>
+          </Modal.Footer>
         </form>
       </Modal>
 

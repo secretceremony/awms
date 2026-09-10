@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, FormField, Input, Button } from '../ui/index.js';
 import { apiClient } from '../../api/client.js';
+import { useToast } from '../../context/ToastContext.js';
 
 export interface Unit {
   id: number;
@@ -24,6 +25,7 @@ export const UnitFormModal: React.FC<UnitFormModalProps> = ({
   unit,
   onSuccess,
 }) => {
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     name: '',
     symbol: '',
@@ -51,10 +53,13 @@ export const UnitFormModal: React.FC<UnitFormModalProps> = ({
     setIsSaving(true);
     setErrorMsg(null);
 
+    const name = formData.name.trim();
+    const symbol = formData.symbol.trim().toLowerCase();
+
     try {
       const payload = {
-        name: formData.name.trim(),
-        symbol: formData.symbol.trim().toLowerCase(),
+        name,
+        symbol,
       };
 
       if (unit) {
@@ -62,15 +67,19 @@ export const UnitFormModal: React.FC<UnitFormModalProps> = ({
           method: 'PATCH',
           body: JSON.stringify(payload),
         });
+        showToast({ type: 'success', message: `Unit "${name}" updated successfully` });
       } else {
         await apiClient.post('/units', payload);
+        showToast({ type: 'success', message: `Unit "${name}" created successfully` });
       }
 
       onSuccess();
       onClose();
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'An error occurred while saving the unit');
+      const msg = err.message || 'An error occurred while saving the unit';
+      setErrorMsg(msg);
+      showToast({ type: 'error', message: msg });
     } finally {
       setIsSaving(false);
     }
@@ -84,7 +93,7 @@ export const UnitFormModal: React.FC<UnitFormModalProps> = ({
       maxWidth="460px"
     >
       <form onSubmit={handleSubmit}>
-        <div className="modal-body">
+        <Modal.Body>
           {errorMsg && <div className="alert-error">{errorMsg}</div>}
 
           <FormField label="Unit Name" required>
@@ -106,16 +115,16 @@ export const UnitFormModal: React.FC<UnitFormModalProps> = ({
               onChange={(e) => setFormData({ ...formData, symbol: e.target.value.toLowerCase() })}
             />
           </FormField>
-        </div>
+        </Modal.Body>
 
-        <div className="modal-footer">
+        <Modal.Footer>
           <Button variant="secondary" type="button" onClick={onClose} disabled={isSaving}>
             Cancel
           </Button>
           <Button variant="primary" type="submit" isLoading={isSaving}>
             {unit ? 'Save Changes' : 'Add Unit'}
           </Button>
-        </div>
+        </Modal.Footer>
       </form>
     </Modal>
   );

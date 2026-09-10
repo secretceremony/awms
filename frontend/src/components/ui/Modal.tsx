@@ -9,7 +9,34 @@ export interface ModalProps {
   maxWidth?: string;
 }
 
-export const Modal: React.FC<ModalProps> = ({
+export const ModalBody: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
+  className = '',
+  children,
+  ...props
+}) => {
+  return (
+    <div className={`modal-body ${className}`.trim()} {...props}>
+      {children}
+    </div>
+  );
+};
+
+export const ModalFooter: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
+  className = '',
+  children,
+  ...props
+}) => {
+  return (
+    <div className={`modal-footer ${className}`.trim()} {...props}>
+      {children}
+    </div>
+  );
+};
+
+export const Modal: React.FC<ModalProps> & {
+  Body: typeof ModalBody;
+  Footer: typeof ModalFooter;
+} = ({
   isOpen,
   onClose,
   title,
@@ -46,3 +73,6 @@ export const Modal: React.FC<ModalProps> = ({
     </div>
   );
 };
+
+Modal.Body = ModalBody;
+Modal.Footer = ModalFooter;
