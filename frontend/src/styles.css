@@ -321,15 +321,20 @@ p {
 .form-field {
   display: flex;
   flex-direction: column;
-  margin-bottom: 1rem;
+  margin-bottom: 1.125rem;
+}
+
+.form-field:last-child {
+  margin-bottom: 0;
 }
 
 .form-label {
   display: block;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #4B5563;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
   margin-bottom: 0.375rem;
+  letter-spacing: -0.01em;
 }
 
 .form-label-required {
@@ -340,13 +345,15 @@ p {
 .form-helper {
   font-size: 0.75rem;
   color: var(--text-secondary);
-  margin-top: 0.25rem;
+  margin-top: 0.3rem;
+  line-height: 1.35;
 }
 
 .form-error {
   font-size: 0.75rem;
   color: var(--accent-red);
-  margin-top: 0.25rem;
+  margin-top: 0.3rem;
+  font-weight: 500;
 }
 
 .form-grid {
@@ -359,6 +366,7 @@ p {
 .select,
 .textarea {
   width: 100%;
+  height: 2.375rem;
   padding: 0.5rem 0.75rem;
   border: 1px solid #D1D5DB;
   border-radius: var(--border-radius-sm);
@@ -391,6 +399,7 @@ p {
 }
 
 .textarea {
+  height: auto;
   resize: vertical;
   min-height: 80px;
 }
@@ -439,15 +448,18 @@ p {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.25rem 1.5rem;
+  padding: 1.125rem 1.5rem;
   border-bottom: 1px solid var(--card-border);
   background-color: #FFFFFF;
+  flex-shrink: 0;
 }
 
 .modal-title {
-  font-size: 1.125rem;
-  font-weight: 600;
+  font-size: 1.25rem;
+  font-weight: 700;
   color: var(--text-primary);
+  letter-spacing: -0.015em;
+  margin: 0;
 }
 
 .modal-close-btn {
@@ -455,8 +467,8 @@ p {
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
-  padding: 0.25rem;
-  border-radius: 4px;
+  padding: 0.35rem;
+  border-radius: var(--border-radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -471,7 +483,7 @@ p {
 .modal-body {
   padding: 1.5rem;
   overflow-y: auto;
-  max-height: calc(90vh - 140px);
+  max-height: calc(90vh - 130px);
 }
 
 .modal-footer {
@@ -482,6 +494,7 @@ p {
   padding: 1rem 1.5rem;
   border-top: 1px solid var(--card-border);
   background-color: var(--accent-secondary-bg);
+  flex-shrink: 0;
 }
 
 /* Alerts */

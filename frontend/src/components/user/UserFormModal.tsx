@@ -152,66 +152,69 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
         isOpen={isOpen}
         onClose={handleRequestClose}
         title={user ? `Edit User: ${user.name}` : 'Create New User'}
+        maxWidth="500px"
       >
         <form onSubmit={handleSubmit}>
-          {errorMsg && (
-            <div className="alert-error" style={{ marginBottom: '1rem' }}>
-              {errorMsg}
-            </div>
-          )}
+          <div className="modal-body">
+            {errorMsg && (
+              <div className="alert-error">
+                {errorMsg}
+              </div>
+            )}
 
-          <FormField label="Full Name" required>
-            <Input
-              ref={nameInputRef}
-              type="text"
-              placeholder="e.g. Budi Santoso"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-            />
-          </FormField>
+            <FormField label="Full Name" required>
+              <Input
+                ref={nameInputRef}
+                type="text"
+                placeholder="e.g. Budi Santoso"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+              />
+            </FormField>
 
-          <FormField label="Email Address" required>
-            <Input
-              type="email"
-              placeholder="e.g. user@alssa.com"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              required
-            />
-          </FormField>
+            <FormField label="Email Address" required>
+              <Input
+                type="email"
+                placeholder="e.g. user@alssa.com"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                required
+              />
+            </FormField>
 
-          <FormField
-            label={user ? 'New Password (leave blank to keep current)' : 'Password'}
-            required={!user}
-            helperText={user ? 'Only fill if you want to reset this user\'s password' : 'At least 6 characters'}
-          >
-            <Input
-              type="password"
-              placeholder={user ? '••••••••' : 'Enter initial password'}
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            <FormField
+              label={user ? 'New Password (leave blank to keep current)' : 'Password'}
               required={!user}
-            />
-          </FormField>
-
-          <FormField label="System Role" required helperText="Controls permissions and access across AWMS">
-            <Select
-              value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
+              helperText={user ? "Only fill if you want to reset this user's password" : 'At least 6 characters'}
             >
-              <option value="SUPER_ADMIN">SUPER_ADMIN (Full system, user & settings management)</option>
-              <option value="ADMIN">ADMIN (Operational warehouse data management)</option>
-              <option value="READ_ONLY">READ_ONLY (View-only operational browsing)</option>
-            </Select>
-          </FormField>
+              <Input
+                type="password"
+                placeholder={user ? '••••••••' : 'Enter initial password'}
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                required={!user}
+              />
+            </FormField>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '1.5rem' }}>
+            <FormField label="System Role" required helperText="Controls permissions and access across AWMS">
+              <Select
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
+              >
+                <option value="SUPER_ADMIN">SUPER_ADMIN (Full system, user & settings management)</option>
+                <option value="ADMIN">ADMIN (Operational warehouse data management)</option>
+                <option value="READ_ONLY">READ_ONLY (View-only operational browsing)</option>
+              </Select>
+            </FormField>
+          </div>
+
+          <div className="modal-footer">
             <Button variant="secondary" type="button" onClick={handleRequestClose} disabled={isSaving}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit" disabled={isSaving}>
-              {isSaving ? 'Saving...' : user ? 'Save Changes' : 'Create User'}
+            <Button variant="primary" type="submit" isLoading={isSaving}>
+              {user ? 'Save Changes' : 'Create User'}
             </Button>
           </div>
         </form>
