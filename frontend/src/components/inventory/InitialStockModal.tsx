@@ -1,7 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, FormField, Input, Select, Textarea, Button, ConfirmModal, QuantityStepper, SearchableSelect } from '../ui/index.js';
+import {
+  Modal,
+  FormField,
+  Input,
+  Select,
+  Textarea,
+  Button,
+  ConfirmModal,
+  QuantityStepper,
+  SearchableSelect,
+} from '../ui/index.js';
 import { Plus, Trash2, ClipboardList } from 'lucide-react';
 import { apiClient } from '../../api/client.js';
+import { useToast } from '../../context/ToastContext.js';
+import { BatchPasteSerialsModal } from './incoming/BatchPasteSerialsModal.js';
+import type { SerialItemEntry } from './incoming/BatchPasteSerialsModal.js';
 
 interface ItemOption {
   id: number;
@@ -18,11 +31,7 @@ interface WarehouseOption {
   cityCode?: string | null;
 }
 
-interface SerialItemEntry {
-  serialNumber: string;
-  conditionLabel: string;
-  notes: string;
-}
+export type { SerialItemEntry };
 
 export interface InitialStockModalProps {
   isOpen: boolean;
@@ -35,6 +44,7 @@ export const InitialStockModal: React.FC<InitialStockModalProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const { showToast } = useToast();
   const [items, setItems] = useState<ItemOption[]>([]);
   const [warehouses, setWarehouses] = useState<WarehouseOption[]>([]);
   const [formData, setFormData] = useState({
@@ -48,11 +58,7 @@ export const InitialStockModal: React.FC<InitialStockModalProps> = ({
 
   const [initialData, setInitialData] = useState(formData);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
-
   const [pasteModalOpen, setPasteModalOpen] = useState(false);
-  const [pasteText, setPasteText] = useState('');
-  const [pasteCondition, setPasteCondition] = useState<string>('Standby Good');
-  const [pasteError, setPasteError] = useState<string | null>(null);
 
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -88,9 +94,6 @@ export const InitialStockModal: React.FC<InitialStockModalProps> = ({
       setInitialData(init);
       setErrorMsg(null);
       setPasteModalOpen(false);
-      setPasteText('');
-      setPasteCondition('Standby Good');
-      setPasteError(null);
 
       setTimeout(() => {
         whSelectRef.current?.focus();
@@ -140,66 +143,31 @@ export const InitialStockModal: React.FC<InitialStockModalProps> = ({
     }));
   };
 
-  const handleProcessPaste = () => {
-    setPasteError(null);
-    if (!pasteText.trim()) {
-      setPasteError('Please enter some serial numbers');
-      return;
-    }
-
-    const lines = pasteText
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0);
-
-    if (lines.length === 0) {
-      setPasteError('No valid serial numbers found');
-      return;
-    }
-
-    const seen = new Set<string>();
-    const duplicates: string[] = [];
-    const newRows: SerialItemEntry[] = [];
-
-    lines.forEach((line) => {
-      if (seen.has(line)) {
-        duplicates.push(line);
-      } else {
-        seen.add(line);
-        newRows.push({
-          serialNumber: line,
-          conditionLabel: pasteCondition || 'Standby Good',
-          notes: '',
-        });
-      }
-    });
-
-    if (duplicates.length > 0) {
-      setPasteError(`Duplicate serial numbers found in paste: ${duplicates.join(', ')}`);
-      return;
-    }
-
-    // Rule 12: Remove/ignore blank placeholder row automatically on paste
+  const handleApplyPastedSerials = (newRows: SerialItemEntry[]) => {
     setFormData((prev) => ({
       ...prev,
       serialRows: newRows,
     }));
     setPasteModalOpen(false);
-    setPasteText('');
   };
 
   const handleSaveInternal = async (addAnother: boolean) => {
+    setErrorMsg(null);
+
     if (!formData.warehouseId) {
-      setErrorMsg('Please select a warehouse');
+      const msg = 'Please select a destination warehouse';
+      setErrorMsg(msg);
+      showToast({ type: 'error', message: msg });
       return;
     }
     if (!formData.itemId) {
-      setErrorMsg('Please select an item');
+      const msg = 'Please select an item';
+      setErrorMsg(msg);
+      showToast({ type: 'error', message: msg });
       return;
     }
 
     setIsSaving(true);
-    setErrorMsg(null);
 
     try {
       let itemsPayload: any[] = [];
@@ -252,6 +220,10 @@ export const InitialStockModal: React.FC<InitialStockModalProps> = ({
         items: itemsPayload,
       });
 
+      showToast({
+        type: 'success',
+        message: 'Initial stock recorded successfully',
+      });
       onSuccess();
 
       if (addAnother) {
@@ -274,7 +246,9 @@ export const InitialStockModal: React.FC<InitialStockModalProps> = ({
       }
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'Failed to record initial stock');
+      const msg = err.message || 'Failed to record initial stock';
+      setErrorMsg(msg);
+      showToast({ type: 'error', message: msg });
     } finally {
       setIsSaving(false);
     }
@@ -294,7 +268,7 @@ export const InitialStockModal: React.FC<InitialStockModalProps> = ({
             handleSaveInternal(false);
           }}
         >
-          <div className="modal-body">
+          <Modal.Body>
             {errorMsg && (
               <div className="alert-error" style={{ marginBottom: '1rem' }}>
                 {errorMsg}
@@ -369,7 +343,7 @@ export const InitialStockModal: React.FC<InitialStockModalProps> = ({
                 </FormField>
               ) : (
                 <FormField label="Serial Count" style={{ marginBottom: 0 }}>
-                  <div style={{ paddingTop: '8px', fontWeight: 600, color: '#2250A1' }}>
+                  <div style={{ paddingTop: '8px', fontWeight: 600, color: 'var(--primary-color, #2250A1)' }}>
                     {formData.serialRows.length} Serial Unit(s)
                   </div>
                 </FormField>
@@ -380,19 +354,19 @@ export const InitialStockModal: React.FC<InitialStockModalProps> = ({
             {isSerialized && (
               <div
                 style={{
-                  border: '1px solid #E2E8F0',
-                  borderRadius: '6px',
+                  border: '1px solid var(--card-border, #E2E8F0)',
+                  borderRadius: 'var(--border-radius-sm, 6px)',
                   padding: '0.85rem 1rem',
-                  backgroundColor: '#F8FAFC',
+                  backgroundColor: 'var(--accent-secondary-bg, #F8FAFC)',
                   marginBottom: '1rem',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '8px' }}>
-                  <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: '#1E293B' }}>
+                  <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary, #1E293B)' }}>
                     Serial Numbers &amp; Conditions ({formData.serialRows.length})
                   </h4>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 600 }}>Set all:</span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #64748B)', fontWeight: 600 }}>Set all:</span>
                     <button
                       type="button"
                       onClick={() => handleSetAllConditions('Standby Good')}
@@ -513,67 +487,37 @@ export const InitialStockModal: React.FC<InitialStockModalProps> = ({
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               />
             </FormField>
-          </div>
+          </Modal.Body>
 
-          <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Button variant="secondary" type="button" onClick={handleRequestClose} disabled={isSaving}>
-              Cancel
-            </Button>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <Button
-                variant="secondary"
-                type="button"
-                onClick={() => handleSaveInternal(true)}
-                isLoading={isSaving}
-              >
-                Save &amp; Add Another
+          <Modal.Footer>
+            <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Button variant="secondary" type="button" onClick={handleRequestClose} disabled={isSaving}>
+                Cancel
               </Button>
-              <Button variant="primary" type="submit" isLoading={isSaving}>
-                Save Stock
-              </Button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <Button
+                  variant="secondary"
+                  type="button"
+                  onClick={() => handleSaveInternal(true)}
+                  isLoading={isSaving}
+                >
+                  Save &amp; Add Another
+                </Button>
+                <Button variant="primary" type="submit" isLoading={isSaving}>
+                  Save Stock
+                </Button>
+              </div>
             </div>
-          </div>
+          </Modal.Footer>
         </form>
       </Modal>
 
-      {/* Multi-SN Batch Paste Modal */}
-      <Modal
+      {/* Reusable Batch Paste Serials Modal */}
+      <BatchPasteSerialsModal
         isOpen={pasteModalOpen}
         onClose={() => setPasteModalOpen(false)}
-        title="Multi-SN Batch Paste"
-        maxWidth="500px"
-      >
-        <div className="modal-body">
-          {pasteError && <div className="alert-error" style={{ marginBottom: '1rem' }}>{pasteError}</div>}
-          <FormField label="Condition for Pasted Units" required>
-            <Select
-              value={pasteCondition}
-              onChange={(e) => setPasteCondition(e.target.value)}
-            >
-              <option value="Standby Good">Standby Good (Ready for deployment)</option>
-              <option value="Standby Bad">Standby Bad (Defective / Damaged)</option>
-              <option value="Under Repair">Under Repair (Needs maintenance)</option>
-            </Select>
-          </FormField>
-
-          <FormField label="Paste Serial Numbers (One per line)" required>
-            <Textarea
-              rows={8}
-              placeholder={`SN-001\nSN-002\nSN-003`}
-              value={pasteText}
-              onChange={(e) => setPasteText(e.target.value)}
-            />
-          </FormField>
-        </div>
-        <div className="modal-footer">
-          <Button variant="secondary" type="button" onClick={() => setPasteModalOpen(false)}>
-            Cancel
-          </Button>
-          <Button variant="primary" type="button" onClick={handleProcessPaste}>
-            Import Serials
-          </Button>
-        </div>
-      </Modal>
+        onApplySerials={handleApplyPastedSerials}
+      />
 
       <ConfirmModal
         isOpen={showDiscardConfirm}
