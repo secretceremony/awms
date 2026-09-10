@@ -4,7 +4,6 @@ import {
   FormField,
   Input,
   Select,
-  Textarea,
   Button,
   SegmentedControl,
   QuantityStepper,
@@ -12,6 +11,7 @@ import {
 } from '../ui/index.js';
 import { Plus, Trash2, ClipboardList, RotateCcw, PackageCheck } from 'lucide-react';
 import { apiClient } from '../../api/client.js';
+import { BatchPasteSerialsModal } from './incoming/BatchPasteSerialsModal.js';
 
 interface ItemOption {
   id: number;
@@ -126,9 +126,6 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
 
   // Multi-paste modal for regular incoming serials
   const [pasteModalOpen, setPasteModalOpen] = useState(false);
-  const [pasteText, setPasteText] = useState('');
-  const [pasteCondition, setPasteCondition] = useState<string>('Standby Good');
-  const [pasteError, setPasteError] = useState<string | null>(null);
 
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -347,44 +344,6 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
 
   const handleSetAllRegularConditions = (condition: string) => {
     setActiveSerialRows((prev) => prev.map((r) => ({ ...r, conditionLabel: condition })));
-  };
-
-  const handleApplyPasteSerials = () => {
-    setPasteError(null);
-    if (!pasteText.trim()) return;
-
-    const rawList = pasteText
-      .split(/[\r\n,]+/)
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-
-    if (rawList.length === 0) return;
-
-    const seen = new Set<string>();
-    const duplicates: string[] = [];
-    const newRows: SerialItemEntry[] = [];
-
-    rawList.forEach((sn) => {
-      if (seen.has(sn)) {
-        duplicates.push(sn);
-      } else {
-        seen.add(sn);
-        newRows.push({
-          serialNumber: sn,
-          conditionLabel: pasteCondition,
-          notes: '',
-        });
-      }
-    });
-
-    if (duplicates.length > 0) {
-      setPasteError(`Duplicate serial numbers found in paste: ${duplicates.join(', ')}`);
-      return;
-    }
-
-    setActiveSerialRows(newRows);
-    setPasteModalOpen(false);
-    setPasteText('');
   };
 
   // --- Project Return Handlers ---
@@ -1174,49 +1133,11 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
       </Modal>
 
       {/* Batch Paste Serials Modal */}
-      <Modal
+      <BatchPasteSerialsModal
         isOpen={pasteModalOpen}
         onClose={() => setPasteModalOpen(false)}
-        title="Batch Paste Serial Numbers"
-        maxWidth="500px"
-      >
-        <div className="modal-body">
-          {pasteError && <div className="alert-error" style={{ marginBottom: '1rem' }}>{pasteError}</div>}
-          <p style={{ fontSize: '0.8rem', color: '#64748B', marginTop: 0 }}>
-            Paste multiple serial numbers separated by newlines or commas.
-          </p>
-
-          <FormField label="Serial Numbers *">
-            <Textarea
-              rows={6}
-              placeholder="SN001&#10;SN002&#10;SN003"
-              value={pasteText}
-              onChange={(e) => setPasteText(e.target.value)}
-              style={{ fontFamily: 'monospace' }}
-            />
-          </FormField>
-
-          <FormField label="Default Initial Condition">
-            <Select
-              value={pasteCondition}
-              onChange={(e) => setPasteCondition(e.target.value)}
-            >
-              <option value="Standby Good">Standby Good</option>
-              <option value="Standby Bad">Standby Bad</option>
-              <option value="Under Repair">Under Repair</option>
-            </Select>
-          </FormField>
-        </div>
-
-        <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-          <Button type="button" variant="secondary" onClick={() => setPasteModalOpen(false)}>
-            Cancel
-          </Button>
-          <Button type="button" variant="primary" onClick={handleApplyPasteSerials}>
-            Apply Serials
-          </Button>
-        </div>
-      </Modal>
+        onApplySerials={(newRows) => setActiveSerialRows(newRows)}
+      />
     </>
   );
 };
