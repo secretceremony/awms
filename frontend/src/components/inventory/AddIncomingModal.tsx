@@ -3,68 +3,28 @@ import {
   Modal,
   Button,
   SegmentedControl,
+  ConfirmModal,
 } from '../ui/index.js';
 import { RotateCcw, PackageCheck } from 'lucide-react';
+import { useToast } from '../../context/ToastContext.js';
 import { apiClient } from '../../api/client.js';
 import { BatchPasteSerialsModal } from './incoming/BatchPasteSerialsModal.js';
 import { RegularIncomingSection } from './incoming/RegularIncomingSection.js';
 import { ProjectReturnSection } from './incoming/ProjectReturnSection.js';
+import type {
+  ItemOption,
+  WarehouseOption,
+  StagedIncomingItem,
+  RegularFormData,
+} from './incoming/RegularIncomingSection.js';
+import type {
+  ProjectOption,
+  ProjectInventoryItem,
+  ReturnFormData,
+} from './incoming/ProjectReturnSection.js';
+import type { SerialItemEntry } from './incoming/BatchPasteSerialsModal.js';
 
-interface ItemOption {
-  id: number;
-  name: string;
-  brand: string | null;
-  modelNumber: string | null;
-  trackingType: 'BULK' | 'SERIALIZED';
-  unit?: { name: string; symbol: string | null };
-}
-
-interface WarehouseOption {
-  id: number;
-  name: string;
-  cityCode?: string | null;
-}
-
-interface ProjectOption {
-  id: number;
-  name: string;
-  siteCode: string | null;
-  status: string;
-  client?: { name: string };
-}
-
-interface ProjectInventoryItem {
-  id: string;
-  trackingType: 'BULK' | 'SERIALIZED';
-  itemId: number;
-  itemName: string;
-  brand: string | null;
-  modelNumber: string | null;
-  availableQty: number;
-  unit: string;
-  unitSymbol: string;
-  itemSerialId?: number;
-  serialNumber?: string;
-  condition?: string;
-  state?: string;
-}
-
-export interface SerialItemEntry {
-  serialNumber: string;
-  conditionLabel: string;
-  notes: string;
-}
-
-export interface StagedIncomingItem {
-  itemId: number;
-  itemName: string;
-  brand: string | null;
-  modelNumber: string | null;
-  trackingType: 'BULK' | 'SERIALIZED';
-  unitSymbol: string;
-  quantity: number;
-  serialRows?: SerialItemEntry[];
-}
+export type { SerialItemEntry, StagedIncomingItem };
 
 export interface AddIncomingModalProps {
   isOpen: boolean;
@@ -77,6 +37,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const { showToast } = useToast();
   const [sourceType, setSourceType] = useState<'REGULAR' | 'RETURN'>('REGULAR');
 
   // Common dependencies
@@ -85,7 +46,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
   const [items, setItems] = useState<ItemOption[]>([]);
 
   // Regular Incoming Header state
-  const [regularForm, setRegularForm] = useState({
+  const [regularForm, setRegularForm] = useState<RegularFormData>({
     movementDate: new Date().toISOString().split('T')[0],
     warehouseId: '',
     referenceNumber: '',
@@ -103,7 +64,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
   ]);
 
   // Project Return form state
-  const [returnForm, setReturnForm] = useState({
+  const [returnForm, setReturnForm] = useState<ReturnFormData>({
     movementDate: new Date().toISOString().split('T')[0],
     projectId: '',
     warehouseId: '',
@@ -123,6 +84,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
 
   // Multi-paste modal for regular incoming serials
   const [pasteModalOpen, setPasteModalOpen] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -168,6 +130,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
       setSelectedBulkReturns({});
       setSelectedSerialReturns({});
       setErrorMsg(null);
+      setShowDiscardConfirm(false);
     }
   }, [isOpen]);
 
@@ -388,6 +351,33 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
     }));
   };
 
+  // --- Dirty State Detection ---
+  const isRegularDirty =
+    Boolean(regularForm.warehouseId) ||
+    Boolean(regularForm.referenceNumber) ||
+    Boolean(regularForm.notes) ||
+    stagedItems.length > 0 ||
+    Boolean(activeItemId) ||
+    activeSerialRows.some((r) => Boolean(r.serialNumber.trim()));
+
+  const isReturnDirty =
+    Boolean(returnForm.projectId) ||
+    Boolean(returnForm.warehouseId) ||
+    Boolean(returnForm.referenceNumber) ||
+    Boolean(returnForm.notes) ||
+    Object.values(selectedBulkReturns).some((q) => q > 0) ||
+    Object.values(selectedSerialReturns).some((s) => s.selected);
+
+  const isDirty = sourceType === 'REGULAR' ? isRegularDirty : isReturnDirty;
+
+  const handleRequestClose = () => {
+    if (isDirty) {
+      setShowDiscardConfirm(true);
+    } else {
+      onClose();
+    }
+  };
+
   // --- Submit Handler ---
   const handleSaveInternal = async () => {
     setErrorMsg(null);
@@ -461,6 +451,10 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
           items: itemsPayload,
         });
 
+        showToast({
+          type: 'success',
+          message: 'Incoming created successfully',
+        });
         onSuccess();
         onClose();
       } else {
@@ -522,12 +516,21 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
           items: itemsPayload,
         });
 
+        showToast({
+          type: 'success',
+          message: 'Incoming created successfully',
+        });
         onSuccess();
         onClose();
       }
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'Failed to record stock movement');
+      const msg = err.message || 'Incoming creation failed';
+      setErrorMsg(msg);
+      showToast({
+        type: 'error',
+        message: 'Incoming creation failed',
+      });
     } finally {
       setIsSaving(false);
     }
@@ -537,7 +540,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
     <>
       <Modal
         isOpen={isOpen}
-        onClose={onClose}
+        onClose={handleRequestClose}
         title="Record Incoming Stock Movement"
         maxWidth="840px"
       >
@@ -547,7 +550,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
             handleSaveInternal();
           }}
         >
-          <div className="modal-body" style={{ maxHeight: '72vh', overflowY: 'auto' }}>
+          <Modal.Body>
             {errorMsg && (
               <div className="alert-error" style={{ marginBottom: '1.25rem' }}>
                 {errorMsg}
@@ -556,15 +559,7 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
 
             {/* 1. Incoming Source Selection via SegmentedControl */}
             <div style={{ marginBottom: '1.25rem' }}>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  color: '#1F2839',
-                  marginBottom: '6px',
-                }}
-              >
+              <label className="form-label">
                 Incoming Source *
               </label>
               <SegmentedControl<'REGULAR' | 'RETURN'>
@@ -626,16 +621,16 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
                 onSerialNotesChange={handleSerialReturnNotesChange}
               />
             )}
-          </div>
+          </Modal.Body>
 
-          <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: '12px 16px', borderTop: '1px solid #E2E8F0' }}>
-            <Button type="button" variant="secondary" onClick={onClose}>
+          <Modal.Footer>
+            <Button type="button" variant="secondary" onClick={handleRequestClose}>
               Cancel
             </Button>
-            <Button type="submit" variant="primary" disabled={isSaving}>
-              {isSaving ? 'Recording Movement...' : 'Confirm Incoming Receipt'}
+            <Button type="submit" variant="primary" disabled={isSaving} isLoading={isSaving}>
+              Confirm Incoming Receipt
             </Button>
-          </div>
+          </Modal.Footer>
         </form>
       </Modal>
 
@@ -645,6 +640,22 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
         onClose={() => setPasteModalOpen(false)}
         onApplySerials={(newRows) => setActiveSerialRows(newRows)}
       />
+
+      {/* Discard Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDiscardConfirm}
+        title="Discard Changes?"
+        message="You have unsaved changes in this incoming transaction. Are you sure you want to discard them?"
+        confirmLabel="Discard"
+        variant="danger"
+        onConfirm={() => {
+          setShowDiscardConfirm(false);
+          onClose();
+        }}
+        onClose={() => setShowDiscardConfirm(false)}
+      />
     </>
   );
 };
+
+export default AddIncomingModal;
