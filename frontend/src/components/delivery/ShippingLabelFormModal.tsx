@@ -9,6 +9,7 @@ import {
   SegmentedControl,
   ConfirmModal,
 } from '../ui/index.js';
+import { useToast } from '../../context/ToastContext.js';
 import { apiClient } from '../../api/client.js';
 import { Truck, FileText, Maximize2 } from 'lucide-react';
 import { ProjectSnapshotCard } from '../common/ProjectSnapshotCard.js';
@@ -60,6 +61,7 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
   shippingLabel,
   onSuccess,
 }) => {
+  const { showToast } = useToast();
   const [sourceType, setSourceType] = useState<'DO' | 'STANDALONE'>('DO');
   const [issuedDos, setIssuedDos] = useState<any[]>([]);
   const [selectedDoId, setSelectedDoId] = useState('');
@@ -196,8 +198,12 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
         senderAddress: senderIdentity.address,
         senderPhone: senderIdentity.phone,
       }));
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch DO details for autofill:', err);
+      showToast({
+        type: 'error',
+        message: err.message || 'Failed to load Delivery Order details',
+      });
     }
   };
 
@@ -263,11 +269,22 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
         await apiClient.post('/shipping-labels', payload);
       }
 
+      showToast({
+        type: 'success',
+        message: shippingLabel
+          ? 'Shipping label updated successfully'
+          : 'Shipping label created successfully',
+      });
       onSuccess();
       onClose();
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'Failed to save shipping label.');
+      const message = err.message || 'Failed to save shipping label.';
+      setErrorMsg(message);
+      showToast({
+        type: 'error',
+        message,
+      });
     } finally {
       setIsSaving(false);
     }
@@ -284,7 +301,7 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
         maxWidth="740px"
       >
         <form onSubmit={handleSubmit}>
-          <div className="modal-body" style={{ maxHeight: '74vh', overflowY: 'auto' }}>
+          <Modal.Body>
             {errorMsg && (
               <div className="alert-error" style={{ marginBottom: '1.25rem' }}>
                 {errorMsg}
@@ -293,16 +310,8 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
 
             {/* Source Type Selector */}
             <div style={{ marginBottom: '1.25rem' }}>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  color: '#1F2839',
-                  marginBottom: '6px',
-                }}
-              >
-                Shipping Label Mode *
+              <label className="form-label" style={{ marginBottom: '6px' }}>
+                Shipping Label Mode <span className="form-label-required">*</span>
               </label>
               <SegmentedControl<'DO' | 'STANDALONE'>
                 value={sourceType}
@@ -364,17 +373,17 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
             )}
 
             {/* Label Size Selector (A6 Default vs A5) */}
-            <div style={{ marginBottom: '1.25rem', padding: '12px 14px', backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '6px' }}>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '0.85rem',
-                  fontWeight: 700,
-                  color: '#1E293B',
-                  marginBottom: '8px',
-                }}
-              >
-                Label Physical Size *
+            <div
+              style={{
+                marginBottom: '1.25rem',
+                padding: '12px 14px',
+                backgroundColor: 'var(--accent-secondary-bg)',
+                border: '1px solid var(--card-border)',
+                borderRadius: 'var(--border-radius-sm)',
+              }}
+            >
+              <label className="form-label" style={{ marginBottom: '8px' }}>
+                Label Physical Size <span className="form-label-required">*</span>
               </label>
               <SegmentedControl<'A6' | 'A5'>
                 value={labelSizeChoice}
@@ -395,8 +404,16 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
             </div>
 
             {/* Recipient Details */}
-            <div style={{ border: '1px solid #E2E8F0', borderRadius: '6px', padding: '12px 14px', backgroundColor: '#FFFFFF', marginBottom: '1rem' }}>
-              <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem', fontWeight: 700, color: '#1E293B' }}>
+            <div
+              style={{
+                border: '1px solid var(--card-border)',
+                borderRadius: 'var(--border-radius-sm)',
+                padding: '12px 14px',
+                backgroundColor: '#FFFFFF',
+                marginBottom: '1rem',
+              }}
+            >
+              <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                 Recipient &amp; Destination Information
               </h4>
 
@@ -449,14 +466,24 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
             </div>
 
             {/* Sender Dispatch Office */}
-            <div style={{ border: '1px solid #E2E8F0', borderRadius: '6px', padding: '12px 14px', backgroundColor: '#F8FAFC', marginBottom: '1rem' }}>
+            <div
+              style={{
+                border: '1px solid var(--card-border)',
+                borderRadius: 'var(--border-radius-sm)',
+                padding: '12px 14px',
+                backgroundColor: 'var(--accent-secondary-bg)',
+                marginBottom: '1rem',
+              }}
+            >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600, color: '#1E293B' }}>
+                <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                   Sender Dispatch Office (PT ALSSA Corporindo)
                 </h4>
                 <div style={{ display: 'flex', gap: '6px' }}>
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="sm"
                     onClick={() => {
                       const idt = getCompanyIdentity('BPN');
                       setFormData((prev) => ({
@@ -466,21 +493,13 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
                         senderPhone: idt.phone,
                       }));
                     }}
-                    style={{
-                      fontSize: '0.75rem',
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      border: '1px solid #CBD5E1',
-                      backgroundColor: '#FFFFFF',
-                      cursor: 'pointer',
-                      fontWeight: 600,
-                      color: '#334155',
-                    }}
                   >
                     Set Balikpapan
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="secondary"
+                    size="sm"
                     onClick={() => {
                       const idt = getCompanyIdentity('JKT');
                       setFormData((prev) => ({
@@ -490,19 +509,9 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
                         senderPhone: idt.phone,
                       }));
                     }}
-                    style={{
-                      fontSize: '0.75rem',
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      border: '1px solid #CBD5E1',
-                      backgroundColor: '#FFFFFF',
-                      cursor: 'pointer',
-                      fontWeight: 600,
-                      color: '#334155',
-                    }}
                   >
                     Set Jakarta
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -569,16 +578,16 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               />
             </FormField>
-          </div>
+          </Modal.Body>
 
-          <div className="modal-footer">
+          <Modal.Footer>
             <Button variant="secondary" type="button" onClick={handleRequestClose} disabled={isSaving}>
               Cancel
             </Button>
             <Button variant="primary" type="submit" isLoading={isSaving}>
               {shippingLabel ? 'Save Changes' : 'Generate Shipping Label'}
             </Button>
-          </div>
+          </Modal.Footer>
         </form>
       </Modal>
 
@@ -597,3 +606,5 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
     </>
   );
 };
+
+export default ShippingLabelFormModal;
