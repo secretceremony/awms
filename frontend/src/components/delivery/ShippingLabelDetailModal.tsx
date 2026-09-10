@@ -66,9 +66,13 @@ export const ShippingLabelDetailModal: React.FC<ShippingLabelDetailModalProps> =
               .shipping-label-container {
                 width: ${widthMm} !important;
                 height: ${heightMm} !important;
-                margin: 0 auto;
+                min-height: ${heightMm} !important;
+                max-height: ${heightMm} !important;
+                margin: 0 auto !important;
                 page-break-after: always;
                 break-after: page;
+                page-break-inside: avoid !important;
+                break-inside: avoid-page !important;
               }
             </style>
           </head>

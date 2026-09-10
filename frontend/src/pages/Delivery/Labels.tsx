@@ -110,7 +110,7 @@ export const Labels: React.FC = () => {
             <title>Shipping Labels (${selectedLabels.size} Labels)</title>
             <style>
               @page {
-                size: 150mm 100mm landscape;
+                size: 148mm 105mm landscape;
                 margin: 0;
               }
               * {
@@ -125,11 +125,15 @@ export const Labels: React.FC = () => {
                 print-color-adjust: exact;
               }
               .shipping-label-container {
-                width: 150mm !important;
-                height: 100mm !important;
-                margin: 0 auto;
+                width: 148mm !important;
+                height: 105mm !important;
+                min-height: 105mm !important;
+                max-height: 105mm !important;
+                margin: 0 auto !important;
                 page-break-after: always;
                 break-after: page;
+                page-break-inside: avoid !important;
+                break-inside: avoid-page !important;
               }
             </style>
           </head>
