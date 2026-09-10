@@ -193,8 +193,8 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
       title={`Audit Log #${logId || ''}`}
       maxWidth="700px"
     >
-      <div className="modal-body" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
-        {errorMsg && <div className="alert-error" style={{ marginBottom: '1rem' }}>{errorMsg}</div>}
+      <Modal.Body style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+        {errorMsg && <div className="alert-error">{errorMsg}</div>}
 
         {isLoading || !log ? (
           <div style={{ textAlign: 'center', padding: '3rem', color: '#6B7280' }}>
@@ -294,13 +294,13 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
             </div>
           </div>
         )}
-      </div>
+      </Modal.Body>
 
-      <div className="modal-footer">
+      <Modal.Footer>
         <Button variant="secondary" onClick={onClose}>
           Close
         </Button>
-      </div>
+      </Modal.Footer>
     </Modal>
   );
 };

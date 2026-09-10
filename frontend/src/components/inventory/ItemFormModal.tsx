@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, FormField, Input, Select, Button, SegmentedControl, ConfirmModal } from '../ui/index.js';
 import { apiClient } from '../../api/client.js';
+import { useToast } from '../../context/ToastContext.js';
 
 export type MaterialType = 'MAIN_MATERIAL' | 'CONSUMABLE' | 'TOOLS' | 'HSE_MATERIAL';
 
@@ -110,6 +111,8 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({
     }
   };
 
+  const { showToast } = useToast();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
@@ -128,9 +131,11 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({
     setIsSaving(true);
     setErrorMsg(null);
 
+    const itemName = formData.name.trim();
+
     try {
       const payload = {
-        name: formData.name.trim(),
+        name: itemName,
         brand: formData.brand.trim() || undefined,
         modelNumber: formData.modelNumber.trim() || undefined,
         trackingType: formData.trackingType,
@@ -140,17 +145,21 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({
 
       if (item) {
         await apiClient.patch(`/items/${item.id}`, payload);
+        showToast({ type: 'success', message: `Item "${itemName}" updated successfully` });
       } else {
         await apiClient.post('/items', payload);
         // Save last unit choice in local storage
         localStorage.setItem(LAST_UNIT_KEY, String(formData.unitId));
+        showToast({ type: 'success', message: `Item "${itemName}" created successfully` });
       }
 
       onSuccess();
       onClose();
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'Failed to save item');
+      const msg = err.message || 'Failed to save item';
+      setErrorMsg(msg);
+      showToast({ type: 'error', message: msg });
     } finally {
       setIsSaving(false);
     }
@@ -165,9 +174,9 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({
         maxWidth="520px"
       >
         <form onSubmit={handleSubmit}>
-          <div className="modal-body">
+          <Modal.Body>
             {errorMsg && (
-              <div className="alert-error" style={{ marginBottom: '1rem' }}>
+              <div className="alert-error">
                 {errorMsg}
               </div>
             )}
@@ -264,16 +273,16 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({
                 />
               </FormField>
             </div>
-          </div>
+          </Modal.Body>
 
-          <div className="modal-footer">
+          <Modal.Footer>
             <Button variant="secondary" type="button" onClick={handleRequestClose} disabled={isSaving}>
               Cancel
             </Button>
             <Button variant="primary" type="submit" isLoading={isSaving}>
               {item ? 'Save Changes' : 'Create Item'}
             </Button>
-          </div>
+          </Modal.Footer>
         </form>
       </Modal>
 

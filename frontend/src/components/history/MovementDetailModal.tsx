@@ -102,7 +102,7 @@ export const MovementDetailModal: React.FC<MovementDetailModalProps> = ({
       title={movement ? `Movement Detail: ${movement.movementNumber}` : 'Stock Movement Details'}
       maxWidth="750px"
     >
-      <div className="modal-body">
+      <Modal.Body style={{ maxHeight: '72vh', overflowY: 'auto' }}>
         {isLoading || !movement ? (
           <div style={{ textAlign: 'center', padding: '2rem', color: '#6B7280' }}>
             Loading movement detail...
@@ -224,13 +224,13 @@ export const MovementDetailModal: React.FC<MovementDetailModalProps> = ({
             </div>
           </>
         )}
-      </div>
+      </Modal.Body>
 
-      <div className="modal-footer">
+      <Modal.Footer>
         <Button variant="secondary" onClick={onClose}>
           Close
         </Button>
-      </div>
+      </Modal.Footer>
     </Modal>
   );
 };

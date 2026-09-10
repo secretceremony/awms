@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Modal, FormField, Select, Button } from '../ui/index.js';
+import { useToast } from '../../context/ToastContext.js';
 import { Download, Calendar } from 'lucide-react';
 
 interface MonthlyReportModalProps {
@@ -11,6 +12,7 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
   isOpen,
   onClose,
 }) => {
+  const { showToast } = useToast();
   const currentDate = new Date();
   const [month, setMonth] = useState<number>(currentDate.getMonth() + 1);
   const [year, setYear] = useState<number>(currentDate.getFullYear());
@@ -59,10 +61,13 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
+      showToast({ type: 'success', message: `Monthly report for ${year}-${monthStr} downloaded successfully` });
       onClose();
     } catch (err: any) {
       console.error('Download error:', err);
-      setErrorMsg(err.message || 'Error downloading monthly report.');
+      const msg = err.message || 'Error downloading monthly report.';
+      setErrorMsg(msg);
+      showToast({ type: 'error', message: msg });
     } finally {
       setIsDownloading(false);
     }
@@ -70,7 +75,7 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Generate Monthly Inventory Report" maxWidth="520px">
-      <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <Modal.Body style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         {errorMsg && (
           <div className="alert-error" style={{ marginBottom: 0 }}>
             {errorMsg}
@@ -120,9 +125,9 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
             </Select>
           </FormField>
         </div>
-      </div>
+      </Modal.Body>
 
-      <div className="modal-footer">
+      <Modal.Footer>
         <Button variant="secondary" onClick={onClose} disabled={isDownloading}>
           Cancel
         </Button>
@@ -134,7 +139,7 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
         >
           <Download size={14} /> Generate Report (.xlsx)
         </Button>
-      </div>
+      </Modal.Footer>
     </Modal>
   );
 };
