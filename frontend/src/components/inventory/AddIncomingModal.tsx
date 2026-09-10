@@ -1,18 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
   Modal,
-  FormField,
-  Input,
-  Select,
   Button,
   SegmentedControl,
-  QuantityStepper,
-  SearchableSelect,
 } from '../ui/index.js';
 import { RotateCcw, PackageCheck } from 'lucide-react';
 import { apiClient } from '../../api/client.js';
 import { BatchPasteSerialsModal } from './incoming/BatchPasteSerialsModal.js';
 import { RegularIncomingSection } from './incoming/RegularIncomingSection.js';
+import { ProjectReturnSection } from './incoming/ProjectReturnSection.js';
 
 interface ItemOption {
   id: number;
@@ -611,237 +607,24 @@ export const AddIncomingModal: React.FC<AddIncomingModalProps> = ({
 
             {/* B. PROJECT RETURN / RECHECK FORM */}
             {sourceType === 'RETURN' && (
-              <div>
-                <div className="form-grid" style={{ marginBottom: '1rem' }}>
-                  <FormField label="Source Project *" required style={{ marginBottom: 0 }}>
-                    <SearchableSelect
-                      required
-                      placeholder="Select Project returning assets..."
-                      searchPlaceholder="Type project name..."
-                      value={returnForm.projectId}
-                      onChange={(val) => setReturnForm({ ...returnForm, projectId: val })}
-                      options={projects.map((p) => ({
-                        value: p.id,
-                        label: p.name,
-                        badge: p.siteCode || undefined,
-                        sublabel: p.client?.name ? `Client: ${p.client.name}` : undefined,
-                      }))}
-                    />
-                  </FormField>
-
-                  <FormField label="Destination Warehouse *" required style={{ marginBottom: 0 }}>
-                    <SearchableSelect
-                      required
-                      placeholder="Select Warehouse to receive returned items..."
-                      searchPlaceholder="Type warehouse name or city code..."
-                      value={returnForm.warehouseId}
-                      onChange={(val) => setReturnForm({ ...returnForm, warehouseId: val })}
-                      options={warehouses.map((w) => ({
-                        value: w.id,
-                        label: w.name,
-                        badge: w.cityCode || undefined,
-                      }))}
-                    />
-                  </FormField>
-                </div>
-
-                <div className="form-grid" style={{ marginBottom: '1rem' }}>
-                  <FormField label="Movement Date *" required style={{ marginBottom: 0 }}>
-                    <Input
-                      type="date"
-                      required
-                      value={returnForm.movementDate}
-                      onChange={(e) => setReturnForm({ ...returnForm, movementDate: e.target.value })}
-                    />
-                  </FormField>
-
-                  <FormField label="Reference Number" style={{ marginBottom: 0 }}>
-                    <Input
-                      placeholder="e.g. RET-PHM-001..."
-                      value={returnForm.referenceNumber}
-                      onChange={(e) => setReturnForm({ ...returnForm, referenceNumber: e.target.value })}
-                    />
-                  </FormField>
-                </div>
-
-                {/* Project Assets Picker */}
-                {returnForm.projectId && (
-                  <div style={{ marginTop: '1rem', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '1rem', backgroundColor: '#F8FAFC' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                      <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: '#1E293B' }}>
-                        Project Inventory to Return
-                      </h4>
-                      <Input
-                        placeholder="Search serial number or item..."
-                        value={snSearch}
-                        onChange={(e) => setSnSearch(e.target.value)}
-                        style={{ width: '220px', padding: '4px 8px', fontSize: '0.75rem' }}
-                      />
-                    </div>
-
-                    {isLoadingInventory ? (
-                      <div style={{ textAlign: 'center', padding: '2rem', color: '#64748B' }}>
-                        Loading project inventory...
-                      </div>
-                    ) : projectInventory.length === 0 ? (
-                      <div style={{ textAlign: 'center', padding: '2rem', color: '#64748B', backgroundColor: '#FFFFFF', borderRadius: '6px', border: '1px dashed #CBD5E1' }}>
-                        No inventory currently deployed at this project site.
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        {/* Bulk Return Items */}
-                        {projectInventory.filter((i) => i.trackingType === 'BULK').length > 0 && (
-                          <div>
-                            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>
-                              Bulk Materials
-                            </div>
-                            <div style={{ border: '1px solid #E2E8F0', borderRadius: '6px', backgroundColor: '#FFFFFF', overflow: 'hidden' }}>
-                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
-                                <thead>
-                                  <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0', textAlign: 'left', color: '#64748B' }}>
-                                    <th style={{ padding: '6px 10px' }}>Item</th>
-                                    <th style={{ padding: '6px 10px' }}>At Project</th>
-                                    <th style={{ padding: '6px 10px', width: '140px' }}>Return Qty</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {projectInventory
-                                    .filter((i) => i.trackingType === 'BULK')
-                                    .map((bItem) => {
-                                      const currentReturnQty = selectedBulkReturns[bItem.itemId] || 0;
-                                      return (
-                                        <tr key={bItem.itemId} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                                          <td style={{ padding: '6px 10px' }}>
-                                            <div style={{ fontWeight: 600 }}>{bItem.itemName}</div>
-                                            <div style={{ fontSize: '0.725rem', color: '#64748B' }}>
-                                              {[bItem.brand, bItem.modelNumber].filter(Boolean).join(' - ')}
-                                            </div>
-                                          </td>
-                                          <td style={{ padding: '6px 10px', fontWeight: 600 }}>
-                                            {bItem.availableQty} {bItem.unitSymbol}
-                                          </td>
-                                          <td style={{ padding: '6px 10px' }}>
-                                            <QuantityStepper
-                                              min={0}
-                                              max={bItem.availableQty}
-                                              value={currentReturnQty}
-                                              onChange={(val) => handleBulkReturnQtyChange(bItem.itemId, val, bItem.availableQty)}
-                                              unitSymbol={bItem.unitSymbol}
-                                            />
-                                          </td>
-                                        </tr>
-                                      );
-                                    })}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Serialized Return Items */}
-                        {projectInventory.filter((i) => i.trackingType === 'SERIALIZED').length > 0 && (
-                          <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569' }}>
-                                Serialized Assets
-                              </span>
-                              <div style={{ display: 'flex', gap: '8px' }}>
-                                <button
-                                  type="button"
-                                  onClick={handleSelectAllSerials}
-                                  style={{ border: 'none', background: 'none', color: '#2250A1', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
-                                >
-                                  Select All
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={handleDeselectAllSerials}
-                                  style={{ border: 'none', background: 'none', color: '#64748B', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
-                                >
-                                  Deselect All
-                                </button>
-                              </div>
-                            </div>
-
-                            <div style={{ border: '1px solid #E2E8F0', borderRadius: '6px', backgroundColor: '#FFFFFF', maxHeight: '240px', overflowY: 'auto' }}>
-                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
-                                <thead>
-                                  <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0', textAlign: 'left', color: '#64748B' }}>
-                                    <th style={{ padding: '6px 10px', width: '30px' }}></th>
-                                    <th style={{ padding: '6px 10px' }}>Serial Number</th>
-                                    <th style={{ padding: '6px 10px' }}>Item</th>
-                                    <th style={{ padding: '6px 10px', width: '150px' }}>Returned Condition</th>
-                                    <th style={{ padding: '6px 10px' }}>Notes</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {projectInventory
-                                    .filter((i) => i.trackingType === 'SERIALIZED')
-                                    .filter((i) =>
-                                      snSearch
-                                        ? i.serialNumber?.toLowerCase().includes(snSearch.toLowerCase()) ||
-                                          i.itemName.toLowerCase().includes(snSearch.toLowerCase())
-                                        : true,
-                                    )
-                                    .map((sItem) => {
-                                      const sn = sItem.serialNumber!;
-                                      const isSelected = selectedSerialReturns[sn]?.selected || false;
-                                      const cond = selectedSerialReturns[sn]?.conditionLabel || 'Standby Good';
-                                      const notes = selectedSerialReturns[sn]?.notes || '';
-
-                                      return (
-                                        <tr key={sn} style={{ borderBottom: '1px solid #F1F5F9', backgroundColor: isSelected ? '#EFF6FF' : undefined }}>
-                                          <td style={{ padding: '6px 10px', textAlign: 'center' }}>
-                                            <input
-                                              type="checkbox"
-                                              checked={isSelected}
-                                              onChange={() => handleSerialSelectToggle(sn)}
-                                              style={{ cursor: 'pointer' }}
-                                            />
-                                          </td>
-                                          <td style={{ padding: '6px 10px', fontFamily: 'monospace', fontWeight: 700, color: '#1E293B' }}>
-                                            {sn}
-                                          </td>
-                                          <td style={{ padding: '6px 10px' }}>
-                                            <div>{sItem.itemName}</div>
-                                            <div style={{ fontSize: '0.725rem', color: '#64748B' }}>
-                                              {[sItem.brand, sItem.modelNumber].filter(Boolean).join(' - ')}
-                                            </div>
-                                          </td>
-                                          <td style={{ padding: '6px 10px' }}>
-                                            <Select
-                                              value={cond}
-                                              disabled={!isSelected}
-                                              onChange={(e) => handleSerialReturnConditionChange(sn, e.target.value)}
-                                              style={{ fontSize: '0.75rem', padding: '3px 6px' }}
-                                            >
-                                              <option value="Standby Good">Standby Good</option>
-                                              <option value="Standby Bad">Standby Bad</option>
-                                              <option value="Under Repair">Under Repair</option>
-                                            </Select>
-                                          </td>
-                                          <td style={{ padding: '6px 10px' }}>
-                                            <Input
-                                              placeholder="Condition note"
-                                              disabled={!isSelected}
-                                              value={notes}
-                                              onChange={(e) => handleSerialReturnNotesChange(sn, e.target.value)}
-                                              style={{ fontSize: '0.75rem', padding: '3px 6px' }}
-                                            />
-                                          </td>
-                                        </tr>
-                                      );
-                                    })}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+              <ProjectReturnSection
+                projects={projects}
+                warehouses={warehouses}
+                returnForm={returnForm}
+                projectInventory={projectInventory}
+                isLoadingInventory={isLoadingInventory}
+                snSearch={snSearch}
+                selectedBulkReturns={selectedBulkReturns}
+                selectedSerialReturns={selectedSerialReturns}
+                onFormChange={(field, val) => setReturnForm((prev) => ({ ...prev, [field]: val }))}
+                onSnSearchChange={setSnSearch}
+                onBulkReturnQtyChange={handleBulkReturnQtyChange}
+                onSerialSelectToggle={handleSerialSelectToggle}
+                onSelectAllSerials={handleSelectAllSerials}
+                onDeselectAllSerials={handleDeselectAllSerials}
+                onSerialConditionChange={handleSerialReturnConditionChange}
+                onSerialNotesChange={handleSerialReturnNotesChange}
+              />
             )}
           </div>
 
