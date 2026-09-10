@@ -31,6 +31,7 @@ export interface StepWizardModalProps {
   isSubmitting?: boolean;
   allowStepClick?: boolean;
   showCancelOnAllSteps?: boolean;
+  hideBack?: boolean;
   hideFooter?: boolean;
   onContinue?: () => boolean | void | Promise<boolean | void>;
   onBack?: () => void;
@@ -89,6 +90,7 @@ const StepWizardModalRoot: React.FC<StepWizardModalProps> = ({
   isSubmitting = false,
   allowStepClick = false,
   showCancelOnAllSteps = false,
+  hideBack = false,
   hideFooter = false,
   onContinue,
   onBack,
@@ -205,7 +207,7 @@ const StepWizardModalRoot: React.FC<StepWizardModalProps> = ({
           {!hideFooter && (
             <div className="modal-footer wizard-modal-footer">
               <div className="wizard-footer-left">
-                {isFirstStep ? (
+                {isFirstStep || hideBack ? (
                   <Button
                     type="button"
                     variant="secondary"
@@ -228,7 +230,7 @@ const StepWizardModalRoot: React.FC<StepWizardModalProps> = ({
               </div>
 
               <div className="wizard-footer-right">
-                {showCancelOnAllSteps && !isFirstStep && (
+                {showCancelOnAllSteps && !isFirstStep && !hideBack && (
                   <Button
                     type="button"
                     variant="secondary"
