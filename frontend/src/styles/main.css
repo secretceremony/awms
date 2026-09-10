@@ -1,0 +1,12 @@
+/* ==========================================================================
+   AWMS Main Stylesheet - Orchestrating Modular Style System
+   ========================================================================== */
+
+@import './variables.css';
+@import './base.css';
+@import './buttons.css';
+@import './forms.css';
+@import './modal.css';
+@import './badges.css';
+@import './tables.css';
+@import './print.css';

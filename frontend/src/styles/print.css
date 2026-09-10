@@ -1,0 +1,153 @@
+/* ==========================================================================
+   AWMS Print Styles & Layout Containers
+   ========================================================================== */
+
+/* Print Page Screen Container */
+.print-page-wrapper {
+  min-height: 100vh;
+  background-color: #F1F5F9;
+  display: flex;
+  flex-direction: column;
+}
+
+.print-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 0.75rem 1.5rem;
+  background-color: #FFFFFF;
+  border-bottom: 1px solid #E2E8F0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.print-document-container {
+  flex: 1;
+  padding: 2rem 1.5rem;
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.print-sheet-a4-landscape {
+  width: 297mm;
+  min-height: 210mm;
+  background-color: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 4px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  padding: 10mm 15mm 12mm 15mm;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1024px) {
+  .print-document-container {
+    padding: 1rem 0.5rem;
+  }
+}
+
+/* Print Media Rules */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm 15mm 12mm 15mm;
+  }
+
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    font-size: 9pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .no-print,
+  .dashboard-sidebar,
+  .dashboard-header,
+  .modal-overlay,
+  .modal-header,
+  .modal-footer,
+  .btn,
+  button {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .print-page-wrapper {
+    background: transparent !important;
+    min-height: auto !important;
+  }
+
+  .print-document-container {
+    padding: 0 !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  .print-sheet-a4-landscape {
+    width: 100% !important;
+    min-height: auto !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  .print-do-page {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .print-do-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 6px;
+    margin-bottom: 10px;
+    page-break-inside: auto;
+  }
+
+  .print-do-table th,
+  .print-do-table td {
+    padding: 5px 6px;
+    font-size: 8.5pt;
+  }
+
+  .print-do-table th {
+    background-color: #EBF3FA !important;
+    color: #1E293B !important;
+    font-weight: bold;
+    border: 1px solid #475569 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-do-table td {
+    border: 1px solid #64748B !important;
+  }
+
+  .print-do-table tr {
+    page-break-inside: avoid;
+  }
+
+  .shipping-label-container {
+    page-break-after: always;
+    break-after: page;
+    page-break-inside: avoid !important;
+    break-inside: avoid-page !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
