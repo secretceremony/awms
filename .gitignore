@@ -13,10 +13,13 @@ agents.md
 PROGRESS.md
 .local-docs/
 report-support/
+commit-history.txt
 
 # Build and coverage outputs
 build/
 coverage/
+*.tmp
+*.bak
 
 # Untracked local assets & signatures
 .local-assets/

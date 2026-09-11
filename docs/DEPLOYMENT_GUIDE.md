@@ -193,3 +193,19 @@ Add the following line (runs every night at 02:00 AM):
 | **Prisma migration error** | `docker compose exec backend npx prisma migrate status` | Resolve migration drift; ensure PostgreSQL container is healthy before executing. |
 | **Login error (401 / CORS)** | Check browser network tab response headers | Confirm `FRONTEND_URL` matches the exact browser URL origin. |
 | **Thermal printer layout shift** | Check print dialog margins in Chrome | Set margins to **None** and enable **Background graphics**. |
+
+---
+
+## 5. Operational Deployment Checklist
+
+Before handing the system over or cutting over to production, verify every item on this checklist:
+
+- [ ] **1. Configure Environment Variables**: Create `.env` on root/backend and set production credentials (`DATABASE_URL`, `JWT_SECRET`, `FRONTEND_URL`).
+- [ ] **2. Verify Production Secrets**: Replace default JWT secret with a secure 32+ character random string.
+- [ ] **3. Start PostgreSQL Database**: Ensure database service or container is healthy and accepting connections.
+- [ ] **4. Run Prisma Migrations**: Execute `npx prisma migrate deploy` (never run `migrate dev` in production).
+- [ ] **5. Seed Initial Accounts**: Run seed script to establish the first `SUPER_ADMIN` account or use custom `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`.
+- [ ] **6. Build Production Services**: Compile backend (`nest build`) and frontend (`tsc -b && vite build`) or build Docker images (`docker compose build`).
+- [ ] **7. Verify Health & Security Endpoints**: Confirm `GET /api/auth/me` responds as expected, cookies have `HttpOnly; SameSite=Lax`, and CORS disallows unauthorized origins.
+- [ ] **8. Test Automated Database Backup**: Verify scheduled `pg_dump` cron job executes and test-restore a sample archive.
+
