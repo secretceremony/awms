@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, FormField, Select, Button } from '../ui/index.js';
 import { useToast } from '../../context/ToastContext.js';
+import { getAvailableReportYears } from '../../utils/datetime.js';
 import { Download, Calendar } from 'lucide-react';
 
 interface MonthlyReportModalProps {
@@ -34,7 +35,7 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
     { value: 12, label: 'December' },
   ];
 
-  const years = [2024, 2025, 2026, 2027];
+  const years = getAvailableReportYears();
 
   const handleDownload = async () => {
     setIsDownloading(true);

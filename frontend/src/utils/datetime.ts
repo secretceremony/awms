@@ -137,3 +137,20 @@ export function generateSafeExportFilename(prefix: string, ext = 'xlsx', dateInp
   const cleanPrefix = prefix.replace(/[/\\?%*:|"<>]/g, '_');
   return `${cleanPrefix}_${year}-${month}-${day}_${hours}${minutes}.${ext}`;
 }
+
+/**
+ * Returns a descending array of available years for reports.
+ * Defaults to current year down to (current year - minSpan), with support for an earliest year bound.
+ * Example for 2026 with minSpan 5: [2026, 2025, 2024, 2023, 2022, 2021]
+ */
+export function getAvailableReportYears(earliestYear?: number, minSpan = 5): number[] {
+  const currentYear = new Date().getFullYear();
+  const calculatedStart = currentYear - minSpan;
+  const startYear = earliestYear && earliestYear < calculatedStart ? Math.max(2000, earliestYear) : calculatedStart;
+
+  const years: number[] = [];
+  for (let y = currentYear; y >= startYear; y--) {
+    years.push(y);
+  }
+  return years;
+}

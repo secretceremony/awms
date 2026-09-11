@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { PageHeader, Card, Button, FormField, Select } from '../components/ui/index.js';
 import { useToast } from '../context/ToastContext.js';
 import { downloadAllDataWorkbook } from '../utils/exportWorkbook.js';
+import { getAvailableReportYears } from '../utils/datetime.js';
 import {
   FileSpreadsheet,
   Download,
@@ -46,7 +47,7 @@ export const Reports: React.FC = () => {
     { value: 12, label: 'December' },
   ];
 
-  const years = [2024, 2025, 2026, 2027];
+  const years = getAvailableReportYears();
 
   const handleExport = async () => {
     setIsExporting(true);
