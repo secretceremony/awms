@@ -14,6 +14,8 @@ const ROUTE_TITLE_MAP: Record<string, string> = {
   '/delivery-orders': 'Delivery Orders | AWMS',
   '/shipping-labels': 'Shipping Labels | AWMS',
   '/units': 'Units | AWMS',
+  '/cities': 'Cities | AWMS',
+  '/reports': 'Reports & Exports | AWMS',
   '/users': 'User Management | AWMS',
   '/logs': 'Activity Logs | AWMS',
   '/settings': 'Settings | AWMS',

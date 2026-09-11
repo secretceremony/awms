@@ -20,6 +20,8 @@ import { DeliveryOrderPrintPage } from './pages/Delivery/Print.js';
 import { Logs } from './pages/Logs.js';
 import { Settings } from './pages/Settings.js';
 import { Units } from './pages/Units.js';
+import { Cities } from './pages/Cities.js';
+import { Reports } from './pages/Reports.js';
 import { Users } from './pages/Users.js';
 import { PageTitleUpdater } from './components/common/PageTitleUpdater.js';
 
@@ -48,12 +50,18 @@ function App() {
                 <Route path="/inventory/movements" element={<MovementHistory />} />
                 <Route path="/inventory/outgoing" element={<Outgoing />} />
                 <Route path="/warehouses" element={<Warehouses />} />
+                <Route path="/cities" element={<Cities />} />
                 <Route path="/projects" element={<Projects />} />
                 <Route path="/clients" element={<Clients />} />
                 <Route path="/customers" element={<Navigate to="/clients" replace />} />
                 <Route path="/units" element={<Units />} />
                 <Route path="/delivery-orders" element={<Orders />} />
                 <Route path="/shipping-labels" element={<Labels />} />
+
+                {/* Reports & Protected Sub-routes */}
+                <Route element={<ProtectedRoute requiredPermission="view_reports" />}>
+                  <Route path="/reports" element={<Reports />} />
+                </Route>
 
                 {/* Admin-only Protected Sub-routes */}
                 <Route element={<ProtectedRoute requiredPermission="manage_users" />}>

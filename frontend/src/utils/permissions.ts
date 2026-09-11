@@ -6,6 +6,7 @@ export type PermissionCapability =
   | 'view_movements'
   | 'view_deliveries'
   | 'view_master_data'
+  | 'view_reports'
   | 'manage_inventory'
   | 'manage_movements'
   | 'manage_deliveries'
@@ -21,6 +22,7 @@ const ROLE_PERMISSIONS: Record<UserRole, PermissionCapability[]> = {
     'view_movements',
     'view_deliveries',
     'view_master_data',
+    'view_reports',
     'manage_inventory',
     'manage_movements',
     'manage_deliveries',
@@ -35,6 +37,7 @@ const ROLE_PERMISSIONS: Record<UserRole, PermissionCapability[]> = {
     'view_movements',
     'view_deliveries',
     'view_master_data',
+    'view_reports',
     'manage_inventory',
     'manage_movements',
     'manage_deliveries',
@@ -94,6 +97,9 @@ export const canViewDeliveries = (role: string | undefined | null): boolean =>
 
 export const canViewMasterData = (role: string | undefined | null): boolean =>
   hasPermission(role, 'view_master_data');
+
+export const canViewReports = (role: string | undefined | null): boolean =>
+  hasPermission(role, 'view_reports');
 
 export const canManageInventory = (role: string | undefined | null): boolean =>
   hasPermission(role, 'manage_inventory');
