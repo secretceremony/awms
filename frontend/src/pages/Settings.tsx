@@ -1,25 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/ui/index.js';
-import { CitySettings } from '../components/settings/CitySettings.js';
-import { UnitSettings } from '../components/settings/UnitSettings.js';
 import { InventorySettings } from '../components/settings/InventorySettings.js';
-import { DataExportSettings } from '../components/settings/DataExportSettings.js';
 import { CompanySettings } from '../components/settings/CompanySettings.js';
-import { MapPin, Ruler, Boxes, FileSpreadsheet, Building2 } from 'lucide-react';
+import { Boxes, Building2 } from 'lucide-react';
 
-type SettingsTab = 'company' | 'cities' | 'units' | 'inventory' | 'export';
+type SettingsTab = 'company' | 'inventory';
 
 export const Settings: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  // Legacy URL compatibility redirects
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'units') {
+      navigate('/units', { replace: true });
+    } else if (tabParam === 'cities') {
+      navigate('/cities', { replace: true });
+    } else if (tabParam === 'export') {
+      navigate('/reports', { replace: true });
+    }
+  }, [searchParams, navigate]);
+
   const initialTab = (searchParams.get('tab') as SettingsTab) || 'company';
   const [activeTab, setActiveTab] = useState<SettingsTab>(
-    ['company', 'cities', 'units', 'inventory', 'export'].includes(initialTab) ? initialTab : 'company',
+    ['company', 'inventory'].includes(initialTab) ? initialTab : 'company',
   );
 
   useEffect(() => {
     const tabParam = searchParams.get('tab') as SettingsTab;
-    if (tabParam && ['company', 'cities', 'units', 'inventory', 'export'].includes(tabParam)) {
+    if (tabParam && ['company', 'inventory'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [searchParams]);
@@ -31,17 +42,14 @@ export const Settings: React.FC = () => {
 
   const tabs: Array<{ id: SettingsTab; label: string; icon: React.FC<{ size?: number; style?: React.CSSProperties }> }> = [
     { id: 'company', label: 'Company & Addresses', icon: Building2 },
-    { id: 'cities', label: 'Cities', icon: MapPin },
-    { id: 'units', label: 'Units', icon: Ruler },
-    { id: 'inventory', label: 'Inventory', icon: Boxes },
-    { id: 'export', label: 'Data Export', icon: FileSpreadsheet },
+    { id: 'inventory', label: 'Inventory Indicators', icon: Boxes },
   ];
 
   return (
     <div className="page-container">
       <PageHeader
         title="System Settings"
-        description="Configure company identities, office addresses, reference cities, units of measurement, inventory thresholds, and data exports"
+        description="Configure company identities, office dispatch addresses, and global inventory thresholds"
       />
 
       {/* Settings Navigation Tabs */}
@@ -89,13 +97,11 @@ export const Settings: React.FC = () => {
       {/* Tab Content */}
       <div style={{ minHeight: '400px' }}>
         {activeTab === 'company' && <CompanySettings />}
-        {activeTab === 'cities' && <CitySettings />}
-        {activeTab === 'units' && <UnitSettings />}
         {activeTab === 'inventory' && <InventorySettings />}
-        {activeTab === 'export' && <DataExportSettings />}
       </div>
     </div>
   );
 };
 
 export default Settings;
+
