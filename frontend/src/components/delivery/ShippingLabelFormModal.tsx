@@ -373,15 +373,7 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
             )}
 
             {/* Label Size Selector (A6 Default vs A5) */}
-            <div
-              style={{
-                marginBottom: '1.25rem',
-                padding: '12px 14px',
-                backgroundColor: 'var(--accent-secondary-bg)',
-                border: '1px solid var(--card-border)',
-                borderRadius: 'var(--border-radius-sm)',
-              }}
-            >
+            <div className="shipping-format-card">
               <label className="form-label" style={{ marginBottom: '8px' }}>
                 Label Physical Size <span className="form-label-required">*</span>
               </label>
@@ -404,16 +396,8 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
             </div>
 
             {/* Recipient Details */}
-            <div
-              style={{
-                border: '1px solid var(--card-border)',
-                borderRadius: 'var(--border-radius-sm)',
-                padding: '12px 14px',
-                backgroundColor: '#FFFFFF',
-                marginBottom: '1rem',
-              }}
-            >
-              <h4 style={{ margin: '0 0 10px 0', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+            <div className="shipping-card">
+              <h4 className="shipping-card-header">
                 Recipient &amp; Destination Information
               </h4>
 
@@ -466,16 +450,8 @@ export const ShippingLabelFormModal: React.FC<ShippingLabelFormModalProps> = ({
             </div>
 
             {/* Sender Dispatch Office */}
-            <div
-              style={{
-                border: '1px solid var(--card-border)',
-                borderRadius: 'var(--border-radius-sm)',
-                padding: '12px 14px',
-                backgroundColor: 'var(--accent-secondary-bg)',
-                marginBottom: '1rem',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <div className="shipping-sender-card">
+              <div className="shipping-sender-header">
                 <h4 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                   Sender Dispatch Office (PT ALSSA Corporindo)
                 </h4>

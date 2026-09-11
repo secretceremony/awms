@@ -377,58 +377,43 @@ export const AddOutgoingModal: React.FC<AddOutgoingModalProps> = ({
       <StepWizardModal.Step step={2}>
         {/* Persistent Situational Summary Strip */}
         {selectedProject && (
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '8px',
-              padding: '8px 12px',
-              backgroundColor: '#F8FAFC',
-              border: '1px solid #E2E8F0',
-              borderLeft: '4px solid #2250A1',
-              borderRadius: '6px',
-              marginBottom: '1rem',
-              fontSize: '0.8rem',
-            }}
-          >
+          <div className="outgoing-summary-strip">
             <div>
-              <span style={{ color: '#64748B' }}>Project: </span>
-              <strong style={{ color: '#1E293B' }}>{selectedProject.name}</strong>
+              <span style={{ color: 'var(--text-secondary)' }}>Project: </span>
+              <strong style={{ color: 'var(--text-primary)' }}>{selectedProject.name}</strong>
               {selectedProject.siteCode && (
-                <span style={{ color: '#64748B' }}> [{selectedProject.siteCode}]</span>
+                <span style={{ color: 'var(--text-secondary)' }}> [{selectedProject.siteCode}]</span>
               )}
             </div>
 
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
               <div>
-                <span style={{ color: '#64748B' }}>Source Hub: </span>
-                <strong style={{ color: establishedWarehouseName ? '#2250A1' : '#64748B' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Source Hub: </span>
+                <strong style={{ color: establishedWarehouseName ? 'var(--primary-color)' : 'var(--text-secondary)' }}>
                   {establishedWarehouseName || 'Unassigned (pick item)'}
                 </strong>
               </div>
 
-              <div style={{ width: '1px', height: '14px', backgroundColor: '#CBD5E1' }} />
+              <div style={{ width: '1px', height: '14px', backgroundColor: 'var(--card-border)' }} />
 
               <div>
-                <span style={{ color: '#64748B' }}>Items: </span>
-                <strong style={{ color: '#1E293B' }}>{selectedItems.length}</strong>
+                <span style={{ color: 'var(--text-secondary)' }}>Items: </span>
+                <strong style={{ color: 'var(--text-primary)' }}>{selectedItems.length}</strong>
               </div>
 
-              <div style={{ width: '1px', height: '14px', backgroundColor: '#CBD5E1' }} />
+              <div style={{ width: '1px', height: '14px', backgroundColor: 'var(--card-border)' }} />
 
               <div>
-                <span style={{ color: '#64748B' }}>Serials: </span>
+                <span style={{ color: 'var(--text-secondary)' }}>Serials: </span>
                 <strong style={{ color: '#7C3AED' }}>
                   {selectedItems.filter((i) => i.trackingType === 'SERIALIZED').length}
                 </strong>
               </div>
 
-              <div style={{ width: '1px', height: '14px', backgroundColor: '#CBD5E1' }} />
+              <div style={{ width: '1px', height: '14px', backgroundColor: 'var(--card-border)' }} />
 
               <div>
-                <span style={{ color: '#64748B' }}>Bulk: </span>
+                <span style={{ color: 'var(--text-secondary)' }}>Bulk: </span>
                 <strong style={{ color: '#0284C7' }}>
                   {selectedItems
                     .filter((i) => i.trackingType === 'BULK')
@@ -441,15 +426,7 @@ export const AddOutgoingModal: React.FC<AddOutgoingModalProps> = ({
 
         {/* Reusable Inventory Picker */}
         <div style={{ marginBottom: '1rem' }}>
-          <label
-            style={{
-              display: 'block',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              color: '#1F2839',
-              marginBottom: '6px',
-            }}
-          >
+          <label className="form-label" style={{ marginBottom: '6px' }}>
             Available Warehouse Inventory
           </label>
           <InventoryPicker
@@ -462,29 +439,19 @@ export const AddOutgoingModal: React.FC<AddOutgoingModalProps> = ({
 
         {/* Selected Dispatch Items Table */}
         <div>
-          <h4 style={{ margin: '0 0 8px 0', fontSize: '0.85rem', fontWeight: 600, color: '#1E293B' }}>
+          <h4 style={{ margin: '0 0 8px 0', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
             Selected Items for Dispatch ({selectedItems.length})
           </h4>
 
           {selectedItems.length === 0 ? (
-            <div
-              style={{
-                padding: '1.5rem',
-                textAlign: 'center',
-                backgroundColor: '#F9FAFB',
-                border: '1px dashed #D1D5DB',
-                borderRadius: '6px',
-                color: '#6B7280',
-                fontSize: '0.85rem',
-              }}
-            >
+            <div className="outgoing-empty-card">
               No items selected yet. Search and click "+ Add" from available inventory above.
             </div>
           ) : (
-            <div style={{ border: '1px solid #E2E8F0', borderRadius: '6px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <div className="outgoing-table-container">
               <table className="data-table" style={{ margin: 0, fontSize: '0.85rem', minWidth: '450px' }}>
                 <thead>
-                  <tr style={{ backgroundColor: '#F8FAFC' }}>
+                  <tr style={{ backgroundColor: 'var(--accent-secondary-bg)' }}>
                     <th>Item Description</th>
                     <th>Hub</th>
                     <th style={{ width: '120px', textAlign: 'center' }}>Qty / Serials</th>

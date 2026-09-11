@@ -1,0 +1,207 @@
+/* ==========================================================================
+   AWMS Delivery Stylesheet - Delivery Orders & Shipping Labels
+   ========================================================================== */
+
+.do-metadata-card {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 1rem;
+  padding: 1.25rem;
+  background-color: var(--accent-secondary-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--border-radius);
+}
+
+.do-field-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.do-field-value {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 2px;
+}
+
+.do-field-meta {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.do-purpose-card {
+  padding: 0.75rem 1rem;
+  background-color: rgba(34, 80, 161, 0.05);
+  border: 1px solid rgba(34, 80, 161, 0.15);
+  border-radius: var(--border-radius-sm);
+  font-size: 0.875rem;
+}
+
+.do-linked-movement-card {
+  padding: 0.85rem 1rem;
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: var(--border-radius-sm);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.do-offscreen-print {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+}
+
+.do-footer-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.do-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Shipping Label Form Styles */
+.shipping-format-card {
+  background-color: var(--accent-secondary-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--border-radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 1.25rem;
+}
+
+.shipping-fragile-card {
+  border: 1px solid var(--card-border);
+  border-radius: var(--border-radius-sm);
+  padding: 12px 14px;
+  background-color: var(--card-bg);
+  margin-bottom: 1.25rem;
+}
+
+.shipping-fragile-card.is-fragile {
+  background-color: #FEF2F2;
+  border-color: #F87171;
+}
+
+.shipping-address-card {
+  border: 1px solid var(--card-border);
+  border-radius: var(--border-radius-sm);
+  padding: 12px 14px;
+  background-color: var(--card-bg);
+  margin-bottom: 1.25rem;
+}
+
+/* Specific DO Detail Elements */
+.do-modal-content-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.do-activity-notes-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--border-radius-sm);
+  font-size: 0.85rem;
+}
+
+.do-table-container {
+  border: 1px solid var(--card-border);
+  border-radius: var(--border-radius-sm);
+  overflow: hidden;
+}
+
+.do-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.do-items-table-th {
+  padding: 8px 12px;
+  background-color: var(--accent-secondary-bg);
+  border-bottom: 1px solid var(--card-border);
+  text-align: left;
+  color: var(--text-secondary);
+}
+
+.do-items-table-td {
+  padding: 8px 12px;
+}
+
+.do-audit-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  padding-top: 8px;
+  border-top: 1px solid var(--card-border);
+}
+
+.do-success-icon-wrapper {
+  display: inline-flex;
+  padding: 12px;
+  borderRadius: 50%;
+  background-color: #ECFDF5;
+  color: #059669;
+  margin-bottom: 1rem;
+}
+
+.do-success-number-pill {
+  font-family: monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  background-color: var(--accent-primary-light);
+  color: var(--primary-color);
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid #BFDBFE;
+  display: inline-block;
+  margin-bottom: 1rem;
+}
+
+/* Shipping Label Form Elements */
+.shipping-card {
+  border: 1px solid var(--card-border);
+  border-radius: var(--border-radius-sm);
+  padding: 12px 14px;
+  background-color: var(--card-bg);
+  margin-bottom: 1rem;
+}
+
+.shipping-card-header {
+  margin: 0 0 10px 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.shipping-sender-card {
+  border: 1px solid var(--card-border);
+  border-radius: var(--border-radius-sm);
+  padding: 12px 14px;
+  background-color: var(--accent-secondary-bg);
+  margin-bottom: 1rem;
+}
+
+.shipping-sender-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+

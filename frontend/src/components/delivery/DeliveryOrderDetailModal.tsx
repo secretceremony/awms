@@ -221,21 +221,11 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
               Loading Delivery Order details...
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div className="do-modal-content-stack">
               {/* Header info card */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
-                  gap: '1rem',
-                  padding: '1.25rem',
-                  backgroundColor: 'var(--accent-secondary-bg, #F9FAFB)',
-                  border: '1px solid var(--card-border, #E5E7EB)',
-                  borderRadius: 'var(--border-radius-sm, 8px)',
-                }}
-              >
+              <div className="do-metadata-card">
                 <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #6B7280)' }}>Document Status</div>
+                  <div className="do-field-label">Document Status</div>
                   <div style={{ marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <StatusBadge status={deliveryOrder.status} />
                     {isIssued && (
@@ -247,19 +237,19 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #6B7280)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <div className="do-field-label">
                     <Calendar size={13} /> DO Date &amp; Time
                   </div>
-                  <div style={{ fontWeight: 600, color: 'var(--text-primary, #1F2839)', marginTop: '2px' }}>
+                  <div className="do-field-value">
                     {formatDateTime(deliveryOrder.date, cityCode || warehouseName)}
                   </div>
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #6B7280)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <div className="do-field-label">
                     <Building size={13} /> Client / Company
                   </div>
-                  <div style={{ fontWeight: 600, color: 'var(--text-primary, #1F2839)', marginTop: '2px' }}>
+                  <div className="do-field-value">
                     {clientName}{' '}
                     <span
                       style={{
@@ -274,25 +264,25 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
                       {clientType}
                     </span>
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #6B7280)' }}>
+                  <div className="do-field-meta">
                     Attn: {attnName}
                   </div>
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #6B7280)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <div className="do-field-label">
                     <WarehouseIcon size={13} /> Source Warehouse
                   </div>
-                  <div style={{ fontWeight: 600, color: 'var(--text-primary, #1F2839)', marginTop: '2px' }}>
+                  <div className="do-field-value">
                     {warehouseName} {cityCode && cityCode !== '—' ? `(${cityCode})` : ''}
                   </div>
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #6B7280)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <div className="do-field-label">
                     <FileText size={13} /> Project &amp; Site
                   </div>
-                  <div style={{ fontWeight: 600, color: 'var(--text-primary, #1F2839)', marginTop: '2px' }}>
+                  <div className="do-field-value">
                     {projectName}
                   </div>
                   {siteCode && (
@@ -300,13 +290,13 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
                       Code: {siteCode}
                     </div>
                   )}
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #6B7280)' }}>
+                  <div className="do-field-meta">
                     Loc: {location}
                   </div>
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #6B7280)' }}>References</div>
+                  <div className="do-field-label">References</div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-primary, #1F2839)', marginTop: '2px' }}>
                     Ref: <strong>{refNumber}</strong>
                   </div>
@@ -319,18 +309,7 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
               </div>
 
               {/* Activity & Notes */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 2fr',
-                  gap: '1rem',
-                  padding: '1rem',
-                  backgroundColor: 'var(--card-bg, #FFFFFF)',
-                  border: '1px solid var(--card-border, #E5E7EB)',
-                  borderRadius: 'var(--border-radius-sm, 6px)',
-                  fontSize: '0.85rem',
-                }}
-              >
+              <div className="do-activity-notes-grid">
                 <div>
                   <span style={{ fontWeight: 600, color: 'var(--text-secondary, #4B5563)' }}>Activity Type:</span>
                   <div style={{ marginTop: '2px', fontWeight: 600, color: 'var(--text-primary, #1F2839)' }}>
@@ -350,14 +329,14 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
                 <h4 style={{ margin: '0 0 8px 0', fontSize: '0.9rem', color: 'var(--text-primary, #1F2839)' }}>
                   Dispatched Items ({deliveryOrder.items?.length || 0})
                 </h4>
-                <div style={{ border: '1px solid var(--card-border, #E5E7EB)', borderRadius: 'var(--border-radius-sm, 6px)', overflow: 'hidden' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                <div className="do-table-container">
+                  <table className="do-items-table">
                     <thead>
-                      <tr style={{ backgroundColor: 'var(--accent-secondary-bg, #F9FAFB)', borderBottom: '1px solid var(--card-border, #E5E7EB)', textAlign: 'left', color: 'var(--text-secondary, #6B7280)' }}>
-                        <th style={{ padding: '8px 12px' }}>Item</th>
-                        <th style={{ padding: '8px 12px' }}>Type</th>
-                        <th style={{ padding: '8px 12px' }}>Quantity</th>
-                        <th style={{ padding: '8px 12px' }}>PIC / Remarks</th>
+                      <tr>
+                        <th className="do-items-table-th">Item</th>
+                        <th className="do-items-table-th">Type</th>
+                        <th className="do-items-table-th">Quantity</th>
+                        <th className="do-items-table-th">PIC / Remarks</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -367,7 +346,7 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
 
                         return (
                           <tr key={idx} style={{ borderBottom: '1px solid #F3F4F6' }}>
-                            <td style={{ padding: '8px 12px' }}>
+                            <td className="do-items-table-td">
                               <div style={{ fontWeight: 600, color: 'var(--text-primary, #1F2839)' }}>
                                 {it.itemName || it.item?.name || 'Item'}
                               </div>
@@ -396,7 +375,7 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
                                 </div>
                               )}
                             </td>
-                            <td style={{ padding: '8px 12px' }}>
+                            <td className="do-items-table-td">
                               <span
                                 style={{
                                   fontSize: '0.7rem',
@@ -410,10 +389,10 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
                                 {isSer ? 'SERIALIZED' : 'BULK'}
                               </span>
                             </td>
-                            <td style={{ padding: '8px 12px', fontWeight: 600, color: 'var(--text-primary, #1F2839)' }}>
+                            <td className="do-items-table-td" style={{ fontWeight: 600, color: 'var(--text-primary, #1F2839)' }}>
                               {it.quantity} {it.unitSymbol || it.unit || it.item?.unit?.symbol || 'pcs'}
                             </td>
-                            <td style={{ padding: '8px 12px', fontSize: '0.8rem', color: 'var(--text-secondary, #4B5563)' }}>
+                            <td className="do-items-table-td" style={{ fontSize: '0.8rem', color: 'var(--text-secondary, #4B5563)' }}>
                               {it.pic && <div>PIC: {it.pic}</div>}
                               {it.remarks && <div>Remarks: {it.remarks}</div>}
                               {!it.pic && !it.remarks && <span style={{ color: '#9CA3AF' }}>—</span>}
@@ -427,17 +406,7 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
               </div>
 
               {/* Metadata audit footer */}
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  fontSize: '0.75rem',
-                  color: 'var(--text-secondary, #9CA3AF)',
-                  paddingTop: '8px',
-                  borderTop: '1px solid var(--card-border, #E5E7EB)',
-                }}
-              >
+              <div className="do-audit-footer">
                 <div>
                   Created: {formatDateTime(deliveryOrder.createdAt, cityCode || warehouseName)}
                   {deliveryOrder.createdBy && ` by ${deliveryOrder.createdBy.name}`}
@@ -451,7 +420,7 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
               </div>
 
               {/* Hidden Print Document Wrapper for PDF Generation */}
-              <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+              <div className="do-offscreen-print">
                 <div ref={printContainerRef}>
                   <DeliveryOrderPrintView deliveryOrder={deliveryOrder} />
                 </div>
@@ -557,16 +526,7 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
         maxWidth="500px"
       >
         <Modal.Body style={{ textAlign: 'center', padding: '1.5rem 1rem' }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              padding: '12px',
-              borderRadius: '50%',
-              backgroundColor: '#ECFDF5',
-              color: '#059669',
-              marginBottom: '1rem',
-            }}
-          >
+          <div className="do-success-icon-wrapper">
             <Send size={28} />
           </div>
 
@@ -574,20 +534,7 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
             Official DO Number Generated
           </h3>
 
-          <div
-            style={{
-              fontFamily: 'monospace',
-              fontSize: '1rem',
-              fontWeight: 700,
-              backgroundColor: 'var(--accent-primary-light, #EFF6FF)',
-              color: 'var(--primary-color, #2250A1)',
-              padding: '8px 14px',
-              borderRadius: '6px',
-              border: '1px solid #BFDBFE',
-              display: 'inline-block',
-              marginBottom: '1rem',
-            }}
-          >
+          <div className="do-success-number-pill">
             {deliveryOrder?.doNumber || 'DO Issued'}
           </div>
 
@@ -597,12 +544,12 @@ export const DeliveryOrderDetailModal: React.FC<DeliveryOrderDetailModalProps> =
         </Modal.Body>
 
         <Modal.Footer>
-          <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="do-footer-wrapper">
             <Button variant="secondary" onClick={() => setShowIssueSuccess(false)}>
               Close
             </Button>
 
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div className="do-footer-actions">
               <Button
                 variant="secondary"
                 onClick={() => {

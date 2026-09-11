@@ -180,17 +180,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
         {/* Success / Result View */}
         {importResult ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1rem 0' }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '16px',
-                backgroundColor: '#ECFDF5',
-                border: '1px solid #A7F3D0',
-                borderRadius: '8px',
-              }}
-            >
+            <div className="excel-import-success-banner">
               <CheckCircle2 size={28} color="#059669" />
               <div>
                 <h4 style={{ margin: 0, color: '#065F46', fontSize: '1rem', fontWeight: 700 }}>
@@ -203,18 +193,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
             </div>
 
             {/* Metadata Summary Grid */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
-                gap: '12px',
-                padding: '16px',
-                backgroundColor: 'var(--accent-secondary-bg, #F8FAFC)',
-                border: '1px solid var(--card-border, #E2E8F0)',
-                borderRadius: '8px',
-                fontSize: '0.85rem',
-              }}
-            >
+            <div className="excel-import-summary-grid">
               <div>
                 <span style={{ color: 'var(--text-secondary, #64748B)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <FileSpreadsheet size={13} /> Filename
@@ -276,19 +255,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
         ) : !validation ? (
           /* Template Download & Upload Banner */
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '12px 16px',
-                backgroundColor: 'var(--accent-primary-light, #EFF6FF)',
-                border: '1px solid #BFDBFE',
-                borderRadius: '6px',
-                flexWrap: 'wrap',
-                gap: '10px',
-              }}
-            >
+            <div className="excel-import-template-box">
               <div>
                 <span style={{ fontWeight: 700, color: 'var(--primary-color, #1E40AF)', fontSize: '0.9rem', display: 'block' }}>
                   Step 1: Download Standard Template
@@ -309,16 +276,8 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
 
             {/* Drop / File Input Zone */}
             <div
+              className="excel-import-dropzone"
               onClick={() => fileInputRef.current?.click()}
-              style={{
-                border: '2px dashed var(--card-border, #CBD5E1)',
-                borderRadius: '8px',
-                padding: '2.5rem 1.5rem',
-                textAlign: 'center',
-                backgroundColor: 'var(--accent-secondary-bg, #F8FAFC)',
-                cursor: 'pointer',
-                transition: 'border-color 0.2s',
-              }}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault();
@@ -355,19 +314,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
         ) : (
           /* Validation Review */
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '10px 14px',
-                backgroundColor: 'var(--accent-secondary-bg, #F8FAFC)',
-                border: '1px solid var(--card-border, #E2E8F0)',
-                borderRadius: '6px',
-                flexWrap: 'wrap',
-                gap: '8px',
-              }}
-            >
+            <div className="excel-import-preview-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <FileSpreadsheet size={20} color="var(--primary-color, #2250A1)" />
                 <span style={{ fontWeight: 600, color: 'var(--text-primary, #1F2839)', fontSize: '0.9rem' }}>
@@ -396,7 +343,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
             </div>
 
             {/* Validation Rows Table */}
-            <div style={{ maxHeight: '320px', overflowY: 'auto', border: '1px solid var(--card-border, #E2E8F0)', borderRadius: '6px' }}>
+            <div className="excel-import-table-container">
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
                 <thead>
                   <tr style={{ backgroundColor: 'var(--accent-secondary-bg, #F8FAFC)', borderBottom: '1px solid var(--card-border, #E2E8F0)', textAlign: 'left', color: 'var(--text-secondary, #64748B)' }}>

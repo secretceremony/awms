@@ -380,37 +380,28 @@ export const AdjustmentModal: React.FC<AdjustmentModalProps> = ({
 
             {/* Context status card */}
             {selectedItem && (
-              <div
-                style={{
-                  backgroundColor: '#F8FAFC',
-                  border: '1px solid #CBD5E1',
-                  borderRadius: '6px',
-                  padding: '10px 14px',
-                  marginBottom: '1rem',
-                  fontSize: '0.85rem',
-                }}
-              >
+              <div className="adjustment-status-card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <span style={{ color: '#64748B' }}>Tracking: </span>
-                    <span style={{ fontWeight: 700, color: '#1E293B' }}>{selectedItem.trackingType}</span>
+                    <span style={{ color: 'var(--text-secondary)' }}>Tracking: </span>
+                    <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{selectedItem.trackingType}</span>
                     {selectedItem.unit && (
-                      <span style={{ color: '#64748B', marginLeft: '8px' }}>
+                      <span style={{ color: 'var(--text-secondary)', marginLeft: '8px' }}>
                         Unit: {selectedItem.unit.name} ({selectedItem.unit.symbol || '—'})
                       </span>
                     )}
                   </div>
                   {!isSerialized && currentBulkStock !== null && (
                     <div>
-                      <span style={{ color: '#64748B' }}>Current Stock: </span>
-                      <span style={{ fontWeight: 700, color: '#2250A1' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Current Stock: </span>
+                      <span style={{ fontWeight: 700, color: 'var(--primary-color)' }}>
                         {currentBulkStock} {selectedItem.unit?.symbol || 'pcs'}
                       </span>
                     </div>
                   )}
                   {isSerialized && (
                     <div>
-                      <span style={{ color: '#64748B' }}>In Hub: </span>
+                      <span style={{ color: 'var(--text-secondary)' }}>In Hub: </span>
                       <span style={{ fontWeight: 700, color: '#7C3AED' }}>{serials.length} Serial(s)</span>
                     </div>
                   )}
@@ -420,16 +411,8 @@ export const AdjustmentModal: React.FC<AdjustmentModalProps> = ({
 
             {/* BULK ADJUSTMENT CONTROLS */}
             {!isSerialized && selectedItem && (
-              <div
-                style={{
-                  border: '1px solid #E2E8F0',
-                  borderRadius: '6px',
-                  padding: '12px 14px',
-                  backgroundColor: '#FFFFFF',
-                  marginBottom: '1rem',
-                }}
-              >
-                <h4 style={{ margin: '0 0 10px 0', fontSize: '0.85rem', fontWeight: 600, color: '#1E293B' }}>
+              <div className="adjustment-bulk-box">
+                <h4 style={{ margin: '0 0 10px 0', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                   Bulk Quantity Correction
                 </h4>
 
@@ -458,25 +441,9 @@ export const AdjustmentModal: React.FC<AdjustmentModalProps> = ({
 
             {/* SERIALIZED MULTI-SN ADJUSTMENT CONTROLS */}
             {isSerialized && (
-              <div
-                style={{
-                  border: '1px solid #E2E8F0',
-                  borderRadius: '6px',
-                  overflow: 'hidden',
-                  marginBottom: '1rem',
-                }}
-              >
-                <div
-                  style={{
-                    padding: '8px 12px',
-                    backgroundColor: '#F8FAFC',
-                    borderBottom: '1px solid #E2E8F0',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                >
-                  <span style={{ fontWeight: 600, fontSize: '0.85rem', color: '#1E293B' }}>
+              <div className="adjustment-serial-box">
+                <div className="adjustment-serial-header">
+                  <span style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
                     Select Serials to Update ({serials.length} located in hub)
                   </span>
                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
@@ -507,19 +474,19 @@ export const AdjustmentModal: React.FC<AdjustmentModalProps> = ({
                   </div>
                 </div>
 
-                <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                <div className="adjustment-serial-scroll">
                   {isLoadingSerials ? (
-                    <div style={{ padding: '1.5rem', textAlign: 'center', color: '#64748B', fontSize: '0.85rem' }}>
+                    <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
                       Loading serials in warehouse...
                     </div>
                   ) : filteredSerials.length === 0 ? (
-                    <div style={{ padding: '1.5rem', textAlign: 'center', color: '#94A3B8', fontSize: '0.85rem' }}>
+                    <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
                       No matching serials currently in this warehouse hub.
                     </div>
                   ) : (
                     <table className="data-table" style={{ margin: 0, fontSize: '0.85rem' }}>
                       <thead>
-                        <tr style={{ position: 'sticky', top: 0, backgroundColor: '#F1F5F9', zIndex: 1 }}>
+                        <tr className="adjustment-sticky-th">
                           <th style={{ width: '35px' }}></th>
                           <th>Serial Number</th>
                           <th style={{ width: '130px' }}>Current State</th>

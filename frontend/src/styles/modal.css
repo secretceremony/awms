@@ -166,3 +166,67 @@
     max-height: calc(100vh - 120px);
   }
 }
+
+/* Excel Import Components */
+.excel-import-success-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background-color: #ECFDF5;
+  border: 1px solid #A7F3D0;
+  border-radius: var(--border-radius-sm);
+}
+
+.excel-import-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 12px;
+  padding: 16px;
+  background-color: var(--accent-secondary-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--border-radius-sm);
+  font-size: 0.85rem;
+}
+
+.excel-import-template-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background-color: var(--accent-primary-light);
+  border: 1px solid #BFDBFE;
+  border-radius: var(--border-radius-sm);
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.excel-import-dropzone {
+  border: 2px dashed var(--card-border);
+  border-radius: var(--border-radius-sm);
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  background-color: var(--accent-secondary-bg);
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.excel-import-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background-color: var(--accent-secondary-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--border-radius-sm);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.excel-import-table-container {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--card-border);
+  border-radius: var(--border-radius-sm);
+}
+
