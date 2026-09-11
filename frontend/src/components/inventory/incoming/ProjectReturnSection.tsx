@@ -153,15 +153,7 @@ export const ProjectReturnSection: React.FC<ProjectReturnSectionProps> = ({
 
       {/* Project Assets Picker */}
       {returnForm.projectId && (
-        <div
-          style={{
-            marginTop: '1rem',
-            border: '1px solid var(--card-border, #E2E8F0)',
-            borderRadius: 'var(--border-radius-sm, 8px)',
-            padding: '1rem',
-            backgroundColor: 'var(--accent-secondary-bg, #F8FAFC)',
-          }}
-        >
+        <div className="project-return-panel">
           <div
             style={{
               display: 'flex',
@@ -175,7 +167,7 @@ export const ProjectReturnSection: React.FC<ProjectReturnSectionProps> = ({
                 margin: 0,
                 fontSize: '0.9rem',
                 fontWeight: 700,
-                color: 'var(--text-primary, #1E293B)',
+                color: 'var(--text-primary)',
               }}
             >
               Project Inventory to Return
@@ -189,7 +181,7 @@ export const ProjectReturnSection: React.FC<ProjectReturnSectionProps> = ({
           </div>
 
           {isLoadingInventory ? (
-            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary, #64748B)' }}>
+            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
               Loading project inventory...
             </div>
           ) : projectInventory.length === 0 ? (
@@ -197,10 +189,10 @@ export const ProjectReturnSection: React.FC<ProjectReturnSectionProps> = ({
               style={{
                 textAlign: 'center',
                 padding: '2rem',
-                color: 'var(--text-secondary, #64748B)',
-                backgroundColor: 'var(--card-bg, #FFFFFF)',
+                color: 'var(--text-secondary)',
+                backgroundColor: 'var(--card-bg)',
                 borderRadius: '6px',
-                border: '1px dashed var(--card-border, #CBD5E1)',
+                border: '1px dashed var(--card-border)',
               }}
             >
               No inventory currently deployed at this project site.
@@ -214,20 +206,13 @@ export const ProjectReturnSection: React.FC<ProjectReturnSectionProps> = ({
                     style={{
                       fontSize: '0.8rem',
                       fontWeight: 700,
-                      color: 'var(--text-secondary, #475569)',
+                      color: 'var(--text-secondary)',
                       marginBottom: '6px',
                     }}
                   >
                     Bulk Materials
                   </div>
-                  <div
-                    style={{
-                      border: '1px solid var(--card-border, #E2E8F0)',
-                      borderRadius: '6px',
-                      backgroundColor: 'var(--card-bg, #FFFFFF)',
-                      overflow: 'hidden',
-                    }}
-                  >
+                  <div className="project-return-table-wrapper">
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
                       <thead>
                         <tr
@@ -338,10 +323,8 @@ export const ProjectReturnSection: React.FC<ProjectReturnSectionProps> = ({
                   </div>
 
                   <div
+                    className="project-return-table-wrapper"
                     style={{
-                      border: '1px solid var(--card-border, #E2E8F0)',
-                      borderRadius: '6px',
-                      backgroundColor: 'var(--card-bg, #FFFFFF)',
                       maxHeight: '240px',
                       overflowY: 'auto',
                     }}

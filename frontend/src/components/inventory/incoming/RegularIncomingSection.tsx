@@ -148,7 +148,7 @@ export const RegularIncomingSection: React.FC<RegularIncomingSectionProps> = ({
 
       {/* Staged Items List / Receipt Lines */}
       {stagedItems.length > 0 && (
-        <div style={{ marginBottom: '1.25rem' }}>
+        <div className="incoming-staged-box">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
             <span style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--text-primary)' }}>
               Receipt Items ({stagedItems.length} line(s) &bull;{' '}
@@ -157,7 +157,7 @@ export const RegularIncomingSection: React.FC<RegularIncomingSectionProps> = ({
             </span>
           </div>
 
-          <div style={{ border: '1px solid var(--card-border)', borderRadius: 'var(--border-radius-sm)', overflow: 'hidden' }}>
+          <div className="item-distribution-card">
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
               <thead>
                 <tr style={{ backgroundColor: 'var(--accent-secondary-bg)', borderBottom: '1px solid var(--card-border)', textAlign: 'left', color: 'var(--text-secondary)' }}>
@@ -236,7 +236,7 @@ export const RegularIncomingSection: React.FC<RegularIncomingSectionProps> = ({
       )}
 
       {/* Add Item Form Box */}
-      <div style={{ backgroundColor: 'var(--accent-secondary-bg)', border: '1px solid var(--card-border)', borderRadius: 'var(--border-radius)', padding: '12px 14px', marginBottom: '1rem' }}>
+      <div className="incoming-form-box">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
           <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
             {stagedItems.length > 0 ? '+ Add Another Item to Receipt' : 'Add Item to Receipt'}
@@ -287,7 +287,7 @@ export const RegularIncomingSection: React.FC<RegularIncomingSectionProps> = ({
 
         {/* Serial Entry Rows if active item is SERIALIZED */}
         {isActiveItemSerialized && (
-          <div style={{ border: '1px solid var(--card-border)', borderRadius: 'var(--border-radius-sm)', padding: '10px', backgroundColor: '#FFFFFF', marginTop: '8px', marginBottom: '8px' }}>
+          <div className="incoming-serial-box">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
               <span style={{ fontSize: '0.775rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                 Serial Numbers &amp; Condition Configuration

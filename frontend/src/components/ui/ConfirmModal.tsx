@@ -34,7 +34,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} maxWidth="450px">
-      <div className="modal-body" style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+      <Modal.Body style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
         <div
           style={{
             padding: '10px',
@@ -53,8 +53,8 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
         <div style={{ flexGrow: 1, fontSize: '0.9rem', color: '#374151', lineHeight: '1.4' }}>
           {message}
         </div>
-      </div>
-      <div className="modal-footer">
+      </Modal.Body>
+      <Modal.Footer>
         <Button variant="secondary" onClick={onClose} disabled={isLoading}>
           {cancelText}
         </Button>
@@ -65,7 +65,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
         >
           {finalConfirmText}
         </Button>
-      </div>
+      </Modal.Footer>
     </Modal>
   );
 };

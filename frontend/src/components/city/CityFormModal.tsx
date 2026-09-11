@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, FormField, Input, Button } from '../ui/index.js';
 import { apiClient } from '../../api/client.js';
+import { useToast } from '../../context/ToastContext.js';
 
 export interface City {
   id: number;
@@ -23,6 +24,7 @@ export const CityFormModal: React.FC<CityFormModalProps> = ({
   city,
   onSuccess,
 }) => {
+  const { showToast } = useToast();
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -60,15 +62,19 @@ export const CityFormModal: React.FC<CityFormModalProps> = ({
 
       if (city) {
         await apiClient.patch(`/cities/${city.id}`, payload);
+        showToast({ type: 'success', message: `City "${payload.name}" updated successfully` });
       } else {
         await apiClient.post('/cities', payload);
+        showToast({ type: 'success', message: `City "${payload.name}" created successfully` });
       }
 
       onSuccess();
       onClose();
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'Failed to save city configuration');
+      const msg = err.message || 'Failed to save city configuration';
+      setErrorMsg(msg);
+      showToast({ type: 'error', message: msg });
     } finally {
       setIsSaving(false);
     }
@@ -82,7 +88,7 @@ export const CityFormModal: React.FC<CityFormModalProps> = ({
       maxWidth="480px"
     >
       <form onSubmit={handleSubmit}>
-        <div className="modal-body">
+        <Modal.Body>
           {errorMsg && <div className="alert-error" style={{ marginBottom: '1rem' }}>{errorMsg}</div>}
 
           <FormField label="City Name" required>
@@ -106,16 +112,16 @@ export const CityFormModal: React.FC<CityFormModalProps> = ({
               style={{ textTransform: 'uppercase', fontFamily: 'monospace', fontWeight: 700 }}
             />
           </FormField>
-        </div>
+        </Modal.Body>
 
-        <div className="modal-footer">
+        <Modal.Footer>
           <Button variant="secondary" type="button" onClick={onClose} disabled={isSaving}>
             Cancel
           </Button>
           <Button variant="primary" type="submit" isLoading={isSaving}>
             {city ? 'Save Changes' : 'Create City'}
           </Button>
-        </div>
+        </Modal.Footer>
       </form>
     </Modal>
   );

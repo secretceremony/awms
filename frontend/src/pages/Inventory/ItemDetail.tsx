@@ -139,18 +139,7 @@ export const ItemDetail = () => {
       header: 'Serial Number',
       key: 'serialNumber',
       render: (s) => (
-        <code
-          style={{
-            backgroundColor: '#F3F4F6',
-            padding: '2px 6px',
-            borderRadius: '4px',
-            border: '1px solid #E5E7EB',
-            fontSize: '12px',
-            fontFamily: 'monospace',
-            fontWeight: 700,
-            color: '#1E293B',
-          }}
-        >
+        <code className="serial-code-badge">
           {s.serialNumber}
         </code>
       ),
@@ -236,32 +225,32 @@ export const ItemDetail = () => {
 
       {/* Item Master Summary Card */}
       <Card title="Item Master Overview">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: '1rem' }}>
+        <div className="item-overview-grid">
           <div>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase' }}>Brand</span>
-            <p style={{ fontWeight: 600, color: '#1E293B', margin: '4px 0 0' }}>{item.brand || '—'}</p>
+            <span className="item-stat-label">Brand</span>
+            <p className="item-stat-value">{item.brand || '—'}</p>
           </div>
           <div>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase' }}>Model Number</span>
-            <p style={{ fontWeight: 600, color: '#1E293B', margin: '4px 0 0' }}>{item.modelNumber || '—'}</p>
+            <span className="item-stat-label">Model Number</span>
+            <p className="item-stat-value">{item.modelNumber || '—'}</p>
           </div>
           <div>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase' }}>Material Type</span>
+            <span className="item-stat-label">Material Type</span>
             <div style={{ marginTop: '4px' }}>
               <StatusBadge type="material" status={item.materialType || 'MAIN_MATERIAL'} />
             </div>
           </div>
           <div>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase' }}>Tracking Type</span>
+            <span className="item-stat-label">Tracking Type</span>
             <div style={{ marginTop: '4px' }}><StatusBadge type="tracking" status={item.trackingType} /></div>
           </div>
           <div>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase' }}>Unit of Measure</span>
-            <p style={{ fontWeight: 600, color: '#1E293B', margin: '4px 0 0' }}>{unitDisplay}</p>
+            <span className="item-stat-label">Unit of Measure</span>
+            <p className="item-stat-value">{unitDisplay}</p>
           </div>
           <div>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase' }}>Total Quantity</span>
-            <p style={{ fontWeight: 800, fontSize: '1.1rem', color: '#2250A1', margin: '2px 0 0' }}>
+            <span className="item-stat-label">Total Quantity</span>
+            <p className="item-stat-value-highlight">
               {totalStock} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: '#64748B' }}>{unitDisplay}</span>
             </p>
           </div>
@@ -272,10 +261,10 @@ export const ItemDetail = () => {
       {item.trackingType === 'BULK' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {/* Warehouse Stocks Distribution */}
-          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '6px', overflow: 'hidden' }}>
-            <div style={{ padding: '12px 16px', backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="item-distribution-card">
+            <div className="item-distribution-header">
               <Warehouse size={18} color="#2250A1" />
-              <h3 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: '#1E293B' }}>
+              <h3 className="item-distribution-title">
                 Warehouse Stock Distribution ({warehouseBalances.reduce((s, w) => s + w.quantity, 0)} {unitDisplay})
               </h3>
             </div>
@@ -320,10 +309,10 @@ export const ItemDetail = () => {
 
           {/* Project Site Allocations if deployed */}
           {projectBalances.length > 0 && (
-            <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '6px', overflow: 'hidden' }}>
-              <div style={{ padding: '12px 16px', backgroundColor: '#F0F9FF', borderBottom: '1px solid #BAE6FD', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="item-distribution-card">
+              <div className="item-distribution-header header-alt">
                 <Briefcase size={18} color="#0284C7" />
-                <h3 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: '#0369A1' }}>
+                <h3 className="item-distribution-title title-alt">
                   Client Project Site Allocations ({projectBalances.reduce((s, p) => s + p.quantity, 0)} {unitDisplay})
                 </h3>
               </div>
@@ -369,29 +358,29 @@ export const ItemDetail = () => {
       {item.trackingType === 'SERIALIZED' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {/* Quick Metrics */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: '10px' }}>
-            <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '6px', padding: '10px 14px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748B' }}>Total Devices</span>
-              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1E293B', marginTop: '2px' }}>
+          <div className="item-metrics-grid">
+            <div className="item-metric-card">
+              <span className="item-stat-label">Total Devices</span>
+              <div className="item-metric-value">
                 {balanceData?.totalQuantity ?? 0}
               </div>
             </div>
-            <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '6px', padding: '10px 14px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#059669' }}>In Warehouse (Ready)</span>
-              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#059669', marginTop: '2px' }}>
+            <div className="item-metric-card">
+              <span className="item-stat-label" style={{ color: '#059669' }}>In Warehouse (Ready)</span>
+              <div className="item-metric-value value-success">
                 {balanceData?.standbyGoodQuantity ?? balanceData?.inWarehouseQuantity ?? 0}
               </div>
             </div>
-            <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '6px', padding: '10px 14px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#2250A1' }}>Deployed to Sites</span>
-              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#2250A1', marginTop: '2px' }}>
+            <div className="item-metric-card">
+              <span className="item-stat-label" style={{ color: '#2250A1' }}>Deployed to Sites</span>
+              <div className="item-metric-value value-primary">
                 {balanceData?.deployedQuantity ?? 0}
               </div>
             </div>
             {(balanceData?.underRepairQuantity ?? 0) > 0 && (
-              <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '6px', padding: '10px 14px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#DC2626' }}>Under Repair</span>
-                <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#DC2626', marginTop: '2px' }}>
+              <div className="item-metric-card card-danger">
+                <span className="item-stat-label" style={{ color: '#DC2626' }}>Under Repair</span>
+                <div className="item-metric-value value-danger">
                   {balanceData?.underRepairQuantity}
                 </div>
               </div>
@@ -399,10 +388,10 @@ export const ItemDetail = () => {
           </div>
 
           {/* Serialized Item Serials List */}
-          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '6px', padding: '1rem' }}>
+          <div className="item-distribution-card" style={{ padding: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
               <Boxes size={18} color="#2250A1" />
-              <h3 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: '#1E293B' }}>
+              <h3 className="item-distribution-title">
                 Current Serialized Assets &amp; Allocations
               </h3>
             </div>

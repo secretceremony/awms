@@ -111,7 +111,7 @@ export const ShippingLabelDetailModal: React.FC<ShippingLabelDetailModalProps> =
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Shipping Label Document Preview" maxWidth="720px">
-      <div className="modal-body" style={{ maxHeight: '74vh', overflowY: 'auto' }}>
+      <Modal.Body style={{ maxHeight: '74vh', overflowY: 'auto' }}>
         {/* Fragile Warning Notice */}
         {shippingLabel.isFragile && (
           <div
@@ -210,9 +210,9 @@ export const ShippingLabelDetailModal: React.FC<ShippingLabelDetailModalProps> =
             </div>
           )}
         </div>
-      </div>
+      </Modal.Body>
 
-      <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+      <Modal.Footer style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
         <Button variant="secondary" onClick={onClose}>
           Close
         </Button>
@@ -234,7 +234,7 @@ export const ShippingLabelDetailModal: React.FC<ShippingLabelDetailModalProps> =
             <Printer size={16} /> Print (150x100mm)
           </Button>
         </div>
-      </div>
+      </Modal.Footer>
     </Modal>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, FormField, Input, Select, Button, ConfirmModal } from '../ui/index.js';
 import { apiClient } from '../../api/client.js';
+import { useToast } from '../../context/ToastContext.js';
 
 export interface Warehouse {
   id: number;
@@ -33,6 +34,7 @@ export const WarehouseFormModal: React.FC<WarehouseFormModalProps> = ({
   warehouse,
   onSuccess,
 }) => {
+  const { showToast } = useToast();
   const [cities, setCities] = useState<CityOption[]>([]);
   const [formData, setFormData] = useState({
     name: '',
@@ -131,19 +133,23 @@ export const WarehouseFormModal: React.FC<WarehouseFormModalProps> = ({
           city: formData.city.trim(),
           location: formData.location.trim(),
         });
+        showToast({ type: 'success', message: `Warehouse "${formData.name}" updated successfully` });
       } else {
         await apiClient.post('/warehouses', {
           name: formData.name.trim(),
           city: formData.city.trim(),
           location: formData.location.trim(),
         });
+        showToast({ type: 'success', message: `Warehouse "${formData.name}" created successfully` });
       }
 
       onSuccess();
       onClose();
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'Failed to save warehouse');
+      const msg = err.message || 'Failed to save warehouse';
+      setErrorMsg(msg);
+      showToast({ type: 'error', message: msg });
     } finally {
       setIsSaving(false);
     }
@@ -158,7 +164,7 @@ export const WarehouseFormModal: React.FC<WarehouseFormModalProps> = ({
         maxWidth="520px"
       >
         <form onSubmit={handleSubmit}>
-          <div className="modal-body">
+          <Modal.Body>
             {errorMsg && (
               <div className="alert-error" style={{ marginBottom: '1rem' }}>
                 {errorMsg}
@@ -222,16 +228,16 @@ export const WarehouseFormModal: React.FC<WarehouseFormModalProps> = ({
                 onChange={(e) => setFormData({ ...formData, location: e.target.value })}
               />
             </FormField>
-          </div>
+          </Modal.Body>
 
-          <div className="modal-footer">
+          <Modal.Footer>
             <Button variant="secondary" type="button" onClick={handleRequestClose} disabled={isSaving}>
               Cancel
             </Button>
             <Button variant="primary" type="submit" isLoading={isSaving}>
               {warehouse ? 'Save Changes' : 'Create Warehouse'}
             </Button>
-          </div>
+          </Modal.Footer>
         </form>
       </Modal>
 

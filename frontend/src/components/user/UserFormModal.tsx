@@ -162,7 +162,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
         maxWidth="500px"
       >
         <form onSubmit={handleSubmit}>
-          <div className="modal-body">
+          <Modal.Body>
             {errorMsg && (
               <div className="alert-error">
                 {errorMsg}
@@ -214,16 +214,16 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
                 <option value="READ_ONLY">READ_ONLY (View-only operational browsing)</option>
               </Select>
             </FormField>
-          </div>
+          </Modal.Body>
 
-          <div className="modal-footer">
+          <Modal.Footer>
             <Button variant="secondary" type="button" onClick={handleRequestClose} disabled={isSaving}>
               Cancel
             </Button>
             <Button variant="primary" type="submit" isLoading={isSaving}>
               {user ? 'Save Changes' : 'Create User'}
             </Button>
-          </div>
+          </Modal.Footer>
         </form>
       </Modal>
 
