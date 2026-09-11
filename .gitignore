@@ -12,6 +12,11 @@ dist/
 agents.md
 PROGRESS.md
 .local-docs/
+report-support/
+
+# Build and coverage outputs
+build/
+coverage/
 
 # Untracked local assets & signatures
 .local-assets/

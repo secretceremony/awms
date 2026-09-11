@@ -114,86 +114,84 @@ awms/
 ├── docs/                     # Technical architecture & maintenance guides
 │   ├── SYSTEM_DESIGN.md      # Deep-dive system architecture, workflows, and decisions
 │   ├── DATABASE_DESIGN.md    # ERD diagram, tables, and relationship rules
-│   └── DEVELOPMENT_GUIDE.md  # Local setup, migration, testing, and debugging
+│   ├── DEVELOPMENT_GUIDE.md  # Local setup, migration, testing, and debugging
+│   ├── HANDOVER_GUIDE.md     # IT maintenance and feature modification guide
+│   └── DEPLOYMENT_GUIDE.md   # Production hosting, Nginx proxy, and Docker deployment
 ├── frontend/                 # React 19 Vite client application
-│   ├── src/
-│   │   ├── components/       # Shared UI library & domain modals
-│   │   ├── context/          # Auth and Toast context providers
-│   │   ├── pages/            # Inventory, Delivery, Master Data views
-│   │   ├── styles/           # Pure CSS design system & print styles
-│   │   └── utils/            # Permissions, datetime, and export utilities
+│   ├── Dockerfile            # Multi-stage production Nginx container
+│   ├── nginx.conf            # SPA routing & API reverse proxy configuration
+│   └── src/                  # Components, pages, and modular styles
 ├── backend/                  # NestJS REST API server
+│   ├── Dockerfile            # Multi-stage production Node.js container
 │   ├── prisma/               # Prisma schema and comprehensive seed script
 │   └── src/                  # Feature domain modules (stock-movements, delivery-orders, etc.)
+├── docker-compose.yml        # Multi-container orchestration (PostgreSQL + API + Frontend)
 ├── .env.example              # Environment variables template
 └── package.json              # Monorepo workspace configuration
 ```
 
 ---
 
-## 🚀 Getting Started
+## ⚡ Quick Start (Docker)
+
+To run the entire platform immediately with zero host dependencies:
+
+```bash
+# 1. Clone repository & enter directory
+git clone https://github.com/secretceremony/awms.git
+cd awms
+
+# 2. Prepare environment file
+cp .env.example .env
+
+# 3. Build & start all containers
+docker compose up -d --build
+
+# 4. Apply database schema and seed initial users
+docker compose exec backend npx prisma migrate deploy
+docker compose exec backend npm run seed
+```
+
+- **Web Application**: [http://localhost](http://localhost)
+- **API Health**: [http://localhost:3000](http://localhost:3000)
+
+Default Super Admin Login:
+- **Email**: `admin.logistics@alssa.com`
+- **Password**: `AlssaAdmin2026!`
+
+---
+
+## 🚀 Local Development (Without Docker)
 
 ### Prerequisites
 - **Node.js**: `v20.x` or `v22.x` (LTS)
 - **npm**: `v10.x` or later
 - **PostgreSQL**: `15.x` – `17.x`
 
-### Installation
+### Setup & Running
 ```bash
-# 1. Clone repository
-git clone https://github.com/secretceremony/awms.git
-cd awms
-
-# 2. Install dependencies for all workspaces
+# 1. Install dependencies across both workspaces
 npm install
-```
 
----
-
-## ⚙️ Environment Configuration
-
-Copy the template configuration file into `backend/.env`:
-
-```bash
+# 2. Configure backend environment
 cp .env.example backend/.env
-```
+# (Configure your local DATABASE_URL in backend/.env)
 
-Configure the following variables in `backend/.env`:
-```ini
-PORT=3000
-NODE_ENV=development
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/awms?schema=public"
-JWT_SECRET="your-secure-random-32-character-secret"
-JWT_EXPIRATION="8h"
-FRONTEND_URL="http://localhost:5173"
-
-# Seeding parameters
-SEED_ADMIN_EMAIL="admin.logistics@alssa.com"
-SEED_ADMIN_PASSWORD="YourSecurePassword2026!"
-```
-
-### Database Migration & Seeding
-```bash
+# 3. Initialize database
 cd backend
 npx prisma migrate dev --name init
 npx prisma generate
 npm run seed
 cd ..
-```
 
----
-
-## 💻 Running Instructions
-
-### Development Mode
-From the root directory:
-```bash
+# 4. Start frontend and backend concurrently
 npm run dev
 ```
+
 - **Frontend Client**: [http://localhost:5173](http://localhost:5173)
 - **Backend API**: [http://localhost:3000](http://localhost:3000)
 
-### Testing & Monorepo Build
+### Testing & Builds
 ```bash
 # Run backend test suite
 npm test --workspace=backend
@@ -204,13 +202,17 @@ npm run build
 
 ---
 
-## 📚 Documentation Links
+## 📚 Documentation
 
-Detailed technical documents for developers and system maintainers:
-- 🏢 [**Company IT Handover & Maintenance Guide**](docs/HANDOVER_GUIDE.md): Practical operations, modifications, and safety checklists.
-- 📐 [**System Design & Architecture**](docs/SYSTEM_DESIGN.md): Workflows, component patterns, and core design rationale.
-- 🗄️ [**Database Design & ERD**](docs/DATABASE_DESIGN.md): Entity relationships, constraints, and business invariants.
-- 🛠️ [**Developer & IT Operations Guide**](docs/DEVELOPMENT_GUIDE.md): Setup, testing, migrations, and troubleshooting.
+Comprehensive technical documentation for developers, IT maintainers, and system operators:
+
+| Document | Purpose & Scope | Link |
+| :--- | :--- | :---: |
+| **System Design** | Architecture, workflows, component layers, and core design rationale | [Read System Design](docs/SYSTEM_DESIGN.md) |
+| **Database Design** | Entity Relationship Diagram (ERD), tables, and business invariants | [Read Database Design](docs/DATABASE_DESIGN.md) |
+| **Development Guide** | Local workstation setup, test execution, migrations, and debugging | [Read Development Guide](docs/DEVELOPMENT_GUIDE.md) |
+| **Handover Guide** | IT routine maintenance, feature modification cheat-sheet, and safety checks | [Read Handover Guide](docs/HANDOVER_GUIDE.md) |
+| **Deployment Guide** | Production hosting options: Docker, Nginx reverse proxy, and SSL setup | [Read Deployment Guide](docs/DEPLOYMENT_GUIDE.md) |
 
 ---
 
