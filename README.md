@@ -207,6 +207,7 @@ npm run build
 ## 📚 Documentation Links
 
 Detailed technical documents for developers and system maintainers:
+- 🏢 [**Company IT Handover & Maintenance Guide**](docs/HANDOVER_GUIDE.md): Practical operations, modifications, and safety checklists.
 - 📐 [**System Design & Architecture**](docs/SYSTEM_DESIGN.md): Workflows, component patterns, and core design rationale.
 - 🗄️ [**Database Design & ERD**](docs/DATABASE_DESIGN.md): Entity relationships, constraints, and business invariants.
 - 🛠️ [**Developer & IT Operations Guide**](docs/DEVELOPMENT_GUIDE.md): Setup, testing, migrations, and troubleshooting.
