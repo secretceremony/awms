@@ -1,62 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { PaginatedTable, type Column } from '../../components/PaginatedTable.js';
+import { useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../api/client.js';
-import { Eye, Plus, Layers, Edit2, SlidersHorizontal, Download, Upload, Calendar, Loader2 } from 'lucide-react';
-import { Button, PageHeader, Select, StatusBadge, SegmentedControl } from '../../components/ui/index.js';
+import { Plus, Layers, Download, Upload, Calendar, Loader2 } from 'lucide-react';
+import { Button, PageHeader } from '../../components/ui/index.js';
 import { ItemFormModal, type Item } from '../../components/inventory/ItemFormModal.js';
 import { InitialStockModal } from '../../components/inventory/InitialStockModal.js';
 import { AdjustmentModal } from '../../components/history/AdjustmentModal.js';
 import { ExcelImportModal } from '../../components/common/ExcelImportModal.js';
 import { MonthlyReportModal } from '../../components/common/MonthlyReportModal.js';
-import { FilterBar, FilterPanel, type ActiveFilter } from '../../components/filters/index.js';
+import type { ActiveFilter } from '../../components/filters/index.js';
 import { downloadAllDataWorkbook } from '../../utils/exportWorkbook.js';
 import { useAuth } from '../../context/AuthContext.js';
 import { useToast } from '../../context/ToastContext.js';
 import { canManageInventory } from '../../utils/permissions.js';
-
-
-interface StockRow {
-  id: string;
-  itemId: number;
-  warehouseId?: number | null;
-  registeredDate: string;
-  location: string;
-  locationType: 'WAREHOUSE' | 'PROJECT';
-  itemName: string;
-  materialType?: string | null;
-  brand: string | null;
-  modelNumber: string | null;
-  serialNumber: string;
-  trackingType: 'BULK' | 'SERIALIZED';
-  quantity: number;
-  unit: string;
-  unitSymbol: string;
-  condition: string;
-  currentStatus: string;
-  notes: string;
-}
-
-interface ItemSummaryData {
-  id: number;
-  name: string;
-  materialType?: string | null;
-  brand: string | null;
-  modelNumber: string | null;
-  trackingType: 'BULK' | 'SERIALIZED';
-  unit: { name: string; symbol: string | null };
-  totalWarehouseQuantity: number;
-  totalDeployedQuantity: number;
-  totalUnderRepairQuantity: number;
-  totalStandbyBadQuantity: number;
-  totalAll: number;
-}
+import {
+  StockSummaryBar,
+  StockFilterBar,
+  StockTable,
+  type ItemSummaryData,
+  type WarehouseOption,
+} from '../../components/inventory/stock/index.js';
 
 export const StockList: React.FC = () => {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const canManage = canManageInventory(user?.role);
+  const { showToast } = useToast();
 
   // URL state
   const search = searchParams.get('search') || '';
@@ -66,7 +35,7 @@ export const StockList: React.FC = () => {
   const statusFilter = searchParams.get('status') || 'all';
 
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
-  const [warehouses, setWarehouses] = useState<{ id: number; name: string; cityCode?: string | null }[]>([]);
+  const [warehouses, setWarehouses] = useState<WarehouseOption[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Item Summary state
@@ -78,7 +47,6 @@ export const StockList: React.FC = () => {
   const [isInitialStockModalOpen, setIsInitialStockModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isMonthlyReportModalOpen, setIsMonthlyReportModalOpen] = useState(false);
-  const { showToast } = useToast();
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
   const [adjustContext, setAdjustContext] = useState<{ itemId: number | null; warehouseId: number | null }>({
     itemId: null,
@@ -149,6 +117,7 @@ export const StockList: React.FC = () => {
           setItemSummary({
             id: fullItem.id,
             name: fullItem.name,
+            materialType: fullItem.materialType,
             brand: fullItem.brand,
             modelNumber: fullItem.modelNumber,
             trackingType: fullItem.trackingType,
@@ -237,174 +206,9 @@ export const StockList: React.FC = () => {
     }
   };
 
-  const columns: Column<StockRow>[] = [
-    {
-      header: 'Item & Model',
-      key: 'itemName',
-      render: (r) => (
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-            <span
-              className={`badge-pill ${
-                r.trackingType === 'SERIALIZED' ? 'tracking-serialized' : 'tracking-bulk'
-              } badge-sm`}
-            >
-              {r.trackingType === 'SERIALIZED' ? 'SERIAL' : 'BULK'}
-            </span>
-            <StatusBadge type="material" status={r.materialType || 'MAIN_MATERIAL'} size="sm" />
-            <span style={{ fontWeight: 700, color: '#1E293B' }}>{r.itemName}</span>
-          </div>
-          {(r.brand || r.modelNumber) && (
-            <div style={{ fontSize: '0.725rem', color: '#64748B', marginTop: '2px' }}>
-              {r.brand && `${r.brand} `}
-              {r.modelNumber && `[MN: ${r.modelNumber}]`}
-            </div>
-          )}
-        </div>
-      ),
-    },
-    {
-      header: 'Serial Number',
-      key: 'serialNumber',
-      render: (r) =>
-        r.serialNumber && r.serialNumber !== '-' ? (
-          <span
-            style={{
-              fontFamily: 'monospace',
-              fontWeight: 700,
-              color: '#2250A1',
-              backgroundColor: '#EFF6FF',
-              padding: '2px 6px',
-              borderRadius: '4px',
-              border: '1px solid #BFDBFE',
-              fontSize: '0.8rem',
-            }}
-          >
-            {r.serialNumber}
-          </span>
-        ) : (
-          <span style={{ color: '#94A3B8' }}>—</span>
-        ),
-    },
-    {
-      header: 'Current Location',
-      key: 'location',
-      render: (r) => (
-        <span style={{ fontWeight: 600, color: '#334155' }}>
-          {r.location || '—'}
-        </span>
-      ),
-    },
-    {
-      header: 'Available Qty',
-      key: 'quantity',
-      render: (r) => (
-        <span style={{ fontWeight: 700, color: '#1E293B' }}>
-          {r.quantity}{' '}
-          <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#64748B' }}>
-            {r.unitSymbol || r.unit || 'pcs'}
-          </span>
-        </span>
-      ),
-    },
-    {
-      header: 'Condition',
-      key: 'condition',
-      render: (r) =>
-        r.trackingType === 'SERIALIZED' && r.condition && r.condition !== '-' ? (
-          <StatusBadge status={r.condition} size="sm" />
-        ) : (
-          <span style={{ color: '#94A3B8' }}>—</span>
-        ),
-    },
-    {
-      header: 'Stock Status',
-      key: 'currentStatus',
-      render: (r) => (
-        <StatusBadge
-          status={r.currentStatus}
-          size="sm"
-        />
-      ),
-    },
-    {
-      header: 'Registered',
-      key: 'registeredDate',
-      render: (r) => (
-        <span style={{ fontSize: '0.75rem', color: '#64748B' }}>
-          {new Date(r.registeredDate).toLocaleDateString('en-GB', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-          })}
-        </span>
-      ),
-    },
-    {
-      header: 'Actions',
-      key: 'actions',
-      render: (r) => (
-        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/inventory/item/${r.itemId}`);
-            }}
-            title="View Item Master Details"
-            style={{ padding: '3px 6px' }}
-          >
-            <Eye size={14} />
-          </Button>
-
-          {canManage && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleEditItem(r.itemId);
-              }}
-              title="Edit Item Master"
-              style={{ padding: '3px 6px' }}
-            >
-              <Edit2 size={14} />
-            </Button>
-          )}
-
-          {canManage && r.locationType === 'WAREHOUSE' && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                const wh = warehouses.find(
-                  (w) => r.location.includes(w.name) || (w.cityCode && r.location.includes(w.cityCode)),
-                );
-                setAdjustContext({
-                  itemId: r.itemId,
-                  warehouseId: r.warehouseId || wh?.id || null,
-                });
-                setIsAdjustModalOpen(true);
-              }}
-              title="Adjust Physical Balance / Condition"
-              style={{ padding: '3px 6px' }}
-            >
-              <SlidersHorizontal size={14} />
-            </Button>
-          )}
-        </div>
-      ),
-    },
-  ];
-
-  const exactMatchClassName = (r: StockRow) => {
-    const trimmed = search.trim();
-    if (trimmed && r.serialNumber && r.serialNumber.toLowerCase() === trimmed.toLowerCase()) {
-      return 'row-exact-match';
-    }
-    return '';
+  const handleAdjustStock = (context: { itemId: number; warehouseId: number | null }) => {
+    setAdjustContext(context);
+    setIsAdjustModalOpen(true);
   };
 
   return (
@@ -449,6 +253,7 @@ export const StockList: React.FC = () => {
                   variant="secondary"
                   size="sm"
                   onClick={() => setIsInitialStockModalOpen(true)}
+                  title="Import initial stock"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 >
                   <Layers size={15} /> Initial Stock
@@ -470,184 +275,39 @@ export const StockList: React.FC = () => {
         }
       />
 
-      {/* Primary Search & Tracking Filter Bar */}
-      <FilterBar
-        searchValue={search}
-        onSearchChange={(val) => updateFilters({ search: val })}
-        searchPlaceholder="Search item name, brand, model, or scan SN..."
-        primaryFilter={
-          <div style={{ width: '280px' }}>
-            <SegmentedControl
-              options={[
-                { value: 'all', label: 'All Inventory' },
-                { value: 'bulk', label: 'Bulk Only' },
-                { value: 'serialized', label: 'Serialized' },
-              ]}
-              value={trackingType}
-              onChange={(val) => updateFilters({ trackingType: val })}
-            />
-          </div>
-        }
-        hasAdvancedFilters
+      {/* Primary Search & Filters */}
+      <StockFilterBar
+        search={search}
+        trackingType={trackingType}
+        materialType={materialType}
+        statusFilter={statusFilter}
+        warehouseId={warehouseId}
+        warehouses={warehouses}
         isAdvancedOpen={isAdvancedOpen}
         onToggleAdvanced={() => setIsAdvancedOpen(!isAdvancedOpen)}
-        activeFilters={activeFilters}
+        onUpdateFilters={updateFilters}
         onResetAll={handleResetAll}
+        activeFilters={activeFilters}
       />
 
-      <FilterPanel isOpen={isAdvancedOpen}>
-        <div style={{ width: '180px' }}>
-          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4B5563', marginBottom: '4px' }}>
-            Material Type
-          </label>
-          <Select
-            value={materialType}
-            onChange={(e) => updateFilters({ materialType: e.target.value })}
-          >
-            <option value="all">All Types</option>
-            <option value="MAIN_MATERIAL">Main Material</option>
-            <option value="CONSUMABLE">Consumable</option>
-            <option value="TOOLS">Tools</option>
-            <option value="HSE_MATERIAL">HSE Material</option>
-          </Select>
-        </div>
+      {/* Item Summary Bar */}
+      <StockSummaryBar itemSummary={itemSummary} />
 
-        <div style={{ width: '180px' }}>
-          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4B5563', marginBottom: '4px' }}>
-            Stock Status
-          </label>
-          <Select
-            value={statusFilter}
-            onChange={(e) => updateFilters({ status: e.target.value })}
-          >
-            <option value="all">All Statuses</option>
-            <option value="Normal">Normal Stock</option>
-            <option value="Low Stock">Low Stock</option>
-            <option value="Out of Stock">Out of Stock</option>
-            <option value="Deploy">Deploy (at Site)</option>
-            <option value="In Warehouse">In Warehouse</option>
-            <option value="Standby Good">Standby Good</option>
-            <option value="Standby Bad">Standby Bad</option>
-            <option value="Under Repair">Under Repair</option>
-          </Select>
-        </div>
-
-        <div style={{ width: '200px' }}>
-          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4B5563', marginBottom: '4px' }}>
-            Warehouse Location
-          </label>
-          <Select
-            value={warehouseId}
-            onChange={(e) => updateFilters({ warehouseId: e.target.value })}
-          >
-            <option value="">All Warehouses</option>
-            {warehouses.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.cityCode || w.name} ({w.name})
-              </option>
-            ))}
-          </Select>
-        </div>
-      </FilterPanel>
-
-      {/* Lightweight Item Aggregate Summary Strip (When searching an item) */}
-      {itemSummary && (
-        <div
-          style={{
-            backgroundColor: '#FFFFFF',
-            border: '1px solid #BFDBFE',
-            borderLeft: '4px solid #2250A1',
-            borderRadius: '6px',
-            padding: '10px 14px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '12px',
-          }}
-        >
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#2250A1', textTransform: 'uppercase' }}>
-                Item Summary
-              </span>
-              <span style={{ fontWeight: 700, color: '#1E293B', fontSize: '0.9rem' }}>
-                {itemSummary.name}
-              </span>
-              {itemSummary.brand && (
-                <span style={{ fontSize: '0.75rem', color: '#64748B' }}>
-                  ({itemSummary.brand})
-                </span>
-              )}
-            </div>
-            <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '2px' }}>
-              Tracking: <strong>{itemSummary.trackingType}</strong> &bull; Unit: {itemSummary.unit.name}
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.7rem', color: '#64748B', fontWeight: 600 }}>Total Inventory</div>
-              <div style={{ fontSize: '1rem', fontWeight: 800, color: '#1E293B' }}>
-                {itemSummary.totalAll}
-              </div>
-            </div>
-
-            <div style={{ width: '1px', height: '24px', backgroundColor: '#E2E8F0' }} />
-
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.7rem', color: '#059669', fontWeight: 600 }}>In Warehouse</div>
-              <div style={{ fontSize: '1rem', fontWeight: 800, color: '#059669' }}>
-                {itemSummary.totalWarehouseQuantity}
-              </div>
-            </div>
-
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.7rem', color: '#2250A1', fontWeight: 600 }}>Deployed (Site)</div>
-              <div style={{ fontSize: '1rem', fontWeight: 800, color: '#2250A1' }}>
-                {itemSummary.totalDeployedQuantity}
-              </div>
-            </div>
-
-            {itemSummary.trackingType === 'SERIALIZED' && (
-              <>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.7rem', color: '#DC2626', fontWeight: 600 }}>Under Repair</div>
-                  <div style={{ fontSize: '1rem', fontWeight: 800, color: '#DC2626' }}>
-                    {itemSummary.totalUnderRepairQuantity}
-                  </div>
-                </div>
-
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.7rem', color: '#DC2626', fontWeight: 600 }}>Standby Bad</div>
-                  <div style={{ fontSize: '1rem', fontWeight: 800, color: '#DC2626' }}>
-                    {itemSummary.totalStandbyBadQuantity}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Main Paginated Table */}
-      <PaginatedTable<StockRow>
-        fetchUrl="/stocks"
-        searchPlaceholder="Search item, brand, MN, SN..."
-        columns={columns}
-        rowClassName={exactMatchClassName}
-        onRowClick={(r) => navigate(`/inventory/item/${r.itemId}`)}
-        emptyMessage="No stock records found matching current search and filters."
-        extraParams={{
-          trackingType: trackingType !== 'all' ? trackingType : undefined,
-          materialType: materialType !== 'all' ? materialType : undefined,
-          warehouseId: warehouseId || undefined,
-          status: statusFilter !== 'all' ? statusFilter : undefined,
-          search: search || undefined,
-          _refresh: refreshKey,
-        }}
+      {/* Stock Table */}
+      <StockTable
+        search={search}
+        trackingType={trackingType}
+        materialType={materialType}
+        warehouseId={warehouseId}
+        statusFilter={statusFilter}
+        refreshKey={refreshKey}
+        warehouses={warehouses}
+        canManage={canManage}
+        onEditItem={handleEditItem}
+        onAdjustStock={handleAdjustStock}
       />
 
+      {/* Modals */}
       <ItemFormModal
         isOpen={isItemModalOpen}
         onClose={() => setIsItemModalOpen(false)}
