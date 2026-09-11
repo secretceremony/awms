@@ -19,9 +19,16 @@ import {
   Menu,
   X,
   Ruler,
+  MapPin,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { Button } from './ui/index.js';
-import { canAccessSettings, canAccessLogs, canManageUsers } from '../utils/permissions.js';
+import {
+  canAccessSettings,
+  canAccessLogs,
+  canManageUsers,
+  canViewReports,
+} from '../utils/permissions.js';
 
 export const DashboardLayout = () => {
   const { user, logout } = useAuth();
@@ -45,12 +52,7 @@ export const DashboardLayout = () => {
 
   const navItems = [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { type: 'header', label: 'Master Data' },
-    { to: '/clients', label: 'Clients', icon: Users },
-    { to: '/warehouses', label: 'Warehouses', icon: Warehouse },
-    { to: '/projects', label: 'Projects', icon: Briefcase },
-    { to: '/units', label: 'Units', icon: Ruler },
-    { type: 'header', label: 'Inventory' },
+    { type: 'header', label: 'Operations' },
     { to: '/inventory', label: 'Stock List', icon: Boxes },
     { to: '/inventory/incoming', label: 'Incoming', icon: ArrowDownLeft },
     { to: '/inventory/outgoing', label: 'Outgoing', icon: ArrowUpRight },
@@ -58,6 +60,18 @@ export const DashboardLayout = () => {
     { type: 'header', label: 'Deliveries' },
     { to: '/delivery-orders', label: 'Delivery Orders', icon: Truck },
     { to: '/shipping-labels', label: 'Shipping Labels', icon: Tag },
+    { type: 'header', label: 'Master Data' },
+    { to: '/clients', label: 'Clients', icon: Users },
+    { to: '/projects', label: 'Projects', icon: Briefcase },
+    { to: '/warehouses', label: 'Warehouses', icon: Warehouse },
+    { to: '/cities', label: 'Cities', icon: MapPin },
+    { to: '/units', label: 'Units', icon: Ruler },
+    ...(canViewReports(user?.role)
+      ? [
+          { type: 'header', label: 'Reports' },
+          { to: '/reports', label: 'Reports & Exports', icon: FileSpreadsheet },
+        ]
+      : []),
     ...((canAccessLogs(user?.role) || canAccessSettings(user?.role) || canManageUsers(user?.role))
       ? [{ type: 'header', label: 'System' }]
       : []),
